@@ -1,7 +1,9 @@
 """Unit тесты для engine/gpu_guard.py и engine/vram_monitor.py."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+
 from src.engine.gpu_guard import GPUGuard
 from src.engine.vram_monitor import VRAMMonitor
 
@@ -29,7 +31,7 @@ class TestVRAMMonitor:
         mock_pynvml.nvmlInit.return_value = None
         mock_pynvml.nvmlDeviceGetHandleByIndex.return_value = MagicMock()
 
-        monitor = VRAMMonitor(gpu_index=0)
+        VRAMMonitor(gpu_index=0)
 
         mock_pynvml.nvmlInit.assert_called_once()
         mock_pynvml.nvmlDeviceGetHandleByIndex.assert_called_once_with(0)

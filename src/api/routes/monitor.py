@@ -121,7 +121,7 @@ async def get_gpu_stats() -> GPUStatsResponse:
         )
 
     except Exception as e:
-        logger.error("Ошибка получения GPU stats", error=str(e), exc_info=True)
+        logger.exception("Ошибка получения GPU stats", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"GPU недоступен: {e}",

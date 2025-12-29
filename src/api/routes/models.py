@@ -163,12 +163,11 @@ async def register_model(request: RegisterModelRequest) -> ModelInfo:
         )
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             "Ошибка регистрации модели",
             model=request.name,
             provider=request.provider,
             error=str(e),
-            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

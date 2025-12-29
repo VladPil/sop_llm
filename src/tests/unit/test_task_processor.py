@@ -1,9 +1,12 @@
 """Unit тесты для services/task_processor.py."""
 
-import pytest
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.providers.base import GenerationResult, StreamChunk
 from src.services.task_processor import TaskProcessor
-from src.providers.base import GenerationParams, GenerationResult, StreamChunk
 
 
 @pytest.fixture
@@ -21,8 +24,7 @@ def mock_session_store() -> MagicMock:
 @pytest.fixture
 def mock_provider_registry() -> MagicMock:
     """Mock ProviderRegistry для тестирования."""
-    registry = MagicMock()
-    return registry
+    return MagicMock()
 
 
 @pytest.fixture
@@ -275,5 +277,3 @@ class TestTaskProcessor:
         assert processor._worker_task is None
 
 
-# Импортируем asyncio для sleep
-import asyncio

@@ -1,8 +1,8 @@
 """Pytest configuration для unit тестов."""
 
-import pytest
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 @pytest.fixture

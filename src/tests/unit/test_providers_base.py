@@ -1,6 +1,7 @@
 """Unit тесты для providers/base.py - Pydantic models и Protocol."""
 
 import pytest
+
 from src.providers.base import (
     GenerationParams,
     GenerationResult,

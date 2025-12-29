@@ -1,12 +1,11 @@
 """Unit тесты для API schemas."""
 
 import pytest
+
 from src.api.schemas.requests import CreateTaskRequest, RegisterModelRequest
 from src.api.schemas.responses import (
     ErrorResponse,
-    GenerationResult,
     HealthCheckResponse,
-    ModelInfo,
     TaskResponse,
 )
 

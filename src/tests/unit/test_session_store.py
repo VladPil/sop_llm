@@ -1,9 +1,10 @@
 """Unit тесты для services/session_store.py."""
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from src.services.session_store import SessionStore, SessionNotFoundError
+
+import pytest
+
+from src.services.session_store import SessionNotFoundError, SessionStore
 
 
 @pytest.fixture

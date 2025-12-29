@@ -1,9 +1,11 @@
 """Unit тесты для providers/registry.py."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.providers.registry import ProviderRegistry
+
+import pytest
+
 from src.providers.base import ModelInfo
+from src.providers.registry import ProviderRegistry
 
 
 class MockProvider:
@@ -14,11 +16,11 @@ class MockProvider:
         self.should_fail_health = should_fail_health
         self.cleanup_called = False
 
-    async def generate(self, prompt: str, params: any) -> any:  # noqa: ANN401
+    async def generate(self, prompt: str, params: any) -> any:
         """Mock generate."""
         return MagicMock()
 
-    async def generate_stream(self, prompt: str, params: any) -> any:  # noqa: ANN401
+    async def generate_stream(self, prompt: str, params: any) -> any:
         """Mock generate_stream."""
         yield MagicMock()
 
