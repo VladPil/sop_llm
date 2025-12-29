@@ -4,8 +4,9 @@
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 
 class ProviderCapability(str, Enum):
@@ -34,11 +35,12 @@ class BaseLLMProvider(ABC):
     - Dependency Inversion: зависимость от абстракции
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Инициализация провайдера.
 
         Args:
             config: Конфигурация провайдера (из providers.yaml)
+
         """
         self.config = config
         self._is_initialized = False
@@ -50,15 +52,17 @@ class BaseLLMProvider(ABC):
 
         Returns:
             Имя провайдера (например: "local", "claude", "lm_studio")
+
         """
 
     @property
     @abstractmethod
-    def capabilities(self) -> List[ProviderCapability]:
+    def capabilities(self) -> list[ProviderCapability]:
         """Список поддерживаемых возможностей провайдера.
 
         Returns:
             Список capabilities (например: [TEXT_GENERATION, STREAMING])
+
         """
 
     @abstractmethod
@@ -75,19 +79,20 @@ class BaseLLMProvider(ABC):
 
         Raises:
             Exception: Если инициализация не удалась
+
         """
 
     @abstractmethod
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: str = "text",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерация текста.
 
         Args:
@@ -116,14 +121,15 @@ class BaseLLMProvider(ABC):
         Raises:
             RuntimeError: Если провайдер не инициализирован
             Exception: При ошибке генерации
+
         """
 
     async def generate_streaming(
         self,
         prompt: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         **kwargs: Any,
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """Streaming генерация текста.
 
         Опциональный метод. Провайдеры без поддержки streaming
@@ -143,9 +149,11 @@ class BaseLLMProvider(ABC):
 
         Raises:
             NotImplementedError: Если streaming не поддерживается
+
         """
+        msg = f"Provider {self.provider_name} does not support streaming"
         raise NotImplementedError(
-            f"Provider {self.provider_name} does not support streaming"
+            msg
         )
 
     @abstractmethod
@@ -154,10 +162,11 @@ class BaseLLMProvider(ABC):
 
         Returns:
             True если провайдер доступен и готов к использованию
+
         """
 
     @abstractmethod
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получение статистики провайдера.
 
         Returns:
@@ -168,6 +177,7 @@ class BaseLLMProvider(ABC):
                 "total_requests": int,
                 ... другие метрики
             }
+
         """
 
     async def cleanup(self) -> None:
@@ -187,6 +197,7 @@ class BaseLLMProvider(ABC):
 
         Returns:
             True если провайдер поддерживает эту возможность
+
         """
         return capability in self.capabilities
 
@@ -196,5 +207,6 @@ class BaseLLMProvider(ABC):
 
         Returns:
             True если провайдер инициализирован
+
         """
         return self._is_initialized

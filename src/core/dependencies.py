@@ -3,27 +3,26 @@
 Dependency Injection для FastAPI.
 """
 
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Any
 
 from fastapi import Depends, Request
 
-from src.shared.cache.redis_cache import RedisCache
+from src.core.config import settings
 
 # Импорты из новой структуры
 from src.modules.llm.services import (
     EmbeddingManager,
-    embedding_manager,
     JSONFixerManager,
-    json_fixer,
     LLMManager,
-    llm_manager,
     ProviderManager,
-    provider_manager,
     UnifiedLLM,
+    embedding_manager,
+    json_fixer,
+    llm_manager,
+    provider_manager,
     unified_llm,
 )
-from src.core.config import settings
-
+from src.shared.cache.redis_cache import RedisCache
 
 # ==================== Manager Dependencies ====================
 
@@ -125,9 +124,9 @@ class TaskStorage:
 
     def __init__(self) -> None:
         """Инициализация хранилища."""
-        self._storage: Dict[str, Dict[str, Any]] = {}
+        self._storage: dict[str, dict[str, Any]] = {}
 
-    def get(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, task_id: str) -> dict[str, Any] | None:
         """Получить задачу по ID.
 
         Args:
@@ -139,7 +138,7 @@ class TaskStorage:
         """
         return self._storage.get(task_id)
 
-    def set(self, task_id: str, data: Dict[str, Any]) -> None:
+    def set(self, task_id: str, data: dict[str, Any]) -> None:
         """Сохранить задачу.
 
         Args:
@@ -171,7 +170,7 @@ class TaskStorage:
         """
         return task_id in self._storage
 
-    def get_all(self) -> Dict[str, Dict[str, Any]]:
+    def get_all(self) -> dict[str, dict[str, Any]]:
         """Получить все задачи.
 
         Returns:

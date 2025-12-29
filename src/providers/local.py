@@ -3,20 +3,20 @@
 Использует llama-cpp-python для inference GGUF моделей на GPU.
 """
 
-import os
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
+
 from llama_cpp import Llama, LlamaGrammar
+
 from config.settings import settings
+from src.engine.gpu_guard import get_gpu_guard
+from src.engine.vram_monitor import get_vram_monitor
 from src.providers.base import (
     GenerationParams,
     GenerationResult,
-    LLMProvider,
     ModelInfo,
     StreamChunk,
 )
-from src.engine.gpu_guard import get_gpu_guard
-from src.engine.vram_monitor import get_vram_monitor
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -47,6 +47,7 @@ class LocalProvider:
             model_path: Путь к GGUF файлу (если None, ищется в models_dir)
             context_window: Размер контекстного окна (если None, используется default)
             gpu_layers: Количество слоёв на GPU (-1 = все)
+
         """
         self.model_name = model_name
         self.context_window = context_window or settings.default_context_window
@@ -71,11 +72,10 @@ class LocalProvider:
                 msg = f"Модель '{model_name}' не найдена в {models_dir}"
                 raise FileNotFoundError(msg)
 
-        else:
-            # Проверить существование
-            if not Path(model_path).exists():
-                msg = f"Файл модели не найден: {model_path}"
-                raise FileNotFoundError(msg)
+        # Проверить существование
+        elif not Path(model_path).exists():
+            msg = f"Файл модели не найден: {model_path}"
+            raise FileNotFoundError(msg)
 
         self.model_path = model_path
 
@@ -145,6 +145,7 @@ class LocalProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         # Эксклюзивный доступ к GPU
         async with self._gpu_guard.acquire(task_id=f"generate-{self.model_name}"):
@@ -218,12 +219,13 @@ class LocalProvider:
                 )
 
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Ошибка генерации",
                     model=self.model_name,
                     error=str(e),
                 )
-                raise RuntimeError(f"Ошибка генерации: {e}") from e
+                msg = f"Ошибка генерации: {e}"
+                raise RuntimeError(msg) from e
 
     async def generate_stream(
         self,
@@ -241,6 +243,7 @@ class LocalProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         # Эксклюзивный доступ к GPU
         async with self._gpu_guard.acquire(task_id=f"stream-{self.model_name}"):
@@ -316,18 +319,20 @@ class LocalProvider:
                         yield StreamChunk(text=text)
 
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Ошибка streaming генерации",
                     model=self.model_name,
                     error=str(e),
                 )
-                raise RuntimeError(f"Ошибка streaming: {e}") from e
+                msg = f"Ошибка streaming: {e}"
+                raise RuntimeError(msg) from e
 
     async def get_model_info(self) -> ModelInfo:
         """Получить метаданные модели.
 
         Returns:
             Информация о модели
+
         """
         # VRAM usage (если модель загружена)
         vram_usage = None
@@ -362,6 +367,7 @@ class LocalProvider:
 
         Returns:
             True если модель доступна
+
         """
         try:
             # Проверить существование файла
@@ -374,7 +380,7 @@ class LocalProvider:
             return gpu_info is not None
 
         except Exception as e:
-            logger.error("Health check failed", model=self.model_name, error=str(e))
+            logger.exception("Health check failed", model=self.model_name, error=str(e))
             return False
 
     async def cleanup(self) -> None:
@@ -413,6 +419,7 @@ async def create_local_provider(
 
     Returns:
         LocalProvider instance
+
     """
     provider = LocalProvider(
         model_name=model_name,

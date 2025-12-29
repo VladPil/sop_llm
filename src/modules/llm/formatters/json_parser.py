@@ -5,7 +5,7 @@
 
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.modules.llm.formatters.base import BaseResponseParser
 
@@ -24,7 +24,7 @@ class JSONResponseParser(BaseResponseParser):
         self,
         response: str,
         expected_format: str = "text",
-        json_schema: Optional[Dict] = None,
+        json_schema: dict | None = None,
         **kwargs: Any,
     ) -> Any:
         """Парсинг ответа.
@@ -41,6 +41,7 @@ class JSONResponseParser(BaseResponseParser):
 
         Raises:
             ValueError: Если expected_format="json" но не удалось распарсить JSON
+
         """
         if expected_format != "json":
             return response
@@ -52,8 +53,9 @@ class JSONResponseParser(BaseResponseParser):
         try:
             parsed = json.loads(json_text)
         except json.JSONDecodeError as e:
+            msg = f"Invalid JSON in response: {e}\nText: {json_text[:200]}"
             raise ValueError(
-                f"Invalid JSON in response: {e}\nText: {json_text[:200]}"
+                msg
             )
 
         # Валидация по схеме (если предоставлена)
@@ -79,6 +81,7 @@ class JSONResponseParser(BaseResponseParser):
 
         Raises:
             ValueError: Если JSON не найден
+
         """
         # 1. Поиск markdown json block
         json_match = re.search(
@@ -113,7 +116,7 @@ class JSONResponseParser(BaseResponseParser):
 
         raise ValueError("No JSON found in response")
 
-    def _validate_schema(self, data: Any, schema: Dict) -> None:
+    def _validate_schema(self, data: Any, schema: dict) -> None:
         """Валидация JSON по схеме.
 
         Args:
@@ -122,6 +125,7 @@ class JSONResponseParser(BaseResponseParser):
 
         Raises:
             ValueError: Если данные не соответствуют схеме
+
         """
         try:
             from jsonschema import ValidationError, validate
@@ -132,4 +136,5 @@ class JSONResponseParser(BaseResponseParser):
         try:
             validate(instance=data, schema=schema)
         except ValidationError as e:
-            raise ValueError(f"JSON validation error: {e.message}")
+            msg = f"JSON validation error: {e.message}"
+            raise ValueError(msg)

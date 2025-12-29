@@ -5,13 +5,16 @@ Single Worker Architecture - обрабатывает задачи послед�
 """
 
 import asyncio
+import contextlib
 import uuid
 from typing import Any
+
 import httpx
+
+from config.settings import settings
 from src.providers.base import GenerationParams
 from src.providers.registry import get_provider_registry
 from src.services.session_store import SessionStore
-from config.settings import settings
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -35,6 +38,7 @@ class TaskProcessor:
 
         Args:
             session_store: Session store для управления задачами
+
         """
         self.session_store = session_store
         self.provider_registry = get_provider_registry()
@@ -67,10 +71,8 @@ class TaskProcessor:
         if self._worker_task:
             self._worker_task.cancel()
 
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._worker_task
-            except asyncio.CancelledError:
-                pass
 
         logger.info("TaskProcessor остановлен")
 
@@ -92,7 +94,7 @@ class TaskProcessor:
                 await self._process_task(task_id)
 
             except Exception as e:
-                logger.error("Ошибка в worker loop", error=str(e), exc_info=True)
+                logger.exception("Ошибка в worker loop", error=str(e))
                 await asyncio.sleep(1)  # Подождать перед следующей итерацией
 
         logger.info("Worker loop завершён")
@@ -102,6 +104,7 @@ class TaskProcessor:
 
         Args:
             task_id: ID задачи
+
         """
         logger.info("Начало обработки задачи", task_id=task_id)
 
@@ -127,7 +130,7 @@ class TaskProcessor:
                 provider = self.provider_registry.get(model_name)
             except KeyError:
                 error_msg = f"Модель '{model_name}' не зарегистрирована"
-                logger.error(error_msg, task_id=task_id)
+                logger.exception(error_msg, task_id=task_id)
                 await self._handle_task_failure(task_id, error_msg, session)
                 return
 
@@ -166,15 +169,14 @@ class TaskProcessor:
 
             except Exception as e:
                 error_msg = f"Ошибка генерации: {e}"
-                logger.error("Ошибка генерации", task_id=task_id, error=str(e), exc_info=True)
+                logger.exception("Ошибка генерации", task_id=task_id, error=str(e))
                 await self._handle_task_failure(task_id, error_msg, session)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Критическая ошибка обработки задачи",
                 task_id=task_id,
                 error=str(e),
-                exc_info=True,
             )
 
         finally:
@@ -193,6 +195,7 @@ class TaskProcessor:
             task_id: ID задачи
             error_msg: Сообщение об ошибке
             session: Данные сессии
+
         """
         await self.session_store.update_session_status(
             task_id,
@@ -219,6 +222,7 @@ class TaskProcessor:
             webhook_url: URL для callback
             status: Статус задачи
             data: Данные для отправки
+
         """
         logger.info("Отправка webhook", task_id=task_id, url=webhook_url, status=status)
 
@@ -255,7 +259,7 @@ class TaskProcessor:
                             raise
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Не удалось отправить webhook",
                 task_id=task_id,
                 url=webhook_url,
@@ -286,6 +290,7 @@ class TaskProcessor:
 
         Raises:
             ValueError: Если idempotency_key уже существует
+
         """
         # Проверить idempotency
         if idempotency_key:
@@ -350,9 +355,8 @@ def get_task_processor() -> TaskProcessor:
 
     Returns:
         Singleton TaskProcessor
-    """
-    global _task_processor_instance  # noqa: PLW0603
 
+    """
     if _task_processor_instance is None:
         msg = "TaskProcessor не инициализирован. Вызовите create_task_processor() сначала."
         raise RuntimeError(msg)
@@ -368,6 +372,7 @@ def create_task_processor(session_store: SessionStore) -> TaskProcessor:
 
     Returns:
         TaskProcessor instance
+
     """
     global _task_processor_instance  # noqa: PLW0603
 

@@ -4,11 +4,13 @@ Endpoints для управления моделями и provider registry.
 """
 
 from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
-from src.api.schemas.requests import RegisterModelRequest, UnregisterModelRequest
-from src.api.schemas.responses import ModelInfo, ModelsListResponse, ErrorResponse
+
+from src.api.schemas.requests import RegisterModelRequest
+from src.api.schemas.responses import ErrorResponse, ModelInfo, ModelsListResponse
+from src.providers import anthropic, local, openai, openai_compatible
 from src.providers.registry import get_provider_registry
-from src.providers import local, openai_compatible, anthropic, openai
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -18,7 +20,6 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 @router.get(
     "/",
-    response_model=ModelsListResponse,
     summary="Список моделей",
     description="Возвращает список всех зарегистрированных моделей",
 )
@@ -27,6 +28,7 @@ async def list_models() -> ModelsListResponse:
 
     Returns:
         ModelsListResponse со списком моделей и их метаданными
+
     """
     registry = get_provider_registry()
 
@@ -55,7 +57,6 @@ async def list_models() -> ModelsListResponse:
 
 @router.get(
     "/{model_name}",
-    response_model=ModelInfo,
     summary="Информация о модели",
     description="Возвращает детальную информацию о конкретной модели",
     responses={
@@ -74,6 +75,7 @@ async def get_model_info(model_name: str) -> ModelInfo:
 
     Raises:
         HTTPException: 404 если модель не найдена
+
     """
     registry = get_provider_registry()
 
@@ -102,7 +104,6 @@ async def get_model_info(model_name: str) -> ModelInfo:
 
 @router.post(
     "/register",
-    response_model=ModelInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Зарегистрировать модель",
     description="Динамически регистрирует новую модель в provider registry",
@@ -123,6 +124,7 @@ async def register_model(request: RegisterModelRequest) -> ModelInfo:
 
     Raises:
         HTTPException: 400 если конфигурация невалидна, 409 если уже зарегистрирована
+
     """
     registry = get_provider_registry()
 
@@ -196,6 +198,7 @@ async def unregister_model(
 
     Raises:
         HTTPException: 404 если модель не найдена
+
     """
     registry = get_provider_registry()
 
@@ -243,6 +246,7 @@ async def _create_provider(
 
     Raises:
         ValueError: Если provider_type неизвестен
+
     """
     if provider_type == "local":
         return await local.create_local_provider(

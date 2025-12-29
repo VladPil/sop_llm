@@ -24,26 +24,26 @@ from src.shared.errors.schemas import ErrorDetail, ErrorResponse
 __all__ = [
     # Base
     "AppException",
-    # Context
-    "trace_id_var",
-    "get_trace_id",
-    "set_trace_id",
-    # Domain errors
-    "NotFoundError",
-    "ValidationError",
     "ConflictError",
-    "ServiceUnavailableError",
-    "ModelNotLoadedError",
-    "ProviderUnavailableError",
-    "JSONParseError",
-    "JSONFixFailedError",
-    "MemoryExceededError",
-    "TaskNotFoundError",
-    # Handlers
-    "setup_exception_handlers",
     # Schemas
     "ErrorDetail",
     "ErrorResponse",
+    "JSONFixFailedError",
+    "JSONParseError",
+    "MemoryExceededError",
+    "ModelNotLoadedError",
+    # Domain errors
+    "NotFoundError",
+    "ProviderUnavailableError",
+    "ServiceUnavailableError",
+    "TaskNotFoundError",
+    "ValidationError",
+    "get_trace_id",
     # Decorators
     "safe_deco",
+    "set_trace_id",
+    # Handlers
+    "setup_exception_handlers",
+    # Context
+    "trace_id_var",
 ]

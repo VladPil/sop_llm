@@ -4,6 +4,7 @@ Pydantic models для валидации входящих запросов.
 """
 
 from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 

@@ -3,7 +3,7 @@
 Реализует Facade Pattern и Strategy Pattern.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -18,12 +18,12 @@ class ProviderManager:
 
     def __init__(self) -> None:
         """Инициализация менеджера."""
-        self.providers: Dict[str, BaseLLMProvider] = {}
-        self.default_provider: Optional[str] = None
+        self.providers: dict[str, BaseLLMProvider] = {}
+        self.default_provider: str | None = None
         self.json_parser = JSONResponseParser()
         self.json_fixer = json_fixer
 
-    async def initialize(self, providers_config: List[Dict[str, Any]]) -> None:
+    async def initialize(self, providers_config: list[dict[str, Any]]) -> None:
         """Инициализация провайдеров из конфигурации."""
         logger.info(f"Инициализация ProviderManager с {len(providers_config)} провайдерами")
 
@@ -70,15 +70,15 @@ class ProviderManager:
     async def generate(
         self,
         prompt: str,
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        provider: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: str = "text",
-        json_schema: Optional[Dict] = None,
+        json_schema: dict | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерация текста через указанного провайдера."""
         provider_name = provider or self.default_provider
 
@@ -114,8 +114,8 @@ class ProviderManager:
         return result
 
     async def _process_json_response(
-        self, result: Dict[str, Any], json_schema: Optional[Dict], original_prompt: str
-    ) -> Dict[str, Any]:
+        self, result: dict[str, Any], json_schema: dict | None, original_prompt: str
+    ) -> dict[str, Any]:
         """Обрабатывает JSON ответ: парсит, валидирует, исправляет при необходимости."""
         generated_text = result["text"]
 
@@ -157,11 +157,11 @@ class ProviderManager:
             result["parsed"] = None
             result["was_fixed"] = False
             result["fix_attempts"] = 0
-            result["parse_error"] = f"JSONFixer error: {str(fixer_error)}"
+            result["parse_error"] = f"JSONFixer error: {fixer_error!s}"
 
         return result
 
-    def list_providers(self) -> List[Dict[str, Any]]:
+    def list_providers(self) -> list[dict[str, Any]]:
         """Получение списка всех провайдеров с информацией."""
         result = []
 
@@ -177,7 +177,7 @@ class ProviderManager:
 
         return result
 
-    def get_provider(self, name: str) -> Optional[BaseLLMProvider]:
+    def get_provider(self, name: str) -> BaseLLMProvider | None:
         """Получение провайдера по имени."""
         return self.providers.get(name)
 
@@ -186,7 +186,7 @@ class ProviderManager:
         provider = self.providers.get(name)
         return provider is not None and provider.is_available()
 
-    def get_stats(self, provider: Optional[str] = None) -> Dict[str, Any]:
+    def get_stats(self, provider: str | None = None) -> dict[str, Any]:
         """Получение статистики провайдеров."""
         if provider:
             provider_instance = self.providers.get(provider)

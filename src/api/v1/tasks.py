@@ -6,8 +6,8 @@ Endpoints для управления задачами (создание, пол
 import asyncio
 import traceback
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, status
 from loguru import logger
@@ -25,15 +25,14 @@ from src.core.dependencies import (
     TaskStorageDep,
     UnifiedLLMDep,
 )
-from src.shared.errors import TaskNotFoundError
 from src.modules.monitoring.services.statistics import task_statistics
+from src.shared.errors import TaskNotFoundError
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 @router.post(
     "",
-    response_model=TaskCreatedResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Создать задачу",
     description="Создает новую задачу для обработки (генерация текста или embedding)",
@@ -107,8 +106,8 @@ async def create_task(
             "status": TaskStatus.COMPLETED,
             "request": request.model_dump(),
             "result": cached_result,
-            "created_at": datetime.now(timezone.utc),
-            "completed_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
+            "completed_at": datetime.now(UTC),
             "duration_ms": 0,
             "from_cache": True,
             "processing_details": processing_details,
@@ -135,7 +134,7 @@ async def create_task(
         "task_id": task_id,
         "status": TaskStatus.PENDING,
         "request": request.model_dump(),
-        "created_at": datetime.now(timezone.utc),
+        "created_at": datetime.now(UTC),
         "result": None,
         "error": None,
     }
@@ -177,7 +176,7 @@ async def _process_task(
         embedding_manager: Embedding manager instance.
 
     """
-    start_time = datetime.now(timezone.utc)
+    start_time = datetime.now(UTC)
 
     try:
         # Обновляем статус
@@ -283,7 +282,8 @@ async def _process_task(
             )
 
         else:
-            raise ValueError(f"Неизвестный тип задачи: {request.task_type}")
+            msg = f"Неизвестный тип задачи: {request.task_type}"
+            raise ValueError(msg)
 
         # Сохраняем в кэш если нужно
         if request.use_cache:
@@ -296,13 +296,13 @@ async def _process_task(
             )
 
         # Обновляем результат
-        duration = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+        duration = (datetime.now(UTC) - start_time).total_seconds() * 1000
 
         task_data.update(
             {
                 "status": TaskStatus.COMPLETED,
                 "result": result,
-                "completed_at": datetime.now(timezone.utc),
+                "completed_at": datetime.now(UTC),
                 "duration_ms": duration,
                 "from_cache": False,
             }
@@ -339,7 +339,7 @@ async def _process_task(
                 "status": TaskStatus.FAILED,
                 "error": str(e),
                 "error_traceback": error_traceback,
-                "completed_at": datetime.now(timezone.utc),
+                "completed_at": datetime.now(UTC),
             }
         )
         storage.set(task_id, task_data)
@@ -354,7 +354,7 @@ async def _process_task(
     description="Возвращает список всех задач в системе",
     status_code=status.HTTP_200_OK,
 )
-async def get_all_tasks(storage: TaskStorageDep) -> Dict[str, Any]:
+async def get_all_tasks(storage: TaskStorageDep) -> dict[str, Any]:
     """Получает список всех задач.
 
     Args:
@@ -369,17 +369,15 @@ async def get_all_tasks(storage: TaskStorageDep) -> Dict[str, Any]:
 
     # Преобразуем в список и сортируем по времени создания (новые первыми)
     tasks_list = []
-    for task_id, task_data in all_tasks.items():
+    for task_data in all_tasks.values():
         # Сериализуем datetime объекты
         task_dict = dict(task_data)
 
-        if "created_at" in task_dict and task_dict["created_at"]:
-            if isinstance(task_dict["created_at"], datetime):
-                task_dict["created_at"] = task_dict["created_at"].isoformat()
+        if task_dict.get("created_at") and isinstance(task_dict["created_at"], datetime):
+            task_dict["created_at"] = task_dict["created_at"].isoformat()
 
-        if "completed_at" in task_dict and task_dict["completed_at"]:
-            if isinstance(task_dict["completed_at"], datetime):
-                task_dict["completed_at"] = task_dict["completed_at"].isoformat()
+        if task_dict.get("completed_at") and isinstance(task_dict["completed_at"], datetime):
+            task_dict["completed_at"] = task_dict["completed_at"].isoformat()
 
         tasks_list.append(task_dict)
 
@@ -391,7 +389,6 @@ async def get_all_tasks(storage: TaskStorageDep) -> Dict[str, Any]:
 
 @router.get(
     "/{task_id}",
-    response_model=TaskResponse,
     summary="Получить статус задачи",
     description="Возвращает статус и результат задачи по ID",
     status_code=status.HTTP_200_OK,

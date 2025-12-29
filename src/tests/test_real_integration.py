@@ -1,21 +1,20 @@
-"""
-РЕАЛЬНЫЕ интеграционные тесты
+"""РЕАЛЬНЫЕ интеграционные тесты
 Использует настоящие модели и Redis - НЕТ МОКОВ!
 """
-import pytest
 import asyncio
+
 import numpy as np
-from typing import List
+import pytest
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 class TestRealLLMManager:
-    """Тесты для РЕАЛЬНОГО LLMManager с настоящими моделями"""
+    """Тесты для РЕАЛЬНОГО LLMManager с настоящими моделями."""
 
     @pytest.mark.asyncio
     async def test_llm_model_loaded(self, real_llm_manager):
-        """Тест что модель действительно загружена"""
+        """Тест что модель действительно загружена."""
         assert real_llm_manager.model is not None, "LLM model should be loaded"
         assert real_llm_manager.tokenizer is not None, "Tokenizer should be loaded"
         assert real_llm_manager.model_name is not None, "Model name should be set"
@@ -26,7 +25,7 @@ class TestRealLLMManager:
 
     @pytest.mark.asyncio
     async def test_real_text_generation(self, real_llm_manager):
-        """Тест РЕАЛЬНОЙ генерации текста"""
+        """Тест РЕАЛЬНОЙ генерации текста."""
         prompt = "What is 2+2? Answer:"
 
         # Генерируем текст с настоящей моделью
@@ -50,7 +49,7 @@ class TestRealLLMManager:
 
     @pytest.mark.asyncio
     async def test_multiple_generations(self, real_llm_manager, sample_prompts):
-        """Тест нескольких реальных генераций"""
+        """Тест нескольких реальных генераций."""
         results = []
 
         for prompt in sample_prompts[:2]:  # Берем только 2 промпта для скорости
@@ -70,7 +69,7 @@ class TestRealLLMManager:
 
     @pytest.mark.asyncio
     async def test_concurrent_generation_requests(self, real_llm_manager):
-        """Тест concurrent запросов к реальной модели"""
+        """Тест concurrent запросов к реальной модели."""
         prompts = [
             "Count to 5:",
             "Name three colors:",
@@ -89,13 +88,13 @@ class TestRealLLMManager:
         assert len(results) == len(prompts)
         assert all(isinstance(r, str) and len(r) > 0 for r in results)
 
-        for prompt, result in zip(prompts, results):
+        for prompt, result in zip(prompts, results, strict=False):
             print(f"\n✓ Prompt: {prompt}")
             print(f"  Result: {result[:80]}...")
 
     @pytest.mark.asyncio
     async def test_generation_with_different_temperatures(self, real_llm_manager):
-        """Тест генерации с разными температурами"""
+        """Тест генерации с разными температурами."""
         prompt = "Write a creative sentence:"
 
         # Низкая температура (более детерминированно)
@@ -112,15 +111,17 @@ class TestRealLLMManager:
             temperature=1.5
         )
 
-        assert result_low is not None and len(result_low) > 0
-        assert result_high is not None and len(result_high) > 0
+        assert result_low is not None
+        assert len(result_low) > 0
+        assert result_high is not None
+        assert len(result_high) > 0
 
         print(f"\n✓ Low temp (0.1): {result_low}")
         print(f"✓ High temp (1.5): {result_high}")
 
     @pytest.mark.asyncio
     async def test_get_stats(self, real_llm_manager):
-        """Тест получения статистики реального менеджера"""
+        """Тест получения статистики реального менеджера."""
         stats = real_llm_manager.get_stats()
 
         assert stats["model_loaded"] is True
@@ -135,11 +136,11 @@ class TestRealLLMManager:
 @pytest.mark.integration
 @pytest.mark.slow
 class TestRealEmbeddingManager:
-    """Тесты для РЕАЛЬНОГО EmbeddingManager с настоящими моделями"""
+    """Тесты для РЕАЛЬНОГО EmbeddingManager с настоящими моделями."""
 
     @pytest.mark.asyncio
     async def test_embedding_model_loaded(self, real_embedding_manager):
-        """Тест что embedding модель действительно загружена"""
+        """Тест что embedding модель действительно загружена."""
         assert real_embedding_manager.model is not None
         assert real_embedding_manager.tokenizer is not None
         assert real_embedding_manager.model_name is not None
@@ -149,7 +150,7 @@ class TestRealEmbeddingManager:
 
     @pytest.mark.asyncio
     async def test_real_embedding_generation(self, real_embedding_manager):
-        """Тест РЕАЛЬНОЙ генерации embeddings"""
+        """Тест РЕАЛЬНОЙ генерации embeddings."""
         text = "This is a test sentence."
 
         # Генерируем embedding с настоящей моделью
@@ -172,7 +173,7 @@ class TestRealEmbeddingManager:
 
     @pytest.mark.asyncio
     async def test_batch_embeddings(self, real_embedding_manager, sample_texts_for_embedding):
-        """Тест batch генерации embeddings"""
+        """Тест batch генерации embeddings."""
         texts = sample_texts_for_embedding
 
         # Генерируем embeddings для batch
@@ -190,12 +191,12 @@ class TestRealEmbeddingManager:
                 assert embeddings[i] != embeddings[j], f"Embeddings {i} and {j} should be different"
 
         print(f"\n✓ Generated {len(embeddings)} embeddings")
-        for i, (text, emb) in enumerate(zip(texts, embeddings)):
+        for i, (text, emb) in enumerate(zip(texts, embeddings, strict=False)):
             print(f"  {i+1}. {text[:50]}... -> [{emb[0]:.4f}, {emb[1]:.4f}, ...]")
 
     @pytest.mark.asyncio
     async def test_real_similarity_computation(self, real_embedding_manager):
-        """Тест РЕАЛЬНОГО вычисления similarity"""
+        """Тест РЕАЛЬНОГО вычисления similarity."""
         text1 = "I love programming in Python."
         text2 = "Python is my favorite programming language."
         text3 = "The weather is nice today."
@@ -222,7 +223,7 @@ class TestRealEmbeddingManager:
 
     @pytest.mark.asyncio
     async def test_identical_texts_similarity(self, real_embedding_manager):
-        """Тест similarity для идентичных текстов"""
+        """Тест similarity для идентичных текстов."""
         text = "Exact same text"
 
         similarity = await real_embedding_manager.compute_similarity(text, text)
@@ -234,7 +235,7 @@ class TestRealEmbeddingManager:
 
     @pytest.mark.asyncio
     async def test_embedding_consistency(self, real_embedding_manager):
-        """Тест консистентности embeddings (одинаковый текст -> одинаковый embedding)"""
+        """Тест консистентности embeddings (одинаковый текст -> одинаковый embedding)."""
         text = "Consistency test"
 
         # Генерируем embedding дважды
@@ -243,14 +244,14 @@ class TestRealEmbeddingManager:
 
         # Должны быть идентичны
         assert len(embedding1) == len(embedding2)
-        for v1, v2 in zip(embedding1, embedding2):
+        for v1, v2 in zip(embedding1, embedding2, strict=False):
             assert abs(v1 - v2) < 1e-6, "Embeddings for same text should be identical"
 
-        print(f"\n✓ Embedding consistency verified")
+        print("\n✓ Embedding consistency verified")
 
     @pytest.mark.asyncio
     async def test_unicode_text_embedding(self, real_embedding_manager):
-        """Тест embedding для Unicode текста"""
+        """Тест embedding для Unicode текста."""
         texts = [
             "Hello world",
             "Привет мир",
@@ -263,28 +264,28 @@ class TestRealEmbeddingManager:
         assert len(embeddings) == len(texts)
         assert all(len(emb) == 384 for emb in embeddings)
 
-        print(f"\n✓ Unicode embeddings generated:")
-        for text, emb in zip(texts, embeddings):
+        print("\n✓ Unicode embeddings generated:")
+        for text, emb in zip(texts, embeddings, strict=False):
             print(f"  {text}: [{emb[0]:.4f}, {emb[1]:.4f}, ...]")
 
 
 @pytest.mark.integration
 @pytest.mark.requires_redis
 class TestRealRedisCache:
-    """Тесты для РЕАЛЬНОГО Redis кэширования"""
+    """Тесты для РЕАЛЬНОГО Redis кэширования."""
 
     @pytest.mark.asyncio
     async def test_redis_connection(self, real_redis):
-        """Тест подключения к реальному Redis"""
+        """Тест подключения к реальному Redis."""
         # Проверяем ping
         pong = await real_redis.ping()
         assert pong is True
 
-        print(f"\n✓ Redis connection OK")
+        print("\n✓ Redis connection OK")
 
     @pytest.mark.asyncio
     async def test_redis_set_get(self, real_redis, clean_redis):
-        """Тест set/get в реальном Redis"""
+        """Тест set/get в реальном Redis."""
         key = "test:simple_key"
         value = b"test_value"
 
@@ -300,7 +301,7 @@ class TestRealRedisCache:
 
     @pytest.mark.asyncio
     async def test_redis_cache_operations(self, real_redis_cache, clean_redis):
-        """Тест операций кэша с реальным Redis"""
+        """Тест операций кэша с реальным Redis."""
         key = "test:cache_key"
         data = {"text": "Generated text", "tokens": 42}
 
@@ -325,7 +326,7 @@ class TestRealRedisCache:
         real_redis_cache,
         clean_redis
     ):
-        """Тест кэширования результатов реальной генерации"""
+        """Тест кэширования результатов реальной генерации."""
         prompt = "What is 1+1?"
         cache_key = f"test:llm:{hash(prompt)}"
 
@@ -345,7 +346,7 @@ class TestRealRedisCache:
         assert cached is not None
         assert cached["text"] == result1
 
-        print(f"\n✓ LLM result cached:")
+        print("\n✓ LLM result cached:")
         print(f"  Prompt: {prompt}")
         print(f"  Result: {result1}")
         print(f"  Cached: {cached['text']}")
@@ -357,7 +358,7 @@ class TestRealRedisCache:
         real_redis_cache,
         clean_redis
     ):
-        """Тест кэширования результатов реальных embeddings"""
+        """Тест кэширования результатов реальных embeddings."""
         text = "Cache this embedding"
         cache_key = f"test:embedding:{hash(text)}"
 
@@ -374,13 +375,13 @@ class TestRealRedisCache:
         assert len(cached["embedding"]) == len(embedding)
         assert cached["embedding"] == embedding
 
-        print(f"\n✓ Embedding cached:")
+        print("\n✓ Embedding cached:")
         print(f"  Text: {text}")
         print(f"  Dimension: {len(embedding)}")
 
     @pytest.mark.asyncio
     async def test_cache_ttl_expiration(self, real_redis_cache, clean_redis):
-        """Тест истечения TTL в реальном кэше"""
+        """Тест истечения TTL в реальном кэше."""
         key = "test:ttl_key"
         data = {"value": "expires soon"}
 
@@ -398,11 +399,11 @@ class TestRealRedisCache:
         expired = await real_redis_cache.get(key)
         assert expired is None
 
-        print(f"\n✓ Cache TTL expiration verified")
+        print("\n✓ Cache TTL expiration verified")
 
     @pytest.mark.asyncio
     async def test_cache_delete(self, real_redis_cache, clean_redis):
-        """Тест удаления из реального кэша"""
+        """Тест удаления из реального кэша."""
         key = "test:delete_key"
         data = {"value": "to be deleted"}
 
@@ -418,13 +419,13 @@ class TestRealRedisCache:
         # Проверяем что удалено
         assert await real_redis_cache.get(key) is None
 
-        print(f"\n✓ Cache delete verified")
+        print("\n✓ Cache delete verified")
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 class TestRealEndToEndWorkflow:
-    """End-to-end тесты с реальными моделями и Redis"""
+    """End-to-end тесты с реальными моделями и Redis."""
 
     @pytest.mark.asyncio
     async def test_complete_llm_workflow_with_cache(
@@ -433,7 +434,7 @@ class TestRealEndToEndWorkflow:
         real_redis_cache,
         clean_redis
     ):
-        """Полный workflow: генерация -> кэш -> чтение из кэша"""
+        """Полный workflow: генерация -> кэш -> чтение из кэша."""
         prompt = "Tell me about Python programming."
         cache_key = f"test:workflow:{hash(prompt)}"
 
@@ -442,27 +443,28 @@ class TestRealEndToEndWorkflow:
         assert cached is None, "Cache should be empty initially"
 
         # 2. Генерируем с реальной моделью
-        print(f"\n⏳ Generating text (cache miss)...")
+        print("\n⏳ Generating text (cache miss)...")
         result = await real_llm_manager.generate(
             prompt=prompt,
             max_tokens=50,
             temperature=0.5
         )
-        assert result is not None and len(result) > 0
+        assert result is not None
+        assert len(result) > 0
 
         # 3. Сохраняем в кэш
         await real_redis_cache.set(cache_key, {"text": result, "prompt": prompt})
 
         # 4. Читаем из кэша (должно быть мгновенно)
-        print(f"⚡ Reading from cache (cache hit)...")
+        print("⚡ Reading from cache (cache hit)...")
         cached = await real_redis_cache.get(cache_key)
         assert cached is not None
         assert cached["text"] == result
 
-        print(f"\n✓ Complete workflow:")
+        print("\n✓ Complete workflow:")
         print(f"  Prompt: {prompt}")
         print(f"  Generated: {result[:100]}...")
-        print(f"  Cached successfully")
+        print("  Cached successfully")
 
     @pytest.mark.asyncio
     async def test_complete_embedding_workflow_with_cache(
@@ -471,14 +473,14 @@ class TestRealEndToEndWorkflow:
         real_redis_cache,
         clean_redis
     ):
-        """Полный workflow: embedding -> кэш -> similarity"""
+        """Полный workflow: embedding -> кэш -> similarity."""
         text1 = "Machine learning is fascinating."
         text2 = "I love studying ML algorithms."
         cache_key1 = f"test:emb:{hash(text1)}"
         cache_key2 = f"test:emb:{hash(text2)}"
 
         # 1. Генерируем embeddings
-        print(f"\n⏳ Generating embeddings...")
+        print("\n⏳ Generating embeddings...")
         emb1 = await real_embedding_manager.get_embedding(text1)
         emb2 = await real_embedding_manager.get_embedding(text2)
 
@@ -496,11 +498,11 @@ class TestRealEndToEndWorkflow:
         # 4. Вычисляем similarity
         similarity = await real_embedding_manager.compute_similarity(text1, text2)
 
-        print(f"\n✓ Complete embedding workflow:")
+        print("\n✓ Complete embedding workflow:")
         print(f"  Text 1: {text1}")
         print(f"  Text 2: {text2}")
         print(f"  Similarity: {similarity:.4f}")
-        print(f"  Both embeddings cached")
+        print("  Both embeddings cached")
 
     @pytest.mark.asyncio
     async def test_parallel_requests_with_caching(
@@ -509,7 +511,7 @@ class TestRealEndToEndWorkflow:
         real_redis_cache,
         clean_redis
     ):
-        """Тест параллельных запросов с кэшированием"""
+        """Тест параллельных запросов с кэшированием."""
         prompts = [
             "Count from 1 to 3:",
             "Name two animals:",
@@ -525,12 +527,12 @@ class TestRealEndToEndWorkflow:
         results = await asyncio.gather(*tasks)
 
         # 2. Сохраняем все в кэш
-        for i, (prompt, result) in enumerate(zip(prompts, results)):
+        for i, (prompt, result) in enumerate(zip(prompts, results, strict=False)):
             cache_key = f"test:parallel:{i}"
             await real_redis_cache.set(cache_key, {"prompt": prompt, "text": result})
 
         # 3. Проверяем что все в кэше
-        for i, (prompt, expected_result) in enumerate(zip(prompts, results)):
+        for i, (prompt, expected_result) in enumerate(zip(prompts, results, strict=False)):
             cache_key = f"test:parallel:{i}"
             cached = await real_redis_cache.get(cache_key)
             assert cached is not None
@@ -538,6 +540,6 @@ class TestRealEndToEndWorkflow:
 
             print(f"\n  {i+1}. Prompt: {prompt}")
             print(f"     Result: {expected_result[:60]}...")
-            print(f"     ✓ Cached")
+            print("     ✓ Cached")
 
         print(f"\n✓ All {len(prompts)} results cached successfully")

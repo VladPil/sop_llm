@@ -11,6 +11,6 @@ from src.modules.monitoring.services.statistics import (
 
 __all__ = [
     "TaskStatistics",
-    "task_statistics",
     "serialize_for_json",
+    "task_statistics",
 ]

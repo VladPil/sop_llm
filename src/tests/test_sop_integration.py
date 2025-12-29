@@ -1,17 +1,14 @@
-"""
-Тесты интеграции с проектом sop - проверка совместимости API.
-"""
-import pytest
-import httpx
+"""Тесты интеграции с проектом sop - проверка совместимости API."""
 import asyncio
-from datetime import datetime
+
+import httpx
+import pytest
 
 
 @pytest.mark.asyncio
 async def test_create_task_sop_format(sop_llm_base_url):
-    """
-    Тест создания задачи в формате, который использует проект sop.
-    Проверяет совместимость с sop_llm_client.py
+    """Тест создания задачи в формате, который использует проект sop.
+    Проверяет совместимость с sop_llm_client.py.
     """
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=30.0) as client:
         # Формат запроса из sop/app/shared/sop_llm_client.py:create_task()
@@ -50,7 +47,7 @@ async def test_create_task_sop_format(sop_llm_base_url):
                 assert "text" in status_data["result"]
                 print(f"✅ Task completed: {status_data['result']['text'][:100]}")
                 break
-            elif status_data["status"] == "failed":
+            if status_data["status"] == "failed":
                 pytest.fail(f"Task failed: {status_data.get('error')}")
 
             await asyncio.sleep(0.5)
@@ -60,8 +57,7 @@ async def test_create_task_sop_format(sop_llm_base_url):
 
 @pytest.mark.asyncio
 async def test_create_task_with_json_format(sop_llm_base_url):
-    """
-    Тест создания задачи с ожидаемым JSON форматом.
+    """Тест создания задачи с ожидаемым JSON форматом.
     Проверяет работу JSON fixer.
     """
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=60.0) as client:
@@ -103,7 +99,7 @@ async def test_create_task_with_json_format(sop_llm_base_url):
                     print(f"⚠️  JSON was fixed in {result['fix_attempts']} attempts")
 
                 break
-            elif status_data["status"] == "failed":
+            if status_data["status"] == "failed":
                 pytest.fail(f"Task failed: {status_data.get('error')}")
 
             await asyncio.sleep(1.0)
@@ -113,9 +109,7 @@ async def test_create_task_with_json_format(sop_llm_base_url):
 
 @pytest.mark.asyncio
 async def test_create_task_with_system_prompt(sop_llm_base_url):
-    """
-    Тест создания задачи с system_prompt в parameters.
-    """
+    """Тест создания задачи с system_prompt в parameters."""
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=30.0) as client:
         payload = {
             "text": "What is 2+2?",
@@ -142,7 +136,7 @@ async def test_create_task_with_system_prompt(sop_llm_base_url):
                 result_text = status_data["result"]["text"]
                 print(f"✅ Result with system prompt: {result_text[:100]}")
                 break
-            elif status_data["status"] == "failed":
+            if status_data["status"] == "failed":
                 pytest.fail(f"Task failed: {status_data.get('error')}")
 
             await asyncio.sleep(0.5)
@@ -150,9 +144,7 @@ async def test_create_task_with_system_prompt(sop_llm_base_url):
 
 @pytest.mark.asyncio
 async def test_embedding_task(sop_llm_base_url):
-    """
-    Тест создания задачи для embedding.
-    """
+    """Тест создания задачи для embedding."""
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=30.0) as client:
         payload = {
             "text": "This is a test sentence for embedding generation",
@@ -178,7 +170,7 @@ async def test_embedding_task(sop_llm_base_url):
                 assert len(result["embedding"]) > 0
                 print(f"✅ Embedding generated: dimension={result['dimension']}")
                 break
-            elif status_data["status"] == "failed":
+            if status_data["status"] == "failed":
                 pytest.fail(f"Task failed: {status_data.get('error')}")
 
             await asyncio.sleep(0.5)
@@ -186,8 +178,7 @@ async def test_embedding_task(sop_llm_base_url):
 
 @pytest.mark.asyncio
 async def test_task_detail_contains_processing_details(sop_llm_base_url):
-    """
-    Тест проверяет, что детальная информация о задаче содержит processing_details.
+    """Тест проверяет, что детальная информация о задаче содержит processing_details.
     Это необходимо для нового Web UI.
     """
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=30.0) as client:
@@ -223,7 +214,7 @@ async def test_task_detail_contains_processing_details(sop_llm_base_url):
 
                 print(f"✅ Processing details present: provider={details['llm_interaction']['provider_used']}, model={details['llm_interaction']['model_used']}")
                 break
-            elif status_data["status"] == "failed":
+            if status_data["status"] == "failed":
                 pytest.fail(f"Task failed: {status_data.get('error')}")
 
             await asyncio.sleep(0.5)
@@ -231,9 +222,7 @@ async def test_task_detail_contains_processing_details(sop_llm_base_url):
 
 @pytest.mark.asyncio
 async def test_cache_functionality(sop_llm_base_url):
-    """
-    Тест проверяет работу кэша - второй запрос должен вернуться из кэша.
-    """
+    """Тест проверяет работу кэша - второй запрос должен вернуться из кэша."""
     async with httpx.AsyncClient(base_url=sop_llm_base_url, timeout=30.0) as client:
         payload = {
             "text": "What is the capital of France?",
@@ -265,9 +254,9 @@ async def test_cache_functionality(sop_llm_base_url):
 
         # Должен быть из кэша (completed сразу или очень быстро)
         if status_data_2.get("from_cache"):
-            print(f"✅ Second request served from cache")
+            print("✅ Second request served from cache")
         else:
-            print(f"⚠️  Second request not from cache (cache may be disabled or expired)")
+            print("⚠️  Second request not from cache (cache may be disabled or expired)")
 
 
 if __name__ == "__main__":

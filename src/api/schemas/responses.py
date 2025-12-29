@@ -4,6 +4,7 @@ Pydantic models для API responses.
 """
 
 from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 

@@ -4,11 +4,11 @@ Endpoints для управления задачами генерации.
 """
 
 from fastapi import APIRouter, HTTPException, status
+
 from src.api.schemas.requests import CreateTaskRequest
-from src.api.schemas.responses import TaskResponse, ErrorResponse
+from src.api.schemas.responses import ErrorResponse, TaskResponse
 from src.providers.base import GenerationParams
 from src.services.task_processor import get_task_processor
-from src.services.session_store import SessionStore
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -18,7 +18,6 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.post(
     "/",
-    response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Создать задачу генерации",
     description="Создаёт новую задачу генерации и добавляет её в очередь",
@@ -39,6 +38,7 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
 
     Raises:
         HTTPException: 404 если модель не найдена
+
     """
     task_processor = get_task_processor()
 
@@ -107,7 +107,6 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
 
 @router.get(
     "/{task_id}",
-    response_model=TaskResponse,
     summary="Получить статус задачи",
     description="Возвращает текущий статус и результат задачи (если готов)",
     responses={
@@ -126,6 +125,7 @@ async def get_task_status(task_id: str) -> TaskResponse:
 
     Raises:
         HTTPException: 404 если задача не найдена
+
     """
     task_processor = get_task_processor()
     session_store = task_processor.session_store
@@ -180,6 +180,7 @@ async def delete_task(task_id: str) -> None:
 
     Raises:
         HTTPException: 404 если задача не найдена, 409 если в процессе
+
     """
     task_processor = get_task_processor()
     session_store = task_processor.session_store

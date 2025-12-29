@@ -16,8 +16,8 @@ from src.modules.monitoring.services.statistics import (
 __all__ = [
     # Services
     "TaskStatistics",
-    "task_statistics",
     "serialize_for_json",
+    "task_statistics",
     # API
     "websocket_endpoint",
     "websocket_task_detail_endpoint",

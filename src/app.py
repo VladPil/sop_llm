@@ -3,17 +3,19 @@
 Главное приложение с инициализацией всех компонентов.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+
 from config.settings import settings
-from src.utils.logging import setup_logging, get_logger
+from src.api.routes import models, monitor, tasks
+from src.providers.registry import get_provider_registry
 from src.services.session_store import create_session_store
 from src.services.task_processor import create_task_processor, get_task_processor
-from src.providers.registry import get_provider_registry
-from src.api.routes import tasks, models, monitor
+from src.utils.logging import get_logger, setup_logging
 
 # Setup logging
 setup_logging()
@@ -21,14 +23,15 @@ logger = get_logger()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager для startup/shutdown.
 
     Args:
-        app: FastAPI application
+        _app: FastAPI application (не используется, но требуется сигнатурой)
 
     Yields:
         None
+
     """
     # =================================================================
     # Startup
@@ -52,8 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await task_processor.start()
     logger.info("TaskProcessor worker запущен")
 
-    # TODO: Загрузить модели из конфигурации (если есть)
-    # Пока registry пустой, модели регистрируются через API
+    # Модели регистрируются через API (/api/v1/models/register)
 
     logger.info(
         "SOP LLM Executor готов",
@@ -137,6 +139,7 @@ async def root() -> dict[str, str]:
 
     Returns:
         Информация о сервисе
+
     """
     return {
         "service": settings.app_name,

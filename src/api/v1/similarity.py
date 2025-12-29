@@ -3,7 +3,7 @@
 Endpoints для вычисления схожести текстов.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, status
 from loguru import logger
@@ -24,7 +24,7 @@ async def compute_similarity(
     request: SimilarityRequest,
     embedding_manager: EmbeddingManagerDep,
     cache: RedisCacheDep,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Вычисляет схожесть между двумя текстами используя выбранный метод.
 
     Args:

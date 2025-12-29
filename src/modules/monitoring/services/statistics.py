@@ -4,13 +4,10 @@
 """
 
 import asyncio
-from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
-
-from src.shared.errors import TaskNotFoundError
 
 
 def serialize_for_json(obj: Any) -> Any:
@@ -102,7 +99,7 @@ class TaskStatistics:
 
         message = {
             "type": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data": serialized_data,
         }
 
@@ -135,7 +132,7 @@ class TaskStatistics:
         """
         self._tasks[task_id] = {
             **task_data,
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "status": "pending",
         }
         self._stats["total_tasks"] += 1
@@ -166,7 +163,7 @@ class TaskStatistics:
             return
 
         self._tasks[task_id]["status"] = "processing"
-        self._tasks[task_id]["started_at"] = datetime.now(timezone.utc)
+        self._tasks[task_id]["started_at"] = datetime.now(UTC)
         self._stats["pending_tasks"] -= 1
         self._stats["processing_tasks"] += 1
 
@@ -244,7 +241,7 @@ class TaskStatistics:
 
         task = self._tasks[task_id]
         task["status"] = "completed"
-        task["completed_at"] = datetime.now(timezone.utc)
+        task["completed_at"] = datetime.now(UTC)
         task["result"] = result
         task["from_cache"] = from_cache
 
@@ -305,7 +302,7 @@ class TaskStatistics:
 
         task = self._tasks[task_id]
         task["status"] = "failed"
-        task["completed_at"] = datetime.now(timezone.utc)
+        task["completed_at"] = datetime.now(UTC)
         task["error"] = error
         task["error_traceback"] = error_traceback or ""
 
@@ -326,7 +323,7 @@ class TaskStatistics:
         # Add to errors log
         error_entry = {
             "task_id": task_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "error": error,
             "error_traceback": error_traceback or "",
             "task_type": task.get("request", {}).get("task_type", "unknown"),
@@ -426,7 +423,7 @@ class TaskStatistics:
         to_remove = []
         for task_id, task in self._tasks.items():
             if task.get("status") in ["completed", "failed"]:
-                if before is None or task.get("completed_at", datetime.now(timezone.utc)) < before:
+                if before is None or task.get("completed_at", datetime.now(UTC)) < before:
                     to_remove.append(task_id)
 
         for task_id in to_remove:
@@ -447,7 +444,7 @@ class TaskStatistics:
 
         """
         completed = []
-        for task_id, task in self._tasks.items():
+        for task in self._tasks.values():
             if task.get("status") in ["completed", "failed"]:
                 completed.append(task)
 

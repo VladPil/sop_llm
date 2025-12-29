@@ -1,24 +1,22 @@
-"""
-ИНТЕГРАЦИОННЫЕ ТЕСТЫ для API endpoints с новой архитектурой провайдеров
-Тестирует реальные HTTP запросы к API
+"""ИНТЕГРАЦИОННЫЕ ТЕСТЫ для API endpoints с новой архитектурой провайдеров
+Тестирует реальные HTTP запросы к API.
 
 Требования:
 - Приложение должно быть запущено (или используется TestClient)
 - Redis должен быть запущен
 """
+
 import pytest
-import json
 from httpx import AsyncClient
-from fastapi.testclient import TestClient
 
 
 @pytest.mark.integration
 class TestProvidersAPI:
-    """Тесты для /api/v1/providers endpoint"""
+    """Тесты для /api/v1/providers endpoint."""
 
     @pytest.mark.asyncio
     async def test_list_providers_endpoint(self, test_client: AsyncClient):
-        """Тест GET /api/v1/providers"""
+        """Тест GET /api/v1/providers."""
         response = await test_client.get("/api/v1/providers")
 
         assert response.status_code == 200
@@ -36,14 +34,14 @@ class TestProvidersAPI:
             assert "capabilities" in provider
             assert "is_default" in provider
 
-        print(f"\n✓ GET /api/v1/providers:")
+        print("\n✓ GET /api/v1/providers:")
         print(f"  Total: {data['total']}")
         for p in data["providers"]:
             print(f"  - {p['name']}: available={p['is_available']}, default={p['is_default']}")
 
     @pytest.mark.asyncio
     async def test_providers_endpoint_structure(self, test_client: AsyncClient):
-        """Тест структуры ответа /api/v1/providers"""
+        """Тест структуры ответа /api/v1/providers."""
         response = await test_client.get("/api/v1/providers")
 
         assert response.status_code == 200
@@ -57,12 +55,12 @@ class TestProvidersAPI:
         assert isinstance(provider["capabilities"], list)
         assert len(provider["capabilities"]) > 0
 
-        print(f"\n✓ Providers endpoint structure valid")
+        print("\n✓ Providers endpoint structure valid")
         print(f"  Example capabilities: {provider['capabilities']}")
 
     @pytest.mark.asyncio
     async def test_providers_default_set(self, test_client: AsyncClient):
-        """Тест что есть default провайдер"""
+        """Тест что есть default провайдер."""
         response = await test_client.get("/api/v1/providers")
         data = response.json()
 
@@ -75,11 +73,11 @@ class TestProvidersAPI:
 
 @pytest.mark.integration
 class TestHealthAPI:
-    """Тесты для /api/v1/health endpoint (с провайдерами)"""
+    """Тесты для /api/v1/health endpoint (с провайдерами)."""
 
     @pytest.mark.asyncio
     async def test_health_endpoint(self, test_client: AsyncClient):
-        """Тест GET /api/v1/health"""
+        """Тест GET /api/v1/health."""
         response = await test_client.get("/api/v1/health")
 
         assert response.status_code == 200
@@ -88,30 +86,30 @@ class TestHealthAPI:
         assert "status" in data
         assert data["status"] in ["healthy", "degraded", "unhealthy"]
 
-        print(f"\n✓ Health endpoint:")
+        print("\n✓ Health endpoint:")
         print(f"  Status: {data['status']}")
 
     @pytest.mark.asyncio
     async def test_health_includes_providers(self, test_client: AsyncClient):
-        """Тест что health включает информацию о провайдерах"""
+        """Тест что health включает информацию о провайдерах."""
         response = await test_client.get("/api/v1/health")
-        data = response.json()
+        response.json()
 
         # Health может включать детальную информацию
         # Проверим что endpoint отвечает корректно
         assert response.status_code == 200
 
-        print(f"\n✓ Health endpoint accessible")
+        print("\n✓ Health endpoint accessible")
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 class TestGenerationAPI:
-    """Тесты для API генерации (если есть endpoint для ProviderManager)"""
+    """Тесты для API генерации (если есть endpoint для ProviderManager)."""
 
     @pytest.mark.asyncio
     async def test_generate_via_api_if_exists(self, test_client: AsyncClient):
-        """Тест генерации через API (если endpoint реализован)"""
+        """Тест генерации через API (если endpoint реализован)."""
         # Проверяем есть ли endpoint для генерации через ProviderManager
         # Пример: POST /api/v1/generate
 
@@ -129,35 +127,35 @@ class TestGenerationAPI:
             assert response.status_code in [200, 404, 405]  # 404/405 если endpoint не существует
             print(f"  {endpoint}: {response.status_code}")
 
-        print(f"\n✓ API endpoints checked")
+        print("\n✓ API endpoints checked")
 
 
 @pytest.mark.integration
 class TestAPIErrorHandling:
-    """Тесты обработки ошибок в API"""
+    """Тесты обработки ошибок в API."""
 
     @pytest.mark.asyncio
     async def test_invalid_endpoint(self, test_client: AsyncClient):
-        """Тест запроса к несуществующему endpoint"""
+        """Тест запроса к несуществующему endpoint."""
         response = await test_client.get("/api/v1/nonexistent")
 
         assert response.status_code == 404
 
-        print(f"\n✓ 404 for invalid endpoint")
+        print("\n✓ 404 for invalid endpoint")
 
     @pytest.mark.asyncio
     async def test_method_not_allowed(self, test_client: AsyncClient):
-        """Тест неподдерживаемого HTTP метода"""
+        """Тест неподдерживаемого HTTP метода."""
         # GET /api/v1/providers поддерживается, POST - нет
         response = await test_client.post("/api/v1/providers")
 
         assert response.status_code == 405
 
-        print(f"\n✓ 405 for wrong method")
+        print("\n✓ 405 for wrong method")
 
     @pytest.mark.asyncio
     async def test_api_returns_json(self, test_client: AsyncClient):
-        """Тест что API возвращает JSON"""
+        """Тест что API возвращает JSON."""
         response = await test_client.get("/api/v1/providers")
 
         assert response.status_code == 200
@@ -167,27 +165,27 @@ class TestAPIErrorHandling:
         data = response.json()
         assert isinstance(data, dict)
 
-        print(f"\n✓ API returns valid JSON")
+        print("\n✓ API returns valid JSON")
 
 
 @pytest.mark.integration
 class TestAPIHeaders:
-    """Тесты заголовков API"""
+    """Тесты заголовков API."""
 
     @pytest.mark.asyncio
     async def test_cors_headers(self, test_client: AsyncClient):
-        """Тест CORS заголовков"""
+        """Тест CORS заголовков."""
         response = await test_client.get("/api/v1/providers")
 
         # В зависимости от настройки CORS могут быть заголовки
         # Проверяем что endpoint отвечает
         assert response.status_code == 200
 
-        print(f"\n✓ CORS headers check passed")
+        print("\n✓ CORS headers check passed")
 
     @pytest.mark.asyncio
     async def test_request_id_header(self, test_client: AsyncClient):
-        """Тест заголовка X-Request-ID"""
+        """Тест заголовка X-Request-ID."""
         # Отправляем запрос с Request-ID
         headers = {"X-Request-ID": "test-123"}
         response = await test_client.get("/api/v1/providers", headers=headers)
@@ -196,11 +194,11 @@ class TestAPIHeaders:
 
         # Проверяем что Request-ID вернулся (если middleware настроен)
         # В зависимости от реализации
-        print(f"\n✓ Request ID handling checked")
+        print("\n✓ Request ID handling checked")
 
     @pytest.mark.asyncio
     async def test_duration_header(self, test_client: AsyncClient):
-        """Тест заголовка X-Duration-Ms"""
+        """Тест заголовка X-Duration-Ms."""
         response = await test_client.get("/api/v1/providers")
 
         assert response.status_code == 200
@@ -211,17 +209,17 @@ class TestAPIHeaders:
             assert duration >= 0
             print(f"\n✓ Duration header: {duration}ms")
         else:
-            print(f"\n✓ Duration header not present (optional)")
+            print("\n✓ Duration header not present (optional)")
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 class TestAPIPerformance:
-    """Тесты производительности API"""
+    """Тесты производительности API."""
 
     @pytest.mark.asyncio
     async def test_providers_endpoint_performance(self, test_client: AsyncClient):
-        """Тест времени ответа /api/v1/providers"""
+        """Тест времени ответа /api/v1/providers."""
         import time
 
         start = time.time()
@@ -231,12 +229,12 @@ class TestAPIPerformance:
         assert response.status_code == 200
         assert duration < 1000, f"Should respond in less than 1s, got {duration}ms"
 
-        print(f"\n✓ /api/v1/providers performance:")
+        print("\n✓ /api/v1/providers performance:")
         print(f"  Duration: {duration:.2f}ms")
 
     @pytest.mark.asyncio
     async def test_concurrent_api_requests(self, test_client: AsyncClient):
-        """Тест concurrent запросов к API"""
+        """Тест concurrent запросов к API."""
         import asyncio
 
         # Отправляем несколько параллельных запросов
@@ -250,18 +248,18 @@ class TestAPIPerformance:
         # Все должны успешно завершиться
         assert all(r.status_code == 200 for r in responses)
 
-        print(f"\n✓ Concurrent API requests:")
+        print("\n✓ Concurrent API requests:")
         print(f"  Total: {len(responses)}")
-        print(f"  All successful: True")
+        print("  All successful: True")
 
 
 @pytest.mark.integration
 class TestAPIDocumentation:
-    """Тесты для документации API (OpenAPI/Swagger)"""
+    """Тесты для документации API (OpenAPI/Swagger)."""
 
     @pytest.mark.asyncio
     async def test_openapi_schema_accessible(self, test_client: AsyncClient):
-        """Тест доступности OpenAPI схемы"""
+        """Тест доступности OpenAPI схемы."""
         response = await test_client.get("/openapi.json")
 
         assert response.status_code == 200
@@ -274,37 +272,37 @@ class TestAPIDocumentation:
         # Проверяем что /api/v1/providers в схеме
         assert "/api/v1/providers" in schema["paths"]
 
-        print(f"\n✓ OpenAPI schema accessible")
+        print("\n✓ OpenAPI schema accessible")
         print(f"  OpenAPI version: {schema['openapi']}")
         print(f"  Endpoints count: {len(schema['paths'])}")
 
     @pytest.mark.asyncio
     async def test_swagger_ui_accessible(self, test_client: AsyncClient):
-        """Тест доступности Swagger UI"""
+        """Тест доступности Swagger UI."""
         response = await test_client.get("/docs")
 
         assert response.status_code == 200
         assert "text/html" in response.headers.get("content-type", "")
 
-        print(f"\n✓ Swagger UI accessible at /docs")
+        print("\n✓ Swagger UI accessible at /docs")
 
     @pytest.mark.asyncio
     async def test_redoc_accessible(self, test_client: AsyncClient):
-        """Тест доступности ReDoc"""
+        """Тест доступности ReDoc."""
         response = await test_client.get("/redoc")
 
         assert response.status_code == 200
 
-        print(f"\n✓ ReDoc accessible at /redoc")
+        print("\n✓ ReDoc accessible at /redoc")
 
 
 @pytest.mark.integration
 class TestAPIVersioning:
-    """Тесты версионирования API"""
+    """Тесты версионирования API."""
 
     @pytest.mark.asyncio
     async def test_api_v1_prefix(self, test_client: AsyncClient):
-        """Тест что endpoints используют /api/v1 prefix"""
+        """Тест что endpoints используют /api/v1 prefix."""
         response = await test_client.get("/api/v1/providers")
         assert response.status_code == 200
 
@@ -312,11 +310,11 @@ class TestAPIVersioning:
         response_no_prefix = await test_client.get("/providers")
         assert response_no_prefix.status_code == 404
 
-        print(f"\n✓ API versioning (v1) works correctly")
+        print("\n✓ API versioning (v1) works correctly")
 
     @pytest.mark.asyncio
     async def test_root_endpoint(self, test_client: AsyncClient):
-        """Тест корневого endpoint"""
+        """Тест корневого endpoint."""
         response = await test_client.get("/")
 
         assert response.status_code == 200
@@ -324,5 +322,5 @@ class TestAPIVersioning:
         data = response.json()
         assert "service" in data or "version" in data
 
-        print(f"\n✓ Root endpoint accessible")
+        print("\n✓ Root endpoint accessible")
         print(f"  Response: {data}")

@@ -3,7 +3,6 @@
 Обработчики исключений для FastAPI приложения.
 """
 
-from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError

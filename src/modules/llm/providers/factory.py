@@ -3,7 +3,6 @@
 Следует Open/Closed Principle - можно расширять без модификации.
 """
 
-from typing import Dict, List, Optional, Type
 
 from src.modules.llm.providers.base import BaseLLMProvider
 
@@ -18,11 +17,11 @@ class LLMProviderFactory:
     - Single Responsibility: только создание и управление провайдерами
     """
 
-    _providers: Dict[str, Type[BaseLLMProvider]] = {}
+    _providers: dict[str, type[BaseLLMProvider]] = {}
 
     @classmethod
     def register(
-        cls, provider_name: str, provider_class: Type[BaseLLMProvider]
+        cls, provider_name: str, provider_class: type[BaseLLMProvider]
     ) -> None:
         """Регистрация нового провайдера в фабрике.
 
@@ -32,6 +31,7 @@ class LLMProviderFactory:
 
         Raises:
             TypeError: Если класс не наследует BaseLLMProvider
+
         """
         if provider_name in cls._providers:
             # Разрешаем перезапись для development/testing
@@ -39,14 +39,15 @@ class LLMProviderFactory:
             pass
 
         if not issubclass(provider_class, BaseLLMProvider):
+            msg = f"Provider class {provider_class.__name__} must inherit from BaseLLMProvider"
             raise TypeError(
-                f"Provider class {provider_class.__name__} must inherit from BaseLLMProvider"
+                msg
             )
 
         cls._providers[provider_name] = provider_class
 
     @classmethod
-    def create(cls, provider_name: str, config: Dict) -> BaseLLMProvider:
+    def create(cls, provider_name: str, config: dict) -> BaseLLMProvider:
         """Создание экземпляра провайдера.
 
         Args:
@@ -58,23 +59,28 @@ class LLMProviderFactory:
 
         Raises:
             ValueError: Если провайдер не зарегистрирован
+
         """
         if provider_name not in cls._providers:
             available = ", ".join(cls._providers.keys())
-            raise ValueError(
+            msg = (
                 f"Unknown provider: {provider_name}. "
                 f"Available providers: {available}"
+            )
+            raise ValueError(
+                msg
             )
 
         provider_class = cls._providers[provider_name]
         return provider_class(config)
 
     @classmethod
-    def list_providers(cls) -> List[str]:
+    def list_providers(cls) -> list[str]:
         """Получение списка зарегистрированных провайдеров.
 
         Returns:
             Список имён провайдеров
+
         """
         return list(cls._providers.keys())
 
@@ -87,13 +93,14 @@ class LLMProviderFactory:
 
         Returns:
             True если провайдер зарегистрирован
+
         """
         return provider_name in cls._providers
 
     @classmethod
     def get_provider_class(
         cls, provider_name: str
-    ) -> Optional[Type[BaseLLMProvider]]:
+    ) -> type[BaseLLMProvider] | None:
         """Получение класса провайдера без создания экземпляра.
 
         Args:
@@ -101,6 +108,7 @@ class LLMProviderFactory:
 
         Returns:
             Класс провайдера или None если не зарегистрирован
+
         """
         return cls._providers.get(provider_name)
 
@@ -126,9 +134,10 @@ def register_provider(name: str):
 
     Returns:
         Декоратор функция
+
     """
 
-    def decorator(cls: Type[BaseLLMProvider]) -> Type[BaseLLMProvider]:
+    def decorator(cls: type[BaseLLMProvider]) -> type[BaseLLMProvider]:
         LLMProviderFactory.register(name, cls)
         return cls
 

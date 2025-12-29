@@ -4,8 +4,9 @@ WebSocket endpoints для мониторинга в реальном време
 """
 
 import asyncio
+import contextlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
 from loguru import logger
@@ -32,7 +33,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         # Send initial state
         initial_data = {
             "type": "initial",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data": task_statistics.get_summary(),
         }
         await websocket.send_json(initial_data)
@@ -52,7 +53,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             # Send current statistics
                             response = {
                                 "type": "stats",
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                                 "data": task_statistics.get_stats(),
                             }
                             await websocket.send_json(response)
@@ -63,7 +64,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             task = task_statistics.get_task(task_id)
                             response = {
                                 "type": "task_details",
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                                 "data": {"task_id": task_id, "task": task},
                             }
                             await websocket.send_json(response)
@@ -74,7 +75,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             errors = task_statistics.get_errors_log(limit=limit)
                             response = {
                                 "type": "errors_log",
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                                 "data": {"errors": errors},
                             }
                             await websocket.send_json(response)
@@ -84,7 +85,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             tasks = task_statistics.get_active_tasks()
                             response = {
                                 "type": "active_tasks",
-                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "timestamp": datetime.now(UTC).isoformat(),
                                 "data": {"tasks": tasks},
                             }
                             await websocket.send_json(response)
@@ -94,7 +95,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                             await websocket.send_json(
                                 {
                                     "type": "pong",
-                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                    "timestamp": datetime.now(UTC).isoformat(),
                                 }
                             )
 
@@ -122,7 +123,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     # Send heartbeat every 30 seconds
                     heartbeat = {
                         "type": "heartbeat",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": datetime.now(UTC).isoformat(),
                         "data": {"stats": task_statistics.get_stats()},
                     }
                     await websocket.send_json(heartbeat)
@@ -134,10 +135,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         finally:
             # Cancel receiving task
             receive_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await receive_task
-            except asyncio.CancelledError:
-                pass
 
     finally:
         # Unsubscribe from updates
@@ -166,7 +165,7 @@ async def websocket_task_detail_endpoint(websocket: WebSocket, task_id: str) -> 
         task = task_statistics.get_task(task_id)
         initial_data = {
             "type": "task_initial",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "data": {"task_id": task_id, "task": task},
         }
         await websocket.send_json(initial_data)
@@ -185,7 +184,7 @@ async def websocket_task_detail_endpoint(websocket: WebSocket, task_id: str) -> 
                 task = task_statistics.get_task(task_id)
                 heartbeat = {
                     "type": "heartbeat",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "data": {"task_id": task_id, "task": task},
                 }
                 await websocket.send_json(heartbeat)

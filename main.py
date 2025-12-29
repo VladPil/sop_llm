@@ -4,6 +4,7 @@
 """
 
 import uvicorn
+
 from config.settings import settings
 
 

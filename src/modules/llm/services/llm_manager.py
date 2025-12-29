@@ -2,29 +2,30 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import torch
 from loguru import logger
 
 from src.core.config import settings
 from src.shared.errors import MemoryExceededError, ModelNotLoadedError
-from src.shared.utils import model_loader, check_model_in_cache
+from src.shared.utils import check_model_in_cache, model_loader
 
 
 class LLMManager:
     """Менеджер для управления LLM моделью и запросами."""
 
-    def __init__(self, max_concurrent_requests: Optional[int] = None) -> None:
+    def __init__(self, max_concurrent_requests: int | None = None) -> None:
         """Инициализация менеджера.
 
         Args:
             max_concurrent_requests: Максимум одновременных запросов
+
         """
-        self.model: Optional[Any] = None
-        self.tokenizer: Optional[Any] = None
+        self.model: Any | None = None
+        self.tokenizer: Any | None = None
         self.device = model_loader.device
-        self.model_name: Optional[str] = None
+        self.model_name: str | None = None
 
         # Пул запросов
         self.max_concurrent_requests = (
@@ -42,13 +43,14 @@ class LLMManager:
         )
 
     async def load_model(
-        self, model_name: Optional[str] = None, load_in_8bit: bool = False
+        self, model_name: str | None = None, load_in_8bit: bool = False
     ) -> None:
         """Загружает LLM модель.
 
         Args:
             model_name: Имя модели
             load_in_8bit: Загружать в 8-bit режиме
+
         """
         self.model_name = model_name or settings.llm.default_model
 
@@ -75,8 +77,9 @@ class LLMManager:
 
         Raises:
             MemoryExceededError: Если памяти недостаточно
+
         """
-        available_gb, memory_percent = model_loader.check_available_memory()
+        _available_gb, memory_percent = model_loader.check_available_memory()
 
         if memory_percent > settings.llm.memory_threshold_percent:
             raise MemoryExceededError(
@@ -88,11 +91,11 @@ class LLMManager:
     async def generate(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерирует текст на основе промпта.
 
         Args:
@@ -116,6 +119,7 @@ class LLMManager:
         Raises:
             ModelNotLoadedError: Если модель не загружена
             MemoryExceededError: Если нет доступных ресурсов
+
         """
         if not self.model or not self.tokenizer:
             raise ModelNotLoadedError(model_name=self.model_name or "unknown")
@@ -188,7 +192,7 @@ class LLMManager:
         max_tokens: int,
         temperature: float,
         top_p: float,
-        extra_kwargs: Dict,
+        extra_kwargs: dict,
     ) -> str:
         """Синхронная генерация текста (для executor).
 
@@ -201,6 +205,7 @@ class LLMManager:
 
         Returns:
             Сгенерированный текст
+
         """
         # Убираем параметры, которые мы передаем явно, из extra_kwargs
         # Также удаляем параметры, которые не поддерживаются model.generate()
@@ -245,8 +250,8 @@ class LLMManager:
         return generated_text
 
     async def generate_with_timeout(
-        self, prompt: str, timeout: Optional[int] = None, **kwargs: Any
-    ) -> Dict[str, Any]:
+        self, prompt: str, timeout: int | None = None, **kwargs: Any
+    ) -> dict[str, Any]:
         """Генерирует текст с таймаутом.
 
         Args:
@@ -259,24 +264,25 @@ class LLMManager:
 
         Raises:
             asyncio.TimeoutError: Если превышен таймаут
+
         """
         timeout = timeout or settings.llm.request_timeout
 
         try:
-            result = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 self.generate(prompt, **kwargs), timeout=timeout
             )
-            return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"Таймаут генерации после {timeout}с")
             raise
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получает статистику менеджера.
 
         Returns:
             Словарь со статистикой
+
         """
         return {
             "model_name": self.model_name,

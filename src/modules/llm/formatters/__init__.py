@@ -10,8 +10,8 @@ from src.modules.llm.formatters.json_parser import JSONResponseParser
 
 __all__ = [
     "BasePromptFormatter",
-    "DefaultPromptFormatter",
     "BaseResponseParser",
+    "DefaultPromptFormatter",
     "DefaultResponseParser",
     "JSONResponseParser",
 ]

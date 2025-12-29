@@ -14,4 +14,4 @@ router = APIRouter()
 # Подключаем роутеры разных версий
 router.include_router(v1_router, prefix="/v1")
 
-__all__ = ["router", "API_PREFIX"]
+__all__ = ["API_PREFIX", "router"]

@@ -3,13 +3,14 @@
 Provider для Claude API (Anthropic).
 """
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
+
 from anthropic import AsyncAnthropic
+
 from config.settings import settings
 from src.providers.base import (
     GenerationParams,
     GenerationResult,
-    LLMProvider,
     ModelInfo,
     StreamChunk,
 )
@@ -38,6 +39,7 @@ class AnthropicProvider:
             api_key: Anthropic API ключ (если None, используется из settings)
             context_window: Размер контекстного окна
             max_output_tokens: Максимум токенов в ответе
+
         """
         self.model_name = model_name
         self.api_key = api_key or settings.anthropic_api_key
@@ -77,6 +79,7 @@ class AnthropicProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         logger.debug(
             "Начало генерации",
@@ -137,12 +140,13 @@ class AnthropicProvider:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Ошибка генерации",
                 model=self.model_name,
                 error=str(e),
             )
-            raise RuntimeError(f"Ошибка генерации: {e}") from e
+            msg = f"Ошибка генерации: {e}"
+            raise RuntimeError(msg) from e
 
     async def generate_stream(
         self,
@@ -160,6 +164,7 @@ class AnthropicProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         logger.debug(
             "Начало streaming генерации",
@@ -213,18 +218,20 @@ class AnthropicProvider:
                 )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Ошибка streaming генерации",
                 model=self.model_name,
                 error=str(e),
             )
-            raise RuntimeError(f"Ошибка streaming: {e}") from e
+            msg = f"Ошибка streaming: {e}"
+            raise RuntimeError(msg) from e
 
     async def get_model_info(self) -> ModelInfo:
         """Получить метаданные модели.
 
         Returns:
             Информация о модели
+
         """
         return ModelInfo(
             name=self.model_name,
@@ -244,6 +251,7 @@ class AnthropicProvider:
 
         Returns:
             True если API доступен
+
         """
         try:
             # Простой тестовый запрос
@@ -255,7 +263,7 @@ class AnthropicProvider:
             return True
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Health check failed",
                 model=self.model_name,
                 error=str(e),
@@ -292,6 +300,7 @@ async def create_anthropic_provider(
 
     Returns:
         AnthropicProvider instance
+
     """
     provider = AnthropicProvider(
         model_name=model_name,

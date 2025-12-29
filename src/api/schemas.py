@@ -5,7 +5,7 @@ Pydantic схемы для API запросов и ответов.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -17,7 +17,6 @@ from src.core.constants import (
     TASK_STATUS_PENDING,
     TASK_STATUS_PROCESSING,
 )
-
 
 # ==================== Enums ====================
 
@@ -90,7 +89,7 @@ class TaskRequest(BaseModel):
         description="Тип задачи",
     )
 
-    model: Optional[str] = Field(
+    model: str | None = Field(
         None,
         description="Имя модели (опционально, используется default)",
     )
@@ -100,7 +99,7 @@ class TaskRequest(BaseModel):
         description="Провайдер модели (local/claude/lm_studio)",
     )
 
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: dict[str, Any] | None = Field(
         default_factory=dict,
         description="Дополнительные параметры генерации",
     )
@@ -110,28 +109,28 @@ class TaskRequest(BaseModel):
         description="Использовать кэш для результатов",
     )
 
-    expected_format: Optional[Literal["text", "json"]] = Field(
+    expected_format: Literal["text", "json"] | None = Field(
         "text",
         description="Ожидаемый формат ответа (text или json)",
     )
 
-    json_schema: Optional[Dict[str, Any]] = Field(
+    json_schema: dict[str, Any] | None = Field(
         None,
         description="JSON Schema для валидации ответа (если expected_format='json')",
     )
 
-    preprocess_text: Optional[Union[bool, str]] = Field(
+    preprocess_text: bool | str | None = Field(
         False,
         description=(
             "Предобработка текста перед отправкой в LLM. "
-            "Может быть: false (выкл), true/\"standard\" (стандартная), "
-            "\"minimal\" (минимальная), \"aggressive\" (агрессивная)"
+            'Может быть: false (выкл), true/"standard" (стандартная), '
+            '"minimal" (минимальная), "aggressive" (агрессивная)'
         ),
     )
 
     @field_validator("preprocess_text")
     @classmethod
-    def validate_preprocess_text(cls, v: Union[bool, str, None]) -> Union[bool, str]:
+    def validate_preprocess_text(cls, v: bool | str | None) -> bool | str:
         """Валидация параметра предобработки.
 
         Args:
@@ -158,7 +157,7 @@ class TaskRequest(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def validate_parameters(cls, v: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def validate_parameters(cls, v: dict[str, Any] | None) -> dict[str, Any]:
         """Валидация параметров.
 
         Args:
@@ -176,7 +175,8 @@ class TaskRequest(BaseModel):
 
         # Проверяем max_tokens
         if "max_tokens" in v and v["max_tokens"] > DEFAULT_MAX_TOKENS:
-            raise ValueError(f"max_tokens не может быть больше {DEFAULT_MAX_TOKENS}")
+            msg = f"max_tokens не может быть больше {DEFAULT_MAX_TOKENS}"
+            raise ValueError(msg)
 
         # Проверяем temperature
         if "temperature" in v and not (0 <= v["temperature"] <= 2):
@@ -253,7 +253,7 @@ class SimilarityRequest(BaseModel):
         max_length=10000,
     )
 
-    model: Optional[str] = Field(
+    model: str | None = Field(
         None,
         description="Имя embedding модели",
     )
@@ -268,12 +268,12 @@ class SimilarityRequest(BaseModel):
         description="Использовать кэш для результатов",
     )
 
-    preprocess_text: Optional[Union[bool, str]] = Field(
+    preprocess_text: bool | str | None = Field(
         False,
         description=(
             "Предобработка текстов перед вычислением сходства. "
-            "Может быть: false (выкл), true/\"standard\" (стандартная), "
-            "\"minimal\" (минимальная), \"aggressive\" (агрессивная)"
+            'Может быть: false (выкл), true/"standard" (стандартная), '
+            '"minimal" (минимальная), "aggressive" (агрессивная)'
         ),
     )
 
@@ -313,11 +313,11 @@ class GenerationResult(BaseModel):
     provider: str = Field(..., description="Использованный провайдер")
     model: str = Field(..., description="Название модели")
     tokens: TokenInfo = Field(..., description="Информация о токенах")
-    was_fixed: Optional[bool] = Field(
+    was_fixed: bool | None = Field(
         None,
         description="Был ли JSON исправлен",
     )
-    fix_attempts: Optional[int] = Field(
+    fix_attempts: int | None = Field(
         None,
         description="Количество попыток исправления JSON",
     )
@@ -332,7 +332,7 @@ class EmbeddingResult(BaseModel):
 
     """
 
-    embedding: List[float] = Field(..., description="Вектор embedding")
+    embedding: list[float] = Field(..., description="Вектор embedding")
     dimension: int = Field(..., description="Размерность вектора")
 
 
@@ -370,35 +370,35 @@ class TaskResponse(BaseModel):
 
     task_id: str = Field(..., description="ID задачи")
     status: TaskStatus = Field(..., description="Статус задачи")
-    result: Optional[Union[GenerationResult, EmbeddingResult, Dict[str, Any]]] = Field(
+    result: GenerationResult | EmbeddingResult | dict[str, Any] | None = Field(
         None,
         description="Результат выполнения (если completed)",
     )
-    error: Optional[str] = Field(
+    error: str | None = Field(
         None,
         description="Сообщение об ошибке (если failed)",
     )
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         None,
         description="Время создания задачи",
     )
-    completed_at: Optional[datetime] = Field(
+    completed_at: datetime | None = Field(
         None,
         description="Время завершения задачи",
     )
-    duration_ms: Optional[float] = Field(
+    duration_ms: float | None = Field(
         None,
         description="Длительность выполнения в миллисекундах",
     )
-    request: Optional[TaskRequest] = Field(
+    request: TaskRequest | None = Field(
         None,
         description="Оригинальный запрос",
     )
-    processing_details: Optional[Dict[str, Any]] = Field(
+    processing_details: dict[str, Any] | None = Field(
         None,
         description="Детали обработки задачи",
     )
-    from_cache: Optional[bool] = Field(
+    from_cache: bool | None = Field(
         None,
         description="Был ли результат получен из кеша",
     )
@@ -442,7 +442,7 @@ class HealthResponse(BaseModel):
         description="Общий статус системы",
     )
     timestamp: float = Field(..., description="Unix timestamp")
-    components: Dict[str, Any] = Field(
+    components: dict[str, Any] = Field(
         ...,
         description="Статусы отдельных компонентов",
     )
@@ -466,7 +466,7 @@ class ModelInfo(BaseModel):
     )
     loaded: bool = Field(..., description="Загружена ли модель")
     device: str = Field(..., description="Устройство (cpu/cuda)")
-    stats: Optional[Dict[str, Any]] = Field(
+    stats: dict[str, Any] | None = Field(
         None,
         description="Статистика использования",
     )
@@ -480,7 +480,7 @@ class ModelsListResponse(BaseModel):
 
     """
 
-    models: List[ModelInfo] = Field(..., description="Список моделей")
+    models: list[ModelInfo] = Field(..., description="Список моделей")
 
 
 class MetricsResponse(BaseModel):
@@ -495,11 +495,11 @@ class MetricsResponse(BaseModel):
 
     """
 
-    llm: Dict[str, Any] = Field(..., description="Метрики LLM")
-    embedding: Dict[str, Any] = Field(..., description="Метрики Embedding")
-    json_fixer: Dict[str, Any] = Field(..., description="Метрики JSON Fixer")
-    cache: Dict[str, Any] = Field(..., description="Метрики кэша")
-    system: Dict[str, Any] = Field(..., description="Системные метрики")
+    llm: dict[str, Any] = Field(..., description="Метрики LLM")
+    embedding: dict[str, Any] = Field(..., description="Метрики Embedding")
+    json_fixer: dict[str, Any] = Field(..., description="Метрики JSON Fixer")
+    cache: dict[str, Any] = Field(..., description="Метрики кэша")
+    system: dict[str, Any] = Field(..., description="Системные метрики")
 
 
 class ProviderInfo(BaseModel):
@@ -515,7 +515,7 @@ class ProviderInfo(BaseModel):
 
     name: str = Field(..., description="Имя провайдера")
     is_available: bool = Field(..., description="Доступность провайдера")
-    capabilities: List[str] = Field(
+    capabilities: list[str] = Field(
         ...,
         description="Список возможностей провайдера",
     )
@@ -546,7 +546,7 @@ class ProvidersListResponse(BaseModel):
 
     """
 
-    providers: List[ProviderInfo] = Field(
+    providers: list[ProviderInfo] = Field(
         ...,
         description="Список провайдеров",
     )

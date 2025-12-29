@@ -3,7 +3,6 @@
 Централизованное хранилище providers с динамической регистрацией.
 """
 
-from typing import Any
 from src.providers.base import LLMProvider, ModelInfo
 from src.utils.logging import get_logger
 
@@ -32,6 +31,7 @@ class ProviderRegistry:
 
         Raises:
             ValueError: Если provider с таким именем уже зарегистрирован
+
         """
         if name in self._providers:
             msg = f"Provider '{name}' уже зарегистрирован"
@@ -54,6 +54,7 @@ class ProviderRegistry:
 
         Raises:
             KeyError: Если provider не найден
+
         """
         if name not in self._providers:
             msg = f"Provider '{name}' не найден в registry"
@@ -74,6 +75,7 @@ class ProviderRegistry:
 
         Raises:
             KeyError: Если provider не найден
+
         """
         if name not in self._providers:
             available = ", ".join(self._providers.keys()) or "нет доступных"
@@ -87,6 +89,7 @@ class ProviderRegistry:
 
         Returns:
             Список названий providers
+
         """
         return list(self._providers.keys())
 
@@ -95,6 +98,7 @@ class ProviderRegistry:
 
         Returns:
             Словарь {model_name: ModelInfo}
+
         """
         models_info: dict[str, ModelInfo] = {}
 
@@ -103,7 +107,7 @@ class ProviderRegistry:
                 info = await provider.get_model_info()
                 models_info[name] = info
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Не удалось получить info для модели",
                     model=name,
                     error=str(e),
@@ -116,6 +120,7 @@ class ProviderRegistry:
 
         Returns:
             Словарь {provider_name: is_healthy}
+
         """
         health_status: dict[str, bool] = {}
 
@@ -124,7 +129,7 @@ class ProviderRegistry:
                 is_healthy = await provider.health_check()
                 health_status[name] = is_healthy
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Health check failed для provider",
                     provider=name,
                     error=str(e),
@@ -140,7 +145,7 @@ class ProviderRegistry:
                 await provider.cleanup()
                 logger.info("Provider cleanup выполнен", name=name)
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Ошибка cleanup для provider",
                     provider=name,
                     error=str(e),
@@ -168,5 +173,6 @@ def get_provider_registry() -> ProviderRegistry:
 
     Returns:
         Singleton instance ProviderRegistry
+
     """
     return provider_registry

@@ -5,13 +5,12 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import torch
 from loguru import logger
 
 from src.core.config import settings
-from src.shared.utils import model_loader, check_model_in_cache
 from src.modules.llm.providers.base import BaseLLMProvider, ProviderCapability
 from src.modules.llm.providers.factory import register_provider
 from src.shared.errors import (
@@ -19,6 +18,7 @@ from src.shared.errors import (
     ModelNotLoadedError,
     ServiceUnavailableError,
 )
+from src.shared.utils import check_model_in_cache, model_loader
 
 
 @register_provider("local")
@@ -32,18 +32,19 @@ class LocalLLMProvider(BaseLLMProvider):
     - Управление памятью
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Инициализация провайдера.
 
         Args:
             config: Конфигурация провайдера
+
         """
         super().__init__(config)
 
-        self.model: Optional[Any] = None
-        self.tokenizer: Optional[Any] = None
+        self.model: Any | None = None
+        self.tokenizer: Any | None = None
         self.device = model_loader.device
-        self.model_name: Optional[str] = None
+        self.model_name: str | None = None
 
         # Пул запросов
         self.max_concurrent_requests = config.get(
@@ -62,15 +63,17 @@ class LocalLLMProvider(BaseLLMProvider):
 
         Returns:
             Строка "local"
+
         """
         return "local"
 
     @property
-    def capabilities(self) -> List[ProviderCapability]:
+    def capabilities(self) -> list[ProviderCapability]:
         """Поддерживаемые возможности.
 
         Returns:
             Список поддерживаемых возможностей
+
         """
         return [
             ProviderCapability.TEXT_GENERATION,
@@ -83,6 +86,7 @@ class LocalLLMProvider(BaseLLMProvider):
 
         Raises:
             Exception: Если загрузка модели не удалась
+
         """
         # Получаем параметры из конфига
         model_name = self.config.get("default_model", settings.llm.default_model)
@@ -103,6 +107,7 @@ class LocalLLMProvider(BaseLLMProvider):
         Args:
             model_name: Имя модели из HuggingFace
             load_in_8bit: Загружать в 8-bit режиме
+
         """
         self.model_name = model_name
 
@@ -129,8 +134,9 @@ class LocalLLMProvider(BaseLLMProvider):
 
         Raises:
             MemoryExceededError: Если памяти недостаточно
+
         """
-        available_gb, memory_percent = model_loader.check_available_memory()
+        _available_gb, memory_percent = model_loader.check_available_memory()
 
         if memory_percent > settings.llm.memory_threshold_percent:
             raise MemoryExceededError(
@@ -142,13 +148,13 @@ class LocalLLMProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: str = "text",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерация текста.
 
         Args:
@@ -174,6 +180,7 @@ class LocalLLMProvider(BaseLLMProvider):
             RuntimeError: Если провайдер не инициализирован
             ModelNotLoadedError: Если модель не загружена
             MemoryExceededError: Если нет доступных ресурсов
+
         """
         if not self._is_initialized:
             raise RuntimeError("Provider not initialized. Call initialize() first.")
@@ -266,7 +273,7 @@ class LocalLLMProvider(BaseLLMProvider):
             except Exception as e:
                 logger.error(f"Генерация не удалась для запроса #{request_id}: {e}")
                 raise ServiceUnavailableError(
-                    message=f"Не удалось сгенерировать текст: {str(e)}"
+                    message=f"Не удалось сгенерировать текст: {e!s}"
                 )
 
             finally:
@@ -278,7 +285,7 @@ class LocalLLMProvider(BaseLLMProvider):
         max_tokens: int,
         temperature: float,
         top_p: float,
-        extra_kwargs: Dict,
+        extra_kwargs: dict,
     ) -> str:
         """Синхронная генерация текста (для executor).
 
@@ -291,6 +298,7 @@ class LocalLLMProvider(BaseLLMProvider):
 
         Returns:
             Сгенерированный текст
+
         """
         # Убираем параметры, которые мы передаем явно
         filtered_kwargs = {
@@ -339,6 +347,7 @@ class LocalLLMProvider(BaseLLMProvider):
 
         Returns:
             True если модель загружена и готова к использованию
+
         """
         return (
             self._is_initialized
@@ -346,11 +355,12 @@ class LocalLLMProvider(BaseLLMProvider):
             and self.tokenizer is not None
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получение статистики провайдера.
 
         Returns:
             Словарь со статистикой
+
         """
         return {
             "provider": "local",

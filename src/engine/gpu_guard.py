@@ -5,8 +5,9 @@
 """
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+
 from src.engine.vram_monitor import get_vram_monitor
 from src.utils.logging import get_logger
 
@@ -38,7 +39,7 @@ class GPUGuard:
 
     def __init__(self) -> None:
         """Инициализировать GPU Guard."""
-        if self._initialized:  # type: ignore[has-type]
+        if hasattr(self, "_initialized") and self._initialized:
             return
 
         self._lock = asyncio.Lock()
@@ -66,22 +67,22 @@ class GPUGuard:
 
         Raises:
             RuntimeError: Недостаточно VRAM
+
         """
         # Проверить VRAM перед блокировкой (если указано)
-        if required_vram_mb is not None:
-            if not self._vram_monitor.can_allocate(required_vram_mb):
-                available_mb = self._vram_monitor.get_available_vram_mb()
-                msg = (
-                    f"Недостаточно VRAM для задачи {task_id}. "
-                    f"Требуется: {required_vram_mb:.0f} MB, доступно: {available_mb:.0f} MB"
-                )
-                logger.error(
-                    "VRAM check failed",
-                    task_id=task_id,
-                    required_mb=required_vram_mb,
-                    available_mb=available_mb,
-                )
-                raise RuntimeError(msg)
+        if required_vram_mb is not None and not self._vram_monitor.can_allocate(required_vram_mb):
+            available_mb = self._vram_monitor.get_available_vram_mb()
+            msg = (
+                f"Недостаточно VRAM для задачи {task_id}. "
+                f"Требуется: {required_vram_mb:.0f} MB, доступно: {available_mb:.0f} MB"
+            )
+            logger.error(
+                "VRAM check failed",
+                task_id=task_id,
+                required_mb=required_vram_mb,
+                available_mb=available_mb,
+            )
+            raise RuntimeError(msg)
 
         # Ожидать освобождения GPU
         logger.debug("Ожидание GPU lock", task_id=task_id)
@@ -112,6 +113,7 @@ class GPUGuard:
 
         Returns:
             True если GPU занят
+
         """
         return self._lock.locked()
 
@@ -120,6 +122,7 @@ class GPUGuard:
 
         Returns:
             task_id или None если GPU свободен
+
         """
         return self._current_task_id
 
@@ -134,6 +137,7 @@ class GPUGuard:
 
         Raises:
             asyncio.TimeoutError: Если timeout и GPU не освободился
+
         """
         if timeout is None:
             # Ожидать бесконечно
@@ -148,7 +152,7 @@ class GPUGuard:
                     pass
             return True
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "GPU wait timeout",
                 timeout_seconds=timeout,
@@ -170,6 +174,7 @@ def get_gpu_guard() -> GPUGuard:
 
     Returns:
         Singleton GPUGuard
+
     """
     global _gpu_guard_instance  # noqa: PLW0603
 

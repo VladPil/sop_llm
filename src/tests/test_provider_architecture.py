@@ -1,27 +1,24 @@
-"""
-ИНТЕГРАЦИОННЫЕ ТЕСТЫ для новой архитектуры провайдеров
-Тестирует ProviderManager, все провайдеры, JSON обработку и API endpoints
+"""ИНТЕГРАЦИОННЫЕ ТЕСТЫ для новой архитектуры провайдеров
+Тестирует ProviderManager, все провайдеры, JSON обработку и API endpoints.
 
 Требования:
 - Redis должен быть запущен
 - Для Claude тестов нужен ANTHROPIC_API_KEY
 - Для LM Studio тестов нужен запущенный LM Studio сервер (опционально)
 """
-import pytest
 import asyncio
-import json
-from typing import Dict, Any
-from httpx import AsyncClient
+
+import pytest
 
 
 @pytest.mark.integration
 @pytest.mark.slow
 class TestProviderManager:
-    """Тесты для ProviderManager"""
+    """Тесты для ProviderManager."""
 
     @pytest.mark.asyncio
     async def test_provider_manager_initialization(self, provider_manager):
-        """Тест инициализации ProviderManager"""
+        """Тест инициализации ProviderManager."""
         # Должен быть хотя бы один провайдер
         assert len(provider_manager.providers) > 0, "At least one provider should be initialized"
 
@@ -31,14 +28,14 @@ class TestProviderManager:
         # Default провайдер должен быть в списке
         assert provider_manager.default_provider in provider_manager.providers
 
-        print(f"\n✓ ProviderManager initialized")
+        print("\n✓ ProviderManager initialized")
         print(f"  Total providers: {len(provider_manager.providers)}")
         print(f"  Available: {list(provider_manager.providers.keys())}")
         print(f"  Default: {provider_manager.default_provider}")
 
     @pytest.mark.asyncio
     async def test_list_providers(self, provider_manager):
-        """Тест получения списка провайдеров"""
+        """Тест получения списка провайдеров."""
         providers_list = provider_manager.list_providers()
 
         assert isinstance(providers_list, list)
@@ -52,7 +49,7 @@ class TestProviderManager:
             assert "is_default" in provider_info
             assert isinstance(provider_info["capabilities"], list)
 
-        print(f"\n✓ Providers list:")
+        print("\n✓ Providers list:")
         for p in providers_list:
             status = "✓ available" if p["is_available"] else "✗ unavailable"
             default = " (default)" if p["is_default"] else ""
@@ -61,7 +58,7 @@ class TestProviderManager:
 
     @pytest.mark.asyncio
     async def test_get_provider(self, provider_manager):
-        """Тест получения провайдера по имени"""
+        """Тест получения провайдера по имени."""
         # Получаем default провайдера
         default_name = provider_manager.default_provider
         provider = provider_manager.get_provider(default_name)
@@ -78,7 +75,7 @@ class TestProviderManager:
 
     @pytest.mark.asyncio
     async def test_is_provider_available(self, provider_manager):
-        """Тест проверки доступности провайдера"""
+        """Тест проверки доступности провайдера."""
         # Default провайдер должен быть доступен
         default_name = provider_manager.default_provider
         assert provider_manager.is_provider_available(default_name)
@@ -86,11 +83,11 @@ class TestProviderManager:
         # Несуществующий провайдер недоступен
         assert not provider_manager.is_provider_available("non_existent")
 
-        print(f"\n✓ Provider availability checked")
+        print("\n✓ Provider availability checked")
 
     @pytest.mark.asyncio
     async def test_get_stats(self, provider_manager):
-        """Тест получения статистики"""
+        """Тест получения статистики."""
         # Общая статистика
         all_stats = provider_manager.get_stats()
 
@@ -105,7 +102,7 @@ class TestProviderManager:
 
         assert "provider" in provider_stats or "model_name" in provider_stats
 
-        print(f"\n✓ Stats:")
+        print("\n✓ Stats:")
         print(f"  Total providers: {all_stats['total_providers']}")
         print(f"  Default: {all_stats['default_provider']}")
 
@@ -113,11 +110,11 @@ class TestProviderManager:
 @pytest.mark.integration
 @pytest.mark.slow
 class TestLocalProvider:
-    """Тесты для LocalLLMProvider (Qwen модели)"""
+    """Тесты для LocalLLMProvider (Qwen модели)."""
 
     @pytest.mark.asyncio
     async def test_local_provider_available(self, provider_manager):
-        """Тест доступности локального провайдера"""
+        """Тест доступности локального провайдера."""
         if "local" not in provider_manager.providers:
             pytest.skip("Local provider not configured")
 
@@ -125,11 +122,11 @@ class TestLocalProvider:
         assert provider is not None
         assert provider.is_available()
 
-        print(f"\n✓ Local provider available")
+        print("\n✓ Local provider available")
 
     @pytest.mark.asyncio
     async def test_local_text_generation(self, provider_manager):
-        """Тест текстовой генерации через локального провайдера"""
+        """Тест текстовой генерации через локального провайдера."""
         if not provider_manager.is_provider_available("local"):
             pytest.skip("Local provider not available")
 
@@ -155,14 +152,14 @@ class TestLocalProvider:
         assert len(result["text"]) > 0
         assert result["metadata"]["provider"] == "local"
 
-        print(f"\n✓ Local generation:")
+        print("\n✓ Local generation:")
         print(f"  Prompt: {prompt}")
         print(f"  Response: {result['text']}")
         print(f"  Tokens: {result['tokens']}")
 
     @pytest.mark.asyncio
     async def test_local_json_generation(self, provider_manager):
-        """Тест JSON генерации через локального провайдера"""
+        """Тест JSON генерации через локального провайдера."""
         if not provider_manager.is_provider_available("local"):
             pytest.skip("Local provider not available")
 
@@ -184,25 +181,25 @@ class TestLocalProvider:
         # Проверяем что JSON валидный
         if result["parsed"] is not None:
             assert isinstance(result["parsed"], (dict, list))
-            print(f"\n✓ Local JSON generation:")
+            print("\n✓ Local JSON generation:")
             print(f"  Prompt: {prompt}")
             print(f"  Parsed JSON: {result['parsed']}")
             print(f"  Was fixed: {result.get('was_fixed', False)}")
-            if result.get('was_fixed'):
+            if result.get("was_fixed"):
                 print(f"  Fix attempts: {result.get('fix_attempts', 0)}")
         else:
-            print(f"\n⚠ JSON generation failed, but error handled gracefully")
+            print("\n⚠ JSON generation failed, but error handled gracefully")
             print(f"  Error: {result.get('parse_error', 'Unknown')}")
 
 
 @pytest.mark.integration
 @pytest.mark.requires_api_key
 class TestClaudeProvider:
-    """Тесты для ClaudeProvider (требует ANTHROPIC_API_KEY)"""
+    """Тесты для ClaudeProvider (требует ANTHROPIC_API_KEY)."""
 
     @pytest.mark.asyncio
     async def test_claude_provider_available(self, provider_manager):
-        """Тест доступности Claude провайдера"""
+        """Тест доступности Claude провайдера."""
         if "claude" not in provider_manager.providers:
             pytest.skip("Claude provider not configured")
 
@@ -210,11 +207,11 @@ class TestClaudeProvider:
         if not provider.is_available():
             pytest.skip("Claude provider not available (API key missing?)")
 
-        print(f"\n✓ Claude provider available")
+        print("\n✓ Claude provider available")
 
     @pytest.mark.asyncio
     async def test_claude_text_generation(self, provider_manager):
-        """Тест текстовой генерации через Claude API"""
+        """Тест текстовой генерации через Claude API."""
         if not provider_manager.is_provider_available("claude"):
             pytest.skip("Claude provider not available")
 
@@ -234,7 +231,7 @@ class TestClaudeProvider:
         assert len(result["text"]) > 0
         assert result["metadata"]["provider"] == "claude"
 
-        print(f"\n✓ Claude generation:")
+        print("\n✓ Claude generation:")
         print(f"  Prompt: {prompt}")
         print(f"  Response: {result['text']}")
         print(f"  Model: {result['model']}")
@@ -242,7 +239,7 @@ class TestClaudeProvider:
 
     @pytest.mark.asyncio
     async def test_claude_json_generation(self, provider_manager):
-        """Тест JSON генерации через Claude API"""
+        """Тест JSON генерации через Claude API."""
         if not provider_manager.is_provider_available("claude"):
             pytest.skip("Claude provider not available")
 
@@ -262,22 +259,22 @@ class TestClaudeProvider:
 
         if result["parsed"] is not None:
             assert isinstance(result["parsed"], (dict, list))
-            print(f"\n✓ Claude JSON generation:")
+            print("\n✓ Claude JSON generation:")
             print(f"  Parsed: {result['parsed']}")
             print(f"  Was fixed: {result.get('was_fixed', False)}")
         else:
-            print(f"\n⚠ JSON parsing failed")
+            print("\n⚠ JSON parsing failed")
             print(f"  Raw text: {result['text'][:200]}")
 
 
 @pytest.mark.integration
 @pytest.mark.requires_external_service
 class TestLMStudioProvider:
-    """Тесты для LMStudioProvider (требует запущенный LM Studio)"""
+    """Тесты для LMStudioProvider (требует запущенный LM Studio)."""
 
     @pytest.mark.asyncio
     async def test_lm_studio_provider_available(self, provider_manager):
-        """Тест доступности LM Studio провайдера"""
+        """Тест доступности LM Studio провайдера."""
         if "lm_studio" not in provider_manager.providers:
             pytest.skip("LM Studio provider not configured")
 
@@ -285,11 +282,11 @@ class TestLMStudioProvider:
         if not provider.is_available():
             pytest.skip("LM Studio server not running")
 
-        print(f"\n✓ LM Studio provider available")
+        print("\n✓ LM Studio provider available")
 
     @pytest.mark.asyncio
     async def test_lm_studio_text_generation(self, provider_manager):
-        """Тест текстовой генерации через LM Studio"""
+        """Тест текстовой генерации через LM Studio."""
         if not provider_manager.is_provider_available("lm_studio"):
             pytest.skip("LM Studio not available")
 
@@ -309,12 +306,12 @@ class TestLMStudioProvider:
         assert len(result["text"]) > 0
         assert result["metadata"]["provider"] == "lm_studio"
 
-        print(f"\n✓ LM Studio generation:")
+        print("\n✓ LM Studio generation:")
         print(f"  Response: {result['text']}")
 
     @pytest.mark.asyncio
     async def test_lm_studio_json_generation(self, provider_manager):
-        """Тест JSON генерации через LM Studio"""
+        """Тест JSON генерации через LM Studio."""
         if not provider_manager.is_provider_available("lm_studio"):
             pytest.skip("LM Studio not available")
 
@@ -333,17 +330,17 @@ class TestLMStudioProvider:
         assert "parsed" in result
 
         if result["parsed"] is not None:
-            print(f"\n✓ LM Studio JSON generation:")
+            print("\n✓ LM Studio JSON generation:")
             print(f"  Parsed: {result['parsed']}")
 
 
 @pytest.mark.integration
 class TestJSONProcessing:
-    """Тесты для JSON обработки и JSONFixer интеграции"""
+    """Тесты для JSON обработки и JSONFixer интеграции."""
 
     @pytest.mark.asyncio
     async def test_json_parsing_valid(self, provider_manager):
-        """Тест парсинга валидного JSON"""
+        """Тест парсинга валидного JSON."""
         # Используем доступного провайдера
         provider_name = provider_manager.default_provider
         if not provider_manager.is_provider_available(provider_name):
@@ -360,14 +357,14 @@ class TestJSONProcessing:
             expected_format="json"
         )
 
-        print(f"\n✓ JSON parsing test:")
+        print("\n✓ JSON parsing test:")
         print(f"  Provider: {provider_name}")
         print(f"  Was fixed: {result.get('was_fixed', False)}")
         print(f"  Parsed: {result.get('parsed')}")
 
     @pytest.mark.asyncio
     async def test_json_fixer_integration(self, provider_manager, json_fixer_manager):
-        """Тест интеграции JSONFixer"""
+        """Тест интеграции JSONFixer."""
         # Проверяем что JSONFixer доступен
         if not json_fixer_manager.is_available():
             pytest.skip("JSONFixer not available")
@@ -381,10 +378,10 @@ class TestJSONProcessing:
             original_prompt="Create user object"
         )
 
-        print(f"\n✓ JSONFixer test:")
+        print("\n✓ JSONFixer test:")
         print(f"  Broken: {broken_json}")
         print(f"  Success: {fix_result['success']}")
-        if fix_result['success']:
+        if fix_result["success"]:
             print(f"  Fixed: {fix_result['fixed_json']}")
             print(f"  Parsed: {fix_result['parsed']}")
             print(f"  Attempts: {fix_result['attempts']}")
@@ -393,7 +390,7 @@ class TestJSONProcessing:
 
     @pytest.mark.asyncio
     async def test_json_schema_validation(self, provider_manager):
-        """Тест валидации по JSON Schema"""
+        """Тест валидации по JSON Schema."""
         provider_name = provider_manager.default_provider
         if not provider_manager.is_provider_available(provider_name):
             pytest.skip("No provider available")
@@ -419,18 +416,18 @@ class TestJSONProcessing:
             json_schema=schema
         )
 
-        print(f"\n✓ JSON Schema validation:")
+        print("\n✓ JSON Schema validation:")
         print(f"  Schema: {schema}")
         print(f"  Parsed: {result.get('parsed')}")
 
 
 @pytest.mark.integration
 class TestConcurrentRequests:
-    """Тесты для concurrent запросов"""
+    """Тесты для concurrent запросов."""
 
     @pytest.mark.asyncio
     async def test_concurrent_generation(self, provider_manager):
-        """Тест параллельных запросов к провайдеру"""
+        """Тест параллельных запросов к провайдеру."""
         provider_name = provider_manager.default_provider
         if not provider_manager.is_provider_available(provider_name):
             pytest.skip("No provider available")
@@ -459,13 +456,13 @@ class TestConcurrentRequests:
         assert all("text" in r for r in results)
         assert all(len(r["text"]) > 0 for r in results)
 
-        print(f"\n✓ Concurrent requests:")
-        for prompt, result in zip(prompts, results):
+        print("\n✓ Concurrent requests:")
+        for prompt, result in zip(prompts, results, strict=False):
             print(f"  '{prompt}' -> '{result['text'][:50]}...'")
 
     @pytest.mark.asyncio
     async def test_concurrent_json_generation(self, provider_manager):
-        """Тест параллельных JSON запросов"""
+        """Тест параллельных JSON запросов."""
         provider_name = provider_manager.default_provider
         if not provider_manager.is_provider_available(provider_name):
             pytest.skip("No provider available")
@@ -492,20 +489,20 @@ class TestConcurrentRequests:
         # Проверки
         assert len(results) == len(prompts)
 
-        print(f"\n✓ Concurrent JSON requests:")
+        print("\n✓ Concurrent JSON requests:")
         for i, result in enumerate(results, 1):
             print(f"  Request {i}: parsed={result.get('parsed')}, fixed={result.get('was_fixed')}")
 
 
 @pytest.mark.integration
 class TestProviderSwitching:
-    """Тесты переключения между провайдерами"""
+    """Тесты переключения между провайдерами."""
 
     @pytest.mark.asyncio
     async def test_switch_providers(self, provider_manager):
-        """Тест использования разных провайдеров"""
+        """Тест использования разных провайдеров."""
         available_providers = [
-            name for name in provider_manager.providers.keys()
+            name for name in provider_manager.providers
             if provider_manager.is_provider_available(name)
         ]
 
@@ -527,13 +524,13 @@ class TestProviderSwitching:
         # Все должны вернуть результат
         assert len(results) >= 2
 
-        print(f"\n✓ Provider switching:")
+        print("\n✓ Provider switching:")
         for provider_name, result in results.items():
             print(f"  {provider_name}: {result['text'][:50]}")
 
     @pytest.mark.asyncio
     async def test_default_provider(self, provider_manager):
-        """Тест использования default провайдера"""
+        """Тест использования default провайдера."""
         # Без указания провайдера должен использоваться default
         result = await provider_manager.generate(
             prompt="Test",
@@ -550,22 +547,22 @@ class TestProviderSwitching:
 
 @pytest.mark.integration
 class TestErrorHandling:
-    """Тесты обработки ошибок"""
+    """Тесты обработки ошибок."""
 
     @pytest.mark.asyncio
     async def test_invalid_provider(self, provider_manager):
-        """Тест запроса к несуществующему провайдеру"""
+        """Тест запроса к несуществующему провайдеру."""
         with pytest.raises(ValueError, match="не найден"):
             await provider_manager.generate(
                 prompt="Test",
                 provider="non_existent_provider"
             )
 
-        print(f"\n✓ Invalid provider error handled")
+        print("\n✓ Invalid provider error handled")
 
     @pytest.mark.asyncio
     async def test_unavailable_provider(self, provider_manager):
-        """Тест запроса к недоступному провайдеру"""
+        """Тест запроса к недоступному провайдеру."""
         # Проверяем что есть хоть один недоступный
         unavailable_providers = [
             name for name in ["claude", "lm_studio", "openai"]
@@ -588,7 +585,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_no_default_provider(self):
-        """Тест когда default провайдер не установлен"""
+        """Тест когда default провайдер не установлен."""
         from app.models.provider_manager import ProviderManager
 
         pm = ProviderManager()
@@ -597,4 +594,4 @@ class TestErrorHandling:
         with pytest.raises(ValueError, match="default провайдер не установлен"):
             await pm.generate(prompt="Test")
 
-        print(f"\n✓ No default provider error handled")
+        print("\n✓ No default provider error handled")

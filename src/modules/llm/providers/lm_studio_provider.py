@@ -5,8 +5,9 @@
 
 import asyncio
 import json
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -29,11 +30,12 @@ class LMStudioProvider(BaseLLMProvider):
     - Любые модели загруженные в LM Studio
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Инициализация провайдера.
 
         Args:
             config: Конфигурация провайдера
+
         """
         super().__init__(config)
 
@@ -46,7 +48,7 @@ class LMStudioProvider(BaseLLMProvider):
         self.model_name = config.get("default_model", "local-model")
 
         # HTTP клиент
-        self.client: Optional[httpx.AsyncClient] = None
+        self.client: httpx.AsyncClient | None = None
 
         # Пул запросов
         self.max_concurrent_requests = config.get("max_concurrent_requests", 5)
@@ -60,15 +62,17 @@ class LMStudioProvider(BaseLLMProvider):
 
         Returns:
             Строка "lm_studio"
+
         """
         return "lm_studio"
 
     @property
-    def capabilities(self) -> List[ProviderCapability]:
+    def capabilities(self) -> list[ProviderCapability]:
         """Поддерживаемые возможности.
 
         Returns:
             Список поддерживаемых возможностей
+
         """
         return [
             ProviderCapability.TEXT_GENERATION,
@@ -81,6 +85,7 @@ class LMStudioProvider(BaseLLMProvider):
 
         Raises:
             RuntimeError: Если LM Studio недоступен
+
         """
         # Создаём HTTP клиент
         self.client = httpx.AsyncClient(
@@ -105,12 +110,16 @@ class LMStudioProvider(BaseLLMProvider):
             self._is_initialized = True
 
         except httpx.ConnectError:
-            raise RuntimeError(
+            msg = (
                 f"Не удалось подключиться к LM Studio по адресу {self.base_url}. "
                 "Убедитесь, что LM Studio запущен и API сервер активен."
             )
+            raise RuntimeError(
+                msg
+            )
         except Exception as e:
-            raise RuntimeError(f"Ошибка при инициализации LM Studio: {e}")
+            msg = f"Ошибка при инициализации LM Studio: {e}"
+            raise RuntimeError(msg)
 
         logger.info(
             f"LMStudioProvider инициализирован: {self.base_url}, "
@@ -120,13 +129,13 @@ class LMStudioProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: str = "text",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерация текста через LM Studio API.
 
         Args:
@@ -144,6 +153,7 @@ class LMStudioProvider(BaseLLMProvider):
         Raises:
             RuntimeError: Если провайдер не инициализирован
             ServiceUnavailableError: Если генерация не удалась
+
         """
         if not self._is_initialized:
             raise RuntimeError("Provider not initialized. Call initialize() first.")
@@ -273,14 +283,14 @@ class LMStudioProvider(BaseLLMProvider):
                 logger.error(
                     f"Запрос к LM Studio #{request_id} не удался: {e}", exc_info=True
                 )
-                raise ServiceUnavailableError(message=f"Ошибка LM Studio: {str(e)}")
+                raise ServiceUnavailableError(message=f"Ошибка LM Studio: {e!s}")
 
             finally:
                 self.active_requests -= 1
 
     async def generate_streaming(
-        self, prompt: str, model: Optional[str] = None, **kwargs: Any
-    ) -> AsyncIterator[Dict[str, Any]]:
+        self, prompt: str, model: str | None = None, **kwargs: Any
+    ) -> AsyncIterator[dict[str, Any]]:
         """Streaming генерация через LM Studio API.
 
         Args:
@@ -290,6 +300,7 @@ class LMStudioProvider(BaseLLMProvider):
 
         Yields:
             Словари с частями текста
+
         """
         if not self._is_initialized or not self.client:
             raise RuntimeError("Provider not initialized")
@@ -356,14 +367,16 @@ class LMStudioProvider(BaseLLMProvider):
 
         Returns:
             True если клиент инициализирован
+
         """
         return self._is_initialized and self.client is not None
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получение статистики провайдера.
 
         Returns:
             Словарь со статистикой
+
         """
         return {
             "provider": "lm_studio",

@@ -3,14 +3,15 @@
 Provider для официального OpenAI API (GPT models).
 """
 
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
+
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk
+
 from config.settings import settings
 from src.providers.base import (
     GenerationParams,
     GenerationResult,
-    LLMProvider,
     ModelInfo,
     StreamChunk,
 )
@@ -41,6 +42,7 @@ class OpenAIProvider:
             base_url: Base URL API (опционально, для Azure OpenAI)
             context_window: Размер контекстного окна (опционально)
             max_output_tokens: Максимум токенов в ответе (опционально)
+
         """
         self.model_name = model_name
         self.api_key = api_key or settings.openai_api_key
@@ -75,6 +77,7 @@ class OpenAIProvider:
 
         Returns:
             Размер контекстного окна
+
         """
         # Известные размеры для популярных моделей
         model_contexts = {
@@ -104,6 +107,7 @@ class OpenAIProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         logger.debug(
             "Начало генерации",
@@ -170,12 +174,13 @@ class OpenAIProvider:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Ошибка генерации",
                 model=self.model_name,
                 error=str(e),
             )
-            raise RuntimeError(f"Ошибка генерации: {e}") from e
+            msg = f"Ошибка генерации: {e}"
+            raise RuntimeError(msg) from e
 
     async def generate_stream(
         self,
@@ -193,6 +198,7 @@ class OpenAIProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         logger.debug(
             "Начало streaming генерации",
@@ -260,25 +266,26 @@ class OpenAIProvider:
 
                 delta = choice.delta
                 text = delta.content or ""
-                finish_reason = choice.finish_reason
 
                 # Промежуточный chunk
                 if text:
                     yield StreamChunk(text=text)
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Ошибка streaming генерации",
                 model=self.model_name,
                 error=str(e),
             )
-            raise RuntimeError(f"Ошибка streaming: {e}") from e
+            msg = f"Ошибка streaming: {e}"
+            raise RuntimeError(msg) from e
 
     async def get_model_info(self) -> ModelInfo:
         """Получить метаданные модели.
 
         Returns:
             Информация о модели
+
         """
         # GPT-4 Turbo+ поддерживает JSON schema
         supports_structured = "gpt-4" in self.model_name.lower() and "turbo" in self.model_name.lower()
@@ -301,6 +308,7 @@ class OpenAIProvider:
 
         Returns:
             True если API доступен
+
         """
         try:
             # Попытаться получить список моделей
@@ -308,7 +316,7 @@ class OpenAIProvider:
             return True
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Health check failed",
                 model=self.model_name,
                 error=str(e),
@@ -347,6 +355,7 @@ async def create_openai_provider(
 
     Returns:
         OpenAIProvider instance
+
     """
     provider = OpenAIProvider(
         model_name=model_name,

@@ -17,22 +17,23 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from src.api import router as api_router
+
 # Импорты из новой структуры
 from src.core.config import settings
 from src.core.constants import API_PREFIX, API_VERSION
-from src.shared.logging import setup_logger
+from src.modules.llm.services import (
+    embedding_manager,
+    json_fixer,
+    llm_manager,
+    provider_manager,
+    unified_llm,
+)
+from src.modules.monitoring import websocket_endpoint
+from src.shared.cache import redis_cache
 from src.shared.errors import setup_exception_handlers
 from src.shared.errors.context import get_trace_id, set_trace_id
-from src.shared.cache import redis_cache
-from src.api import router as api_router
-from src.modules.monitoring import websocket_endpoint
-from src.modules.llm.services import (
-    llm_manager,
-    embedding_manager,
-    unified_llm,
-    json_fixer,
-    provider_manager,
-)
+from src.shared.logging import setup_logger
 
 
 class TraceContextMiddleware:
@@ -117,7 +118,7 @@ async def lifespan(app: FastAPI) -> Any:
             providers_config_path = Path(__file__).parent.parent / "config" / "providers.yaml"
 
             if providers_config_path.exists():
-                with open(providers_config_path, "r", encoding="utf-8") as f:
+                with open(providers_config_path, encoding="utf-8") as f:
                     providers_yaml = yaml.safe_load(f)
                     providers_config = providers_yaml.get("providers", [])
 

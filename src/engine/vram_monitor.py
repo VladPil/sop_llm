@@ -3,8 +3,11 @@
 Обёртка над pynvml для мониторинга NVIDIA GPU памяти.
 """
 
+from contextlib import suppress
 from typing import Any
+
 import pynvml
+
 from config.settings import settings
 from src.utils.logging import get_logger
 
@@ -28,7 +31,7 @@ class VRAMMonitor:
 
     def __init__(self) -> None:
         """Инициализировать VRAM Monitor."""
-        if self._initialized:  # type: ignore[has-type]
+        if hasattr(self, "_initialized") and self._initialized:
             return
 
         self.gpu_index = settings.gpu_index
@@ -55,7 +58,7 @@ class VRAMMonitor:
             self._initialized = True  # type: ignore[misc]
 
         except pynvml.NVMLError as e:
-            logger.error("Не удалось инициализировать pynvml", error=str(e))
+            logger.exception("Не удалось инициализировать pynvml", error=str(e))
             raise
 
     def get_vram_usage(self) -> dict[str, Any]:
@@ -67,6 +70,7 @@ class VRAMMonitor:
             - used_mb: Используется VRAM
             - free_mb: Свободно VRAM
             - used_percent: Процент использования
+
         """
         if self._handle is None:
             msg = "VRAMMonitor не инициализирован"
@@ -83,7 +87,7 @@ class VRAMMonitor:
             }
 
         except pynvml.NVMLError as e:
-            logger.error("Ошибка получения VRAM usage", error=str(e))
+            logger.exception("Ошибка получения VRAM usage", error=str(e))
             raise
 
     def get_available_vram_mb(self) -> float:
@@ -91,6 +95,7 @@ class VRAMMonitor:
 
         Returns:
             Доступная VRAM в MB
+
         """
         usage = self.get_vram_usage()
 
@@ -110,6 +115,7 @@ class VRAMMonitor:
 
         Returns:
             True если можно выделить
+
         """
         available_mb = self.get_available_vram_mb()
         return available_mb >= required_mb
@@ -119,6 +125,7 @@ class VRAMMonitor:
 
         Returns:
             Словарь с метаданными GPU
+
         """
         if self._handle is None:
             msg = "VRAMMonitor не инициализирован"
@@ -152,7 +159,7 @@ class VRAMMonitor:
             }
 
         except pynvml.NVMLError as e:
-            logger.error("Ошибка получения GPU info", error=str(e))
+            logger.exception("Ошибка получения GPU info", error=str(e))
             raise
 
     def cleanup(self) -> None:
@@ -161,15 +168,13 @@ class VRAMMonitor:
             pynvml.nvmlShutdown()
             logger.info("VRAMMonitor cleanup выполнен")
         except pynvml.NVMLError as e:
-            logger.error("Ошибка cleanup VRAMMonitor", error=str(e))
+            logger.exception("Ошибка cleanup VRAMMonitor", error=str(e))
 
     def __del__(self) -> None:
         """Деструктор - очистить pynvml при удалении."""
         if hasattr(self, "_initialized") and self._initialized:
-            try:
+            with suppress(Exception):
                 pynvml.nvmlShutdown()
-            except Exception:  # noqa: S110
-                pass
 
 
 # =================================================================
@@ -181,5 +186,6 @@ def get_vram_monitor() -> VRAMMonitor:
 
     Returns:
         Singleton VRAMMonitor
+
     """
     return VRAMMonitor()

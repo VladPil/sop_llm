@@ -1,9 +1,10 @@
 """Model Loader утилиты для загрузки моделей."""
 
 import asyncio
+from typing import Any
+
 import psutil
 import torch
-from typing import Any, Tuple
 from loguru import logger
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -11,16 +12,17 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 class ModelLoader:
     """Утилита для загрузки и управления моделями."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Инициализация ModelLoader."""
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"ModelLoader инициализирован с device: {self.device}")
 
-    def check_available_memory(self) -> Tuple[float, float]:
+    def check_available_memory(self) -> tuple[float, float]:
         """Проверяет доступную память системы.
 
         Returns:
             Tuple[float, float]: (доступная память в ГБ, процент использования)
+
         """
         memory = psutil.virtual_memory()
         available_gb = memory.available / (1024**3)
@@ -31,7 +33,7 @@ class ModelLoader:
         self,
         model_name: str,
         load_in_8bit: bool = False,
-    ) -> Tuple[Any, Any]:
+    ) -> tuple[Any, Any]:
         """Загружает LLM модель асинхронно.
 
         Args:
@@ -40,6 +42,7 @@ class ModelLoader:
 
         Returns:
             Tuple[model, tokenizer]: Загруженная модель и токенизатор
+
         """
         logger.info(f"Загрузка LLM модели {model_name} (8-bit: {load_in_8bit})")
 
@@ -68,7 +71,7 @@ class ModelLoader:
     async def load_embedding_model(
         self,
         model_name: str,
-    ) -> Tuple[Any, Any]:
+    ) -> tuple[Any, Any]:
         """Загружает Embedding модель асинхронно.
 
         Args:
@@ -76,6 +79,7 @@ class ModelLoader:
 
         Returns:
             Tuple[model, tokenizer]: Загруженная модель и токенизатор
+
         """
         from sentence_transformers import SentenceTransformer
 
@@ -103,6 +107,7 @@ def check_model_in_cache(model_name: str) -> bool:
 
     Returns:
         bool: Всегда False (кэширование не реализовано)
+
     """
     # TODO: Реализовать проверку кэша моделей
     return False

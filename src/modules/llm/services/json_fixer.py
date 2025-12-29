@@ -6,15 +6,15 @@
 import asyncio
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 import torch
 from jsonschema import ValidationError, validate
 from loguru import logger
 
 from src.core.config import settings
+from src.shared.errors import MemoryExceededError, ModelNotLoadedError
 from src.shared.utils import model_loader
-from src.shared.errors import JSONFixFailedError, MemoryExceededError, ModelNotLoadedError
 
 
 class JSONFixerManager:
@@ -22,10 +22,10 @@ class JSONFixerManager:
 
     def __init__(self) -> None:
         """Инициализация менеджера."""
-        self.model: Optional[Any] = None
-        self.tokenizer: Optional[Any] = None
+        self.model: Any | None = None
+        self.tokenizer: Any | None = None
         self.device = model_loader.device
-        self.model_name: Optional[str] = None
+        self.model_name: str | None = None
         self.is_loaded = False
 
         # Отдельный семафор для JSON fixer (не блокируем основные запросы)
@@ -63,7 +63,7 @@ class JSONFixerManager:
 
     def _check_memory_availability(self) -> None:
         """Проверяет доступность памяти."""
-        available_gb, memory_percent = model_loader.check_available_memory()
+        _available_gb, memory_percent = model_loader.check_available_memory()
 
         if memory_percent > settings.llm.memory_threshold_percent:
             raise MemoryExceededError(
@@ -73,7 +73,7 @@ class JSONFixerManager:
             )
 
     @staticmethod
-    def validate_json(json_string: str, schema: Optional[Dict] = None) -> bool:
+    def validate_json(json_string: str, schema: dict | None = None) -> bool:
         """Валидирует JSON строку."""
         try:
             parsed = json.loads(json_string)
@@ -87,8 +87,8 @@ class JSONFixerManager:
     def _build_fix_prompt(
         self,
         broken_json: str,
-        original_prompt: Optional[str] = None,
-        schema: Optional[Dict] = None,
+        original_prompt: str | None = None,
+        schema: dict | None = None,
     ) -> str:
         """Создает промпт для исправления JSON."""
         prompt = """Ты - эксперт по исправлению JSON. Твоя задача - исправить некорректный JSON и вернуть только валидный JSON, без объяснений.
@@ -114,10 +114,10 @@ class JSONFixerManager:
     async def fix_json(
         self,
         broken_json: str,
-        original_prompt: Optional[str] = None,
-        schema: Optional[Dict] = None,
-        max_attempts: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        original_prompt: str | None = None,
+        schema: dict | None = None,
+        max_attempts: int | None = None,
+    ) -> dict[str, Any]:
         """Исправляет некорректный JSON."""
         if not self.is_loaded:
             await self.load_model()
@@ -246,8 +246,7 @@ class JSONFixerManager:
         elif text.startswith("```"):
             text = text[3:]
 
-        if text.endswith("```"):
-            text = text[:-3]
+        text = text.removesuffix("```")
 
         text = text.strip()
 
@@ -266,10 +265,7 @@ class JSONFixerManager:
         if start == -1:
             return text
 
-        if text[start] == "{":
-            end = text.rfind("}")
-        else:
-            end = text.rfind("]")
+        end = text.rfind("}") if text[start] == "{" else text.rfind("]")
 
         if end != -1 and end > start:
             text = text[start : end + 1]
@@ -300,18 +296,17 @@ class JSONFixerManager:
         return generated_text
 
     async def fix_json_with_timeout(
-        self, broken_json: str, timeout: Optional[int] = None, **kwargs: Any
-    ) -> Dict[str, Any]:
+        self, broken_json: str, timeout: int | None = None, **kwargs: Any
+    ) -> dict[str, Any]:
         """Исправляет JSON с таймаутом."""
         timeout = timeout or settings.json_fixer.timeout
 
         try:
-            result = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 self.fix_json(broken_json, **kwargs), timeout=timeout
             )
-            return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"JSON fixing timeout после {timeout}s")
             return {
                 "success": False,
@@ -321,7 +316,7 @@ class JSONFixerManager:
                 "error": f"Таймаут исправления JSON после {timeout}s",
             }
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получает статистику JSON fixer."""
         success_rate = 0.0
         if self.total_requests > 0:

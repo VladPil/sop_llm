@@ -31,27 +31,27 @@ from src.modules.llm.services import (
 )
 
 __all__ = [
-    # Submodules
-    "providers",
-    "formatters",
-    "services",
-    "schemas",
     # Providers
     "BaseLLMProvider",
-    "ProviderCapability",
-    "LocalLLMProvider",
     "ClaudeProvider",
-    "LMStudioProvider",
-    # Services - Classes
-    "LLMManager",
     "EmbeddingManager",
     "JSONFixerManager",
+    # Services - Classes
+    "LLMManager",
+    "LMStudioProvider",
+    "LocalLLMProvider",
+    "ProviderCapability",
     "ProviderManager",
     "UnifiedLLM",
+    "embedding_manager",
+    "formatters",
+    "json_fixer",
     # Services - Instances
     "llm_manager",
-    "embedding_manager",
-    "json_fixer",
     "provider_manager",
+    # Submodules
+    "providers",
+    "schemas",
+    "services",
     "unified_llm",
 ]

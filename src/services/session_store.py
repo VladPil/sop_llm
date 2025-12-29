@@ -11,10 +11,12 @@ Redis Schema (TTL 24h):
     logs:{task_id}          -> List (логи конкретной задачи)
 """
 
-import orjson
 from datetime import datetime
 from typing import Any
+
+import orjson
 from redis.asyncio import Redis
+
 from config.settings import settings
 from src.utils.logging import get_logger
 
@@ -36,6 +38,7 @@ class SessionStore:
 
         Args:
             redis_client: Async Redis client
+
         """
         self.redis = redis_client
         self.session_ttl = settings.session_ttl_seconds
@@ -64,6 +67,7 @@ class SessionStore:
             params: Параметры генерации (temperature, max_tokens, etc.)
             webhook_url: URL для callback (опционально)
             idempotency_key: Ключ идемпотентности (опционально)
+
         """
         session_key = f"session:{task_id}"
 
@@ -115,6 +119,7 @@ class SessionStore:
             status: Новый статус (pending, processing, completed, failed)
             result: Результат генерации (для completed)
             error: Сообщение об ошибке (для failed)
+
         """
         session_key = f"session:{task_id}"
 
@@ -144,6 +149,7 @@ class SessionStore:
 
         Returns:
             Данные сессии или None если не найдена
+
         """
         session_key = f"session:{task_id}"
         data = await self.redis.hgetall(session_key)
@@ -171,6 +177,7 @@ class SessionStore:
 
         Returns:
             task_id или None
+
         """
         result = await self.redis.get(f"idempotency:{idempotency_key}")
         return result.decode("utf-8") if result else None
@@ -180,6 +187,7 @@ class SessionStore:
 
         Args:
             task_id: ID задачи
+
         """
         session_key = f"session:{task_id}"
         await self.redis.delete(session_key)
@@ -199,6 +207,7 @@ class SessionStore:
         Args:
             task_id: ID задачи
             priority: Приоритет (выше = раньше обработается)
+
         """
         # Sorted Set: score = -priority (чтобы больший приоритет был первым)
         await self.redis.zadd("queue:tasks", {task_id: -priority})
@@ -210,6 +219,7 @@ class SessionStore:
 
         Returns:
             task_id или None если очередь пуста
+
         """
         # ZPOPMIN - извлечь элемент с минимальным score (наивысшим приоритетом)
         result = await self.redis.zpopmin("queue:tasks", 1)
@@ -227,6 +237,7 @@ class SessionStore:
 
         Returns:
             Количество задач в очереди
+
         """
         return await self.redis.zcard("queue:tasks")
 
@@ -235,6 +246,7 @@ class SessionStore:
 
         Args:
             task_id: ID задачи
+
         """
         await self.redis.set("queue:processing", task_id)
 
@@ -243,6 +255,7 @@ class SessionStore:
 
         Returns:
             task_id или None
+
         """
         result = await self.redis.get("queue:processing")
         return result.decode("utf-8") if result else None
@@ -262,6 +275,7 @@ class SessionStore:
             task_id: ID задачи
             level: Уровень лога (INFO, WARNING, ERROR, etc.)
             message: Сообщение
+
         """
         log_entry = orjson.dumps({
             "timestamp": datetime.utcnow().isoformat(),
@@ -285,6 +299,7 @@ class SessionStore:
 
         Returns:
             Список логов
+
         """
         logs = await self.redis.lrange(f"logs:{task_id}", 0, -1)
         return [orjson.loads(log) for log in logs]
@@ -297,6 +312,7 @@ class SessionStore:
 
         Returns:
             Список последних логов
+
         """
         logs = await self.redis.lrange("logs:recent", -limit, -1)
         return [orjson.loads(log) for log in logs]
@@ -310,6 +326,7 @@ class SessionStore:
 
         Returns:
             Словарь со статистикой
+
         """
         queue_size = await self.get_queue_size()
         processing_task = await self.get_processing_task()
@@ -326,12 +343,13 @@ class SessionStore:
 
         Returns:
             True если Redis доступен
+
         """
         try:
             await self.redis.ping()
             return True
         except Exception as e:
-            logger.error("Redis недоступен", error=str(e))
+            logger.exception("Redis недоступен", error=str(e))
             return False
 
 
@@ -344,6 +362,7 @@ async def create_session_store() -> SessionStore:
 
     Returns:
         Настроенный SessionStore instance
+
     """
     redis_client = Redis.from_url(
         settings.redis_url,
@@ -355,7 +374,8 @@ async def create_session_store() -> SessionStore:
 
     # Проверить подключение
     if not await store.health_check():
-        raise ConnectionError(f"Не удалось подключиться к Redis: {settings.redis_url}")
+        msg = f"Не удалось подключиться к Redis: {settings.redis_url}"
+        raise ConnectionError(msg)
 
     logger.info("SessionStore создан", redis_url=settings.redis_url)
     return store

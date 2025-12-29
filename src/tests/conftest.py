@@ -1,25 +1,24 @@
+"""Фикстуры для РЕАЛЬНЫХ интеграционных тестов
+Использует настоящие модели и Redis.
 """
-Фикстуры для РЕАЛЬНЫХ интеграционных тестов
-Использует настоящие модели и Redis
-"""
-import pytest
 import asyncio
 import os
+from collections.abc import AsyncGenerator
+from pathlib import Path
+
+import pytest
 import torch
 import yaml
-from pathlib import Path
-from redis.asyncio import Redis
-from typing import AsyncGenerator
-from httpx import AsyncClient
-
-from app.models.llm_manager import LLMManager
-from app.models.embedding_manager import EmbeddingManager
-from app.models.provider_manager import ProviderManager
-from app.models.json_fixer import JSONFixerManager
 from app.cache.redis_cache import RedisCache
 from app.config import settings
-from src.main import app
+from app.models.embedding_manager import EmbeddingManager
+from app.models.json_fixer import JSONFixerManager
+from app.models.llm_manager import LLMManager
+from app.models.provider_manager import ProviderManager
+from httpx import AsyncClient
+from redis.asyncio import Redis
 
+from src.main import app
 
 # Легкие модели для тестирования
 TEST_LLM_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"  # ~500MB
@@ -28,9 +27,7 @@ TEST_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # ~80MB
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """
-    Создает event loop для всей сессии тестов
-    """
+    """Создает event loop для всей сессии тестов."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -38,8 +35,7 @@ def event_loop():
 
 @pytest.fixture(scope="session")
 async def real_redis() -> AsyncGenerator[Redis, None]:
-    """
-    РЕАЛЬНЫЙ Redis клиент для интеграционных тестов
+    """РЕАЛЬНЫЙ Redis клиент для интеграционных тестов.
 
     Требования:
     - Redis должен быть запущен на localhost:6379
@@ -70,20 +66,17 @@ async def real_redis() -> AsyncGenerator[Redis, None]:
 
 @pytest.fixture(scope="session")
 async def real_redis_cache(real_redis: Redis) -> AsyncGenerator[RedisCache, None]:
-    """
-    РЕАЛЬНЫЙ RedisCache с настроенным клиентом
-    """
+    """РЕАЛЬНЫЙ RedisCache с настроенным клиентом."""
     cache = RedisCache()
     cache.client = real_redis
     cache.ttl = 300  # 5 минут для тестов
 
-    yield cache
+    return cache
 
 
 @pytest.fixture(scope="session")
 async def real_llm_manager() -> AsyncGenerator[LLMManager, None]:
-    """
-    РЕАЛЬНЫЙ LLMManager с загруженной моделью
+    """РЕАЛЬНЫЙ LLMManager с загруженной моделью.
 
     Использует легкую модель Qwen2.5-0.5B-Instruct
     Первый запуск может занять время на скачивание модели
@@ -109,8 +102,7 @@ async def real_llm_manager() -> AsyncGenerator[LLMManager, None]:
 
 @pytest.fixture(scope="session")
 async def real_embedding_manager() -> AsyncGenerator[EmbeddingManager, None]:
-    """
-    РЕАЛЬНЫЙ EmbeddingManager с загруженной моделью
+    """РЕАЛЬНЫЙ EmbeddingManager с загруженной моделью.
 
     Использует легкую модель all-MiniLM-L6-v2
     """
@@ -132,11 +124,9 @@ async def real_embedding_manager() -> AsyncGenerator[EmbeddingManager, None]:
         torch.cuda.empty_cache()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def clean_redis(real_redis: Redis):
-    """
-    Очищает Redis перед каждым тестом
-    """
+    """Очищает Redis перед каждым тестом."""
     # Удаляем все тестовые ключи перед тестом
     async for key in real_redis.scan_iter(match="test:*"):
         await real_redis.delete(key)
@@ -150,9 +140,7 @@ async def clean_redis(real_redis: Redis):
 
 @pytest.fixture
 def sample_prompts():
-    """
-    Примеры промптов для тестирования
-    """
+    """Примеры промптов для тестирования."""
     return [
         "What is the capital of France?",
         "Explain quantum computing in one sentence.",
@@ -162,9 +150,7 @@ def sample_prompts():
 
 @pytest.fixture
 def sample_texts_for_embedding():
-    """
-    Примеры текстов для embedding
-    """
+    """Примеры текстов для embedding."""
     return [
         "The quick brown fox jumps over the lazy dog.",
         "Python is a high-level programming language.",
@@ -174,9 +160,7 @@ def sample_texts_for_embedding():
 
 # Маркеры для pytest
 def pytest_configure(config):
-    """
-    Регистрация маркеров
-    """
+    """Регистрация маркеров."""
     config.addinivalue_line(
         "markers",
         "integration: marks tests as integration tests (requires real models and Redis)"
@@ -208,8 +192,7 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 async def provider_manager() -> AsyncGenerator[ProviderManager, None]:
-    """
-    РЕАЛЬНЫЙ ProviderManager с инициализированными провайдерами
+    """РЕАЛЬНЫЙ ProviderManager с инициализированными провайдерами.
 
     Загружает конфигурацию из config/providers.yaml
     """
@@ -221,7 +204,7 @@ async def provider_manager() -> AsyncGenerator[ProviderManager, None]:
     if not config_path.exists():
         pytest.fail(f"Providers config not found: {config_path}")
 
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         providers_yaml = yaml.safe_load(f)
         providers_config = providers_yaml.get("providers", [])
 
@@ -234,7 +217,7 @@ async def provider_manager() -> AsyncGenerator[ProviderManager, None]:
 
     try:
         await pm.initialize(providers_config)
-        print(f"✓ ProviderManager initialized")
+        print("✓ ProviderManager initialized")
         print(f"  Providers: {list(pm.providers.keys())}")
         print(f"  Default: {pm.default_provider}")
     except Exception as e:
@@ -251,8 +234,7 @@ async def provider_manager() -> AsyncGenerator[ProviderManager, None]:
 
 @pytest.fixture(scope="session")
 async def json_fixer_manager() -> AsyncGenerator[JSONFixerManager, None]:
-    """
-    РЕАЛЬНЫЙ JSONFixerManager для тестирования JSON исправления
+    """РЕАЛЬНЫЙ JSONFixerManager для тестирования JSON исправления.
 
     Использует легкую модель для тестов
     """
@@ -261,7 +243,7 @@ async def json_fixer_manager() -> AsyncGenerator[JSONFixerManager, None]:
 
     fixer = JSONFixerManager()
 
-    print(f"\n⏳ Loading JSON Fixer model...")
+    print("\n⏳ Loading JSON Fixer model...")
 
     try:
         # Используем легкую модель для тестов (если не указана другая)
@@ -283,8 +265,7 @@ async def json_fixer_manager() -> AsyncGenerator[JSONFixerManager, None]:
 
 @pytest.fixture(scope="session")
 async def test_client(provider_manager: ProviderManager) -> AsyncGenerator[AsyncClient, None]:
-    """
-    AsyncClient для тестирования API endpoints
+    """AsyncClient для тестирования API endpoints.
 
     Использует ASGI приложение напрямую (без запуска сервера)
     Переопределяет зависимость get_provider_manager для использования тестового provider_manager
@@ -295,45 +276,39 @@ async def test_client(provider_manager: ProviderManager) -> AsyncGenerator[Async
     app.dependency_overrides[get_provider_manager] = lambda: provider_manager
 
     async with AsyncClient(app=app, base_url="http://testserver") as client:
-        print(f"\n✓ Test client created with provider_manager override")
+        print("\n✓ Test client created with provider_manager override")
         yield client
 
     # Очищаем переопределения после тестов
     app.dependency_overrides.clear()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def clean_provider_stats(provider_manager: ProviderManager):
-    """
-    Сбрасывает статистику провайдеров перед каждым тестом
-    (если нужно для изоляции тестов)
+    """Сбрасывает статистику провайдеров перед каждым тестом
+    (если нужно для изоляции тестов).
     """
     # Перед тестом - ничего не делаем
 
-    yield
+    return
 
     # После теста - можно сбросить счетчики если нужно
     # (зависит от реализации провайдеров)
-    pass
 
 
 @pytest.fixture
 def sample_json_prompts():
-    """
-    Примеры промптов для JSON генерации
-    """
+    """Примеры промптов для JSON генерации."""
     return [
         'Create a JSON object: {"name": "Alice", "age": 30}',
-        'Generate JSON with fields: status, message, code',
-        'Return a JSON array of three numbers',
+        "Generate JSON with fields: status, message, code",
+        "Return a JSON array of three numbers",
     ]
 
 
 @pytest.fixture
 def sample_json_schemas():
-    """
-    Примеры JSON Schema для валидации
-    """
+    """Примеры JSON Schema для валидации."""
     return {
         "user": {
             "type": "object",
@@ -362,8 +337,7 @@ def sample_json_schemas():
 
 @pytest.fixture(scope="session")
 def sop_llm_base_url():
-    """
-    Базовый URL для sop_llm API
+    """Базовый URL для sop_llm API.
 
     Можно переопределить через переменную окружения SOP_LLM_BASE_URL:
     - Внутри контейнера: http://localhost:8023/api/v1

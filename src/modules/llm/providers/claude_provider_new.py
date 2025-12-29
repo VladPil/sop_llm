@@ -4,8 +4,9 @@
 """
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 from anthropic import AsyncAnthropic
 from loguru import logger
@@ -27,18 +28,19 @@ class ClaudeProvider(BaseLLMProvider):
     - Vision (для поддерживаемых моделей)
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Инициализация провайдера.
 
         Args:
             config: Конфигурация провайдера
+
         """
         super().__init__(config)
 
-        self.client: Optional[AsyncAnthropic] = None
+        self.client: AsyncAnthropic | None = None
         self.model_name: str = config.get("default_model", settings.claude.model)
         # API key: сначала из config, потом из settings (с проверкой на None)
-        self.api_key: Optional[str] = config.get("api_key") or settings.claude.api_key
+        self.api_key: str | None = config.get("api_key") or settings.claude.api_key
 
         # Пул запросов
         self.max_concurrent_requests = config.get(
@@ -54,15 +56,17 @@ class ClaudeProvider(BaseLLMProvider):
 
         Returns:
             Строка "claude"
+
         """
         return "claude"
 
     @property
-    def capabilities(self) -> List[ProviderCapability]:
+    def capabilities(self) -> list[ProviderCapability]:
         """Поддерживаемые возможности.
 
         Returns:
             Список поддерживаемых возможностей
+
         """
         return [
             ProviderCapability.TEXT_GENERATION,
@@ -76,6 +80,7 @@ class ClaudeProvider(BaseLLMProvider):
 
         Raises:
             ValueError: Если API ключ не настроен
+
         """
         if not self.api_key:
             raise ValueError(
@@ -94,13 +99,13 @@ class ClaudeProvider(BaseLLMProvider):
     async def generate(
         self,
         prompt: str,
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: str = "text",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерация текста через Claude API.
 
         Args:
@@ -125,6 +130,7 @@ class ClaudeProvider(BaseLLMProvider):
         Raises:
             RuntimeError: Если провайдер не инициализирован
             ServiceUnavailableError: Если генерация не удалась
+
         """
         if not self._is_initialized:
             raise RuntimeError("Provider not initialized. Call initialize() first.")
@@ -231,14 +237,14 @@ class ClaudeProvider(BaseLLMProvider):
                 logger.error(
                     f"Запрос к Claude API #{request_id} не удался: {e}", exc_info=True
                 )
-                raise ServiceUnavailableError(message=f"Ошибка Claude API: {str(e)}")
+                raise ServiceUnavailableError(message=f"Ошибка Claude API: {e!s}")
 
             finally:
                 self.active_requests -= 1
 
     async def generate_streaming(
-        self, prompt: str, model: Optional[str] = None, **kwargs: Any
-    ) -> AsyncIterator[Dict[str, Any]]:
+        self, prompt: str, model: str | None = None, **kwargs: Any
+    ) -> AsyncIterator[dict[str, Any]]:
         """Streaming генерация через Claude API.
 
         Args:
@@ -248,6 +254,7 @@ class ClaudeProvider(BaseLLMProvider):
 
         Yields:
             Словари с частями текста
+
         """
         if not self._is_initialized or not self.client:
             raise RuntimeError("Provider not initialized")
@@ -288,14 +295,16 @@ class ClaudeProvider(BaseLLMProvider):
 
         Returns:
             True если клиент инициализирован
+
         """
         return self._is_initialized and self.client is not None
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получение статистики провайдера.
 
         Returns:
             Словарь со статистикой
+
         """
         return {
             "provider": "claude",

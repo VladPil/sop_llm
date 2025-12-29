@@ -6,7 +6,7 @@ TTL management, and comprehensive statistics tracking.
 
 import hashlib
 import json
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 from redis.asyncio import ConnectionPool, Redis
@@ -25,6 +25,7 @@ class RedisCache:
         pool: Redis connection pool instance.
         client: Redis async client instance.
         ttl: Default time-to-live for cached entries in seconds.
+
     """
 
     def __init__(self) -> None:
@@ -33,8 +34,8 @@ class RedisCache:
         Sets up connection pool and client attributes with None values.
         TTL is loaded from application settings.
         """
-        self.pool: Optional[ConnectionPool] = None
-        self.client: Optional[Redis] = None
+        self.pool: ConnectionPool | None = None
+        self.client: Redis | None = None
         self.ttl: int = settings.cache.ttl
 
     async def connect(self) -> None:
@@ -45,6 +46,7 @@ class RedisCache:
 
         Raises:
             ServiceUnavailableError: If connection to Redis fails.
+
         """
         try:
             self.pool = ConnectionPool(
@@ -114,6 +116,7 @@ class RedisCache:
         Examples:
             >>> cache._generate_cache_key("hello", "gpt-4", "translate", lang="ru")
             'sop_llm:cache:translate:a1b2c3d4...'
+
         """
         # Create string from all parameters
         params_str = f"{text}|{model}|{task_type}|{json.dumps(kwargs, sort_keys=True)}"
@@ -129,7 +132,7 @@ class RedisCache:
         model: str,
         task_type: str,
         **kwargs: Any,
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Retrieve cached result.
 
         Attempts to fetch a cached result matching the input parameters.
@@ -148,6 +151,7 @@ class RedisCache:
             >>> result = await cache.get("hello", "gpt-4", "translate", lang="ru")
             >>> if result:
             ...     print("Cache hit!")
+
         """
         if not self.client:
             logger.warning("Redis client is not initialized")
@@ -176,7 +180,7 @@ class RedisCache:
         model: str,
         task_type: str,
         result: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         **kwargs: Any,
     ) -> bool:
         """Save result to cache.
@@ -200,6 +204,7 @@ class RedisCache:
             ...     "hello", "gpt-4", "translate",
             ...     {"translation": "привет"}, lang="ru"
             ... )
+
         """
         if not self.client:
             logger.warning("Redis client is not initialized")
@@ -245,6 +250,7 @@ class RedisCache:
 
         Examples:
             >>> success = await cache.delete("hello", "gpt-4", "translate", lang="ru")
+
         """
         if not self.client:
             logger.warning("Redis client is not initialized")
@@ -275,6 +281,7 @@ class RedisCache:
             >>> success = await cache.clear_all()
             >>> if success:
             ...     print("Cache cleared")
+
         """
         if not self.client:
             logger.warning("Redis client is not initialized")
@@ -314,6 +321,7 @@ class RedisCache:
         Examples:
             >>> stats = await cache.get_stats()
             >>> print(f"Cached entries: {stats['cached_entries']}")
+
         """
         if not self.client:
             return {"error": "Redis client is not initialized"}

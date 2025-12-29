@@ -12,9 +12,9 @@ from src.core.constants import (
 )
 
 __all__ = [
-    "settings",
     "API_PREFIX",
     "CACHE_PREFIX",
     "DEFAULT_PAGE_SIZE",
     "MAX_PAGE_SIZE",
+    "settings",
 ]

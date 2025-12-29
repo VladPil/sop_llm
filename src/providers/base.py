@@ -3,9 +3,10 @@
 Использует typing.Protocol для duck typing вместо ABC (согласно ТЗ).
 """
 
-from typing import Any, AsyncIterator, Literal, Protocol, runtime_checkable
-from pydantic import BaseModel, Field
+from collections.abc import AsyncIterator
+from typing import Any, Literal, Protocol, runtime_checkable
 
+from pydantic import BaseModel, Field
 
 # =================================================================
 # Base Types (Pydantic Models)
@@ -158,6 +159,7 @@ class LLMProvider(Protocol):
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         ...
 
@@ -177,6 +179,7 @@ class LLMProvider(Protocol):
 
         Raises:
             RuntimeError: Ошибка генерации
+
         """
         ...
 
@@ -185,6 +188,7 @@ class LLMProvider(Protocol):
 
         Returns:
             Информация о модели
+
         """
         ...
 
@@ -193,6 +197,7 @@ class LLMProvider(Protocol):
 
         Returns:
             True если provider доступен
+
         """
         ...
 

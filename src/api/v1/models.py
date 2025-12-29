@@ -25,7 +25,6 @@ router = APIRouter(prefix="/models", tags=["Models"])
 
 @router.get(
     "",
-    response_model=ModelsListResponse,
     summary="Список моделей",
     description="Возвращает информацию о загруженных моделях",
     status_code=status.HTTP_200_OK,
@@ -92,7 +91,6 @@ async def list_models(
 
 @router.get(
     "/providers",
-    response_model=ProvidersListResponse,
     summary="Список доступных провайдеров",
     description="Возвращает список всех LLM провайдеров (local, claude, lm_studio)",
     status_code=status.HTTP_200_OK,

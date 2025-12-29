@@ -4,7 +4,7 @@ Strategy Pattern для разных способов форматировани
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any
 
 
 class BasePromptFormatter(ABC):
@@ -24,10 +24,11 @@ class BasePromptFormatter(ABC):
 
         Returns:
             Отформатированный промпт
+
         """
 
     @abstractmethod
-    def format_chat(self, messages: List[Dict[str, str]], **kwargs: Any) -> str:
+    def format_chat(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
         """Форматирование chat истории в промпт.
 
         Args:
@@ -41,6 +42,7 @@ class BasePromptFormatter(ABC):
 
         Returns:
             Отформатированный промпт
+
         """
 
 
@@ -59,10 +61,11 @@ class DefaultPromptFormatter(BasePromptFormatter):
 
         Returns:
             Исходный промпт
+
         """
         return prompt
 
-    def format_chat(self, messages: List[Dict[str, str]], **kwargs: Any) -> str:
+    def format_chat(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
         """Форматирует chat в простой текст.
 
         Формат:
@@ -76,6 +79,7 @@ class DefaultPromptFormatter(BasePromptFormatter):
 
         Returns:
             Отформатированный промпт
+
         """
         formatted_parts = []
         for msg in messages:
@@ -105,6 +109,7 @@ class BaseResponseParser(ABC):
 
         Raises:
             ValueError: Если не удалось распарсить
+
         """
 
 
@@ -126,5 +131,6 @@ class DefaultResponseParser(BaseResponseParser):
 
         Returns:
             Исходный текст
+
         """
         return response

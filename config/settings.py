@@ -5,6 +5,7 @@ Pydantic Settings для управления конфигурацией чер�
 """
 
 from typing import Literal
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,7 +45,8 @@ class Settings(BaseSettings):
     def validate_port(cls, v: int) -> int:
         """Валидация порта."""
         if not 1 <= v <= 65535:
-            raise ValueError(f"Порт должен быть в диапазоне 1-65535, получено: {v}")
+            msg = f"Порт должен быть в диапазоне 1-65535, получено: {v}"
+            raise ValueError(msg)
         return v
 
     # =================================================================

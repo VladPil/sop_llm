@@ -4,17 +4,19 @@ Endpoints для мониторинга системы, GPU, очереди за
 """
 
 from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
+
 from src.api.schemas.responses import (
-    HealthCheckResponse,
-    GPUStatsResponse,
-    QueueStatsResponse,
     ErrorResponse,
+    GPUStatsResponse,
+    HealthCheckResponse,
+    QueueStatsResponse,
 )
-from src.providers.registry import get_provider_registry
-from src.services.task_processor import get_task_processor
 from src.engine.gpu_guard import get_gpu_guard
 from src.engine.vram_monitor import get_vram_monitor
+from src.providers.registry import get_provider_registry
+from src.services.task_processor import get_task_processor
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -24,7 +26,6 @@ router = APIRouter(prefix="/monitor", tags=["monitor"])
 
 @router.get(
     "/health",
-    response_model=HealthCheckResponse,
     summary="Health check",
     description="Проверяет доступность всех компонентов системы",
 )
@@ -33,6 +34,7 @@ async def health_check() -> HealthCheckResponse:
 
     Returns:
         HealthCheckResponse со статусом всех компонентов
+
     """
     # Проверить Redis
     task_processor = get_task_processor()
@@ -80,7 +82,6 @@ async def health_check() -> HealthCheckResponse:
 
 @router.get(
     "/gpu",
-    response_model=GPUStatsResponse,
     summary="GPU статистика",
     description="Возвращает детальную статистику GPU (VRAM, temperature, utilization)",
     responses={
@@ -96,6 +97,7 @@ async def get_gpu_stats() -> GPUStatsResponse:
 
     Raises:
         HTTPException: 503 если GPU недоступен
+
     """
     try:
         vram_monitor = get_vram_monitor()
@@ -128,7 +130,6 @@ async def get_gpu_stats() -> GPUStatsResponse:
 
 @router.get(
     "/queue",
-    response_model=QueueStatsResponse,
     summary="Статистика очереди",
     description="Возвращает статистику очереди задач и логов",
 )
@@ -137,6 +138,7 @@ async def get_queue_stats() -> QueueStatsResponse:
 
     Returns:
         QueueStatsResponse с метриками очереди
+
     """
     task_processor = get_task_processor()
     stats = await task_processor.session_store.get_stats()

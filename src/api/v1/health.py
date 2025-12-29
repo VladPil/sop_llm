@@ -15,7 +15,6 @@ from src.core.dependencies import (
     LLMManagerDep,
     ModelLoaderDep,
     RedisCacheDep,
-    SettingsDep,
 )
 
 router = APIRouter(prefix="/health", tags=["Health"])
@@ -23,7 +22,6 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 @router.get(
     "",
-    response_model=HealthResponse,
     summary="Health check",
     description="Проверяет здоровье всех компонентов системы",
     status_code=status.HTTP_200_OK,
@@ -44,13 +42,11 @@ async def health_check(checker: HealthCheckerDep) -> HealthResponse:
 
     """
     logger.debug("Health check requested")
-    health_status = await checker.get_full_health_status()
-    return health_status
+    return await checker.get_full_health_status()
 
 
 @router.get(
     "/metrics",
-    response_model=MetricsResponse,
     summary="Prometheus метрики",
     description="Возвращает метрики для мониторинга",
     status_code=status.HTTP_200_OK,

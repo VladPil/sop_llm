@@ -1,12 +1,11 @@
 """Унифицированный интерфейс для работы с разными LLM провайдерами."""
 
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from loguru import logger
 
 from src.modules.llm.services.json_fixer import json_fixer
 from src.modules.llm.services.llm_manager import llm_manager
-from src.shared.errors import ServiceUnavailableError
 
 
 class UnifiedLLM:
@@ -21,14 +20,14 @@ class UnifiedLLM:
         self,
         prompt: str,
         provider: Literal["local"] = "local",
-        model: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         expected_format: Literal["text", "json"] = "text",
-        json_schema: Optional[Dict[str, Any]] = None,
+        json_schema: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Генерирует текст используя выбранный провайдер."""
         logger.info(f"Генерируем текст с провайдером={provider}, модель={model}, формат={expected_format}")
 
@@ -56,8 +55,8 @@ class UnifiedLLM:
             raise
 
     async def _process_json_response(
-        self, response: Dict[str, Any], json_schema: Optional[Dict[str, Any]], original_prompt: str
-    ) -> Dict[str, Any]:
+        self, response: dict[str, Any], json_schema: dict[str, Any] | None, original_prompt: str
+    ) -> dict[str, Any]:
         """Обрабатывает JSON ответ: валидирует и исправляет при необходимости."""
         generated_text = response["text"]
 
@@ -87,7 +86,7 @@ class UnifiedLLM:
 
         return response
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получает статистику провайдеров."""
         return {"local": self.local_manager.get_stats()}
 

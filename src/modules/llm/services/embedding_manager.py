@@ -2,15 +2,15 @@
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch
 from loguru import logger
 
 from src.core.config import settings
-from src.shared.utils import model_loader, check_model_in_cache
 from src.shared.errors import ModelNotLoadedError, ServiceUnavailableError
+from src.shared.utils import check_model_in_cache, model_loader
 
 
 class EmbeddingManager:
@@ -18,21 +18,22 @@ class EmbeddingManager:
 
     def __init__(self) -> None:
         """Инициализация менеджера."""
-        self.model: Optional[Any] = None
-        self.tokenizer: Optional[Any] = None
+        self.model: Any | None = None
+        self.tokenizer: Any | None = None
         self.device = model_loader.device
-        self.model_name: Optional[str] = None
+        self.model_name: str | None = None
 
         # Статистика
         self.total_embeddings = 0
 
         logger.info("EmbeddingManager инициализирован")
 
-    async def load_model(self, model_name: Optional[str] = None) -> None:
+    async def load_model(self, model_name: str | None = None) -> None:
         """Загружает embedding модель.
 
         Args:
             model_name: Имя модели
+
         """
         self.model_name = model_name or settings.llm.default_embedding_model
 
@@ -65,6 +66,7 @@ class EmbeddingManager:
 
         Returns:
             Pooled embeddings
+
         """
         # Первый элемент model_output содержит все token embeddings
         token_embeddings = model_output[0]
@@ -77,7 +79,7 @@ class EmbeddingManager:
             token_embeddings * input_mask_expanded, 1
         ) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
-    async def get_embedding(self, text: str) -> List[float]:
+    async def get_embedding(self, text: str) -> list[float]:
         """Получает embedding для одного текста.
 
         Args:
@@ -88,6 +90,7 @@ class EmbeddingManager:
 
         Raises:
             ModelNotLoadedError: Если модель не загружена
+
         """
         if not self.model or not self.tokenizer:
             raise ModelNotLoadedError(model_name=self.model_name or "embedding")
@@ -95,7 +98,7 @@ class EmbeddingManager:
         embeddings = await self.get_embeddings([text])
         return embeddings[0]
 
-    async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
         """Получает embeddings для списка текстов (batch processing).
 
         Args:
@@ -107,6 +110,7 @@ class EmbeddingManager:
         Raises:
             ModelNotLoadedError: Если модель не загружена
             ServiceUnavailableError: Если генерация не удалась
+
         """
         if not self.model or not self.tokenizer:
             raise ModelNotLoadedError(model_name=self.model_name or "embedding")
@@ -140,10 +144,10 @@ class EmbeddingManager:
         except Exception as e:
             logger.error(f"Не удалось сгенерировать embeddings: {e}")
             raise ServiceUnavailableError(
-                message=f"Генерация embeddings не удалась: {str(e)}"
+                message=f"Генерация embeddings не удалась: {e!s}"
             )
 
-    def _get_embeddings_sync(self, texts: List[str]) -> List[List[float]]:
+    def _get_embeddings_sync(self, texts: list[str]) -> list[list[float]]:
         """Синхронная генерация embeddings (для executor).
 
         Args:
@@ -151,6 +155,7 @@ class EmbeddingManager:
 
         Returns:
             Список embedding векторов
+
         """
         # Токенизация
         encoded_input = self.tokenizer(
@@ -168,9 +173,8 @@ class EmbeddingManager:
         embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
 
         # Конвертируем в список
-        embeddings_list = embeddings.cpu().numpy().tolist()
+        return embeddings.cpu().numpy().tolist()
 
-        return embeddings_list
 
     def _cosine_similarity(self, emb1: np.ndarray, emb2: np.ndarray) -> float:
         """Косинусное сходство.
@@ -181,6 +185,7 @@ class EmbeddingManager:
 
         Returns:
             Косинусное сходство (от -1 до 1)
+
         """
         return float(
             np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
@@ -195,6 +200,7 @@ class EmbeddingManager:
 
         Returns:
             Нормализованное расстояние
+
         """
         distance = np.linalg.norm(emb1 - emb2)
         # Нормализуем: чем меньше расстояние, тем больше схожесть
@@ -209,6 +215,7 @@ class EmbeddingManager:
 
         Returns:
             Нормализованное расстояние
+
         """
         distance = np.sum(np.abs(emb1 - emb2))
         return float(1 / (1 + distance))
@@ -222,6 +229,7 @@ class EmbeddingManager:
 
         Returns:
             Коэффициент Жаккара (от 0 до 1)
+
         """
         # Токенизируем тексты на слова
         tokens1 = set(text1.lower().split())
@@ -247,6 +255,7 @@ class EmbeddingManager:
 
         Returns:
             Корреляция Пирсона (от -1 до 1)
+
         """
         # Центрируем векторы
         emb1_centered = emb1 - np.mean(emb1)
@@ -272,12 +281,13 @@ class EmbeddingManager:
 
         Returns:
             Скалярное произведение
+
         """
         return float(np.dot(emb1, emb2))
 
     async def compute_similarity(
         self, text1: str, text2: str, method: str = "cosine"
-    ) -> Union[float, Dict[str, float]]:
+    ) -> float | dict[str, float]:
         """Вычисляет схожесть между двумя текстами используя указанный метод.
 
         Args:
@@ -288,6 +298,7 @@ class EmbeddingManager:
 
         Returns:
             Схожесть (float) или словарь всех методов (если method="all")
+
         """
         # Для метода Жаккара не нужны embeddings
         if method == "jaccard":
@@ -317,22 +328,23 @@ class EmbeddingManager:
         # Вычисляем схожесть по выбранному методу
         if method == "cosine":
             return self._cosine_similarity(emb1, emb2)
-        elif method == "euclidean":
+        if method == "euclidean":
             return self._euclidean_distance(emb1, emb2)
-        elif method == "manhattan":
+        if method == "manhattan":
             return self._manhattan_distance(emb1, emb2)
-        elif method == "pearson":
+        if method == "pearson":
             return self._pearson_correlation(emb1, emb2)
-        elif method == "dot_product":
+        if method == "dot_product":
             return self._dot_product(emb1, emb2)
-        else:
-            raise ValueError(f"Неизвестный метод схожести: {method}")
+        msg = f"Неизвестный метод схожести: {method}"
+        raise ValueError(msg)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Получает статистику менеджера.
 
         Returns:
             Словарь со статистикой
+
         """
         return {
             "model_name": self.model_name,
