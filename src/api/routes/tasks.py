@@ -98,7 +98,7 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
         ) from e
 
     except Exception as e:
-        logger.error("Критическая ошибка создания задачи", error=str(e), exc_info=True)
+        logger.exception("Критическая ошибка создания задачи", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка создания задачи: {e}",

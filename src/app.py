@@ -93,12 +93,61 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title=settings.app_name,
-    description="Асинхронный executor для LLM моделей с поддержкой multiple providers",
+    description="""
+# SOP LLM Executor API
+
+Высокопроизводительный асинхронный сервис для работы с языковыми моделями.
+
+## Основные возможности
+
+- **Унифицированный интерфейс** для локальных и удаленных моделей
+- **Асинхронная обработка** с priority queue
+- **Streaming генерация** для real-time вывода
+- **Structured Output** через JSON Schema и GBNF грамматики
+- **Webhook callbacks** с retry механизмом
+- **Idempotency** для дедупликации запросов
+- **GPU Management** с VRAM мониторингом
+
+## Поддерживаемые провайдеры
+
+- **Local** - llama.cpp (GGUF модели)
+- **OpenAI** - GPT-4, GPT-3.5 и др.
+- **Anthropic** - Claude 3 модели
+- **OpenAI-Compatible** - любые OpenAI-совместимые API
+
+## Архитектура
+
+Сервис использует паттерн "Dumb Executor" — выполняет только inference,
+вся бизнес-логика и промпты передаются в запросах.
+
+Подробная документация: https://github.com/VladPil/sop_llm/tree/main/docs
+    """,
     version="1.0.0",
     lifespan=lifespan,
     debug=settings.debug,
-    docs_url="/docs" if settings.debug else None,  # Swagger UI только в debug
-    redoc_url="/redoc" if settings.debug else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {
+            "name": "tasks",
+            "description": "Управление задачами генерации текста",
+        },
+        {
+            "name": "models",
+            "description": "Управление LLM моделями и провайдерами",
+        },
+        {
+            "name": "monitor",
+            "description": "Мониторинг состояния системы, GPU и очереди",
+        },
+    ],
+    contact={
+        "name": "Vladislav",
+        "email": "vladislav@example.com",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # =================================================================
@@ -123,10 +172,10 @@ if settings.app_env != "development":
 # Routes
 # =================================================================
 
-# API v1 routes
-app.include_router(tasks.router, prefix="/api/v1")
-app.include_router(models.router, prefix="/api/v1")
-app.include_router(monitor.router, prefix="/api/v1")
+# API routes
+app.include_router(tasks.router, prefix="/api")
+app.include_router(models.router, prefix="/api")
+app.include_router(monitor.router, prefix="/api")
 
 
 # =================================================================

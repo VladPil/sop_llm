@@ -11,8 +11,34 @@ from pydantic import BaseModel, Field
 class CreateTaskRequest(BaseModel):
     """Запрос на создание задачи генерации.
 
-    POST /api/v1/tasks/
+    POST /api/tasks/
     """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "model": "qwen-7b",
+                    "prompt": "Напиши функцию для сортировки массива на Python",
+                    "temperature": 0.7,
+                    "max_tokens": 1024,
+                },
+                {
+                    "model": "gpt-4",
+                    "prompt": "Извлеки имя, возраст и город: 'Меня зовут Иван, мне 25 лет, живу в Москве'",
+                    "response_format": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "age": {"type": "number"},
+                            "city": {"type": "string"}
+                        },
+                        "required": ["name", "age", "city"]
+                    }
+                }
+            ]
+        }
+    }
 
     model: str = Field(
         description="Название модели (должна быть зарегистрирована в registry)",
@@ -125,8 +151,33 @@ class CreateTaskRequest(BaseModel):
 class RegisterModelRequest(BaseModel):
     """Запрос на регистрацию модели.
 
-    POST /api/v1/models/register
+    POST /api/models
     """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "name": "qwen-7b",
+                    "provider": "local",
+                    "config": {
+                        "model_path": "/models/qwen2.5-7b-instruct.gguf",
+                        "context_window": 8192,
+                        "gpu_layers": -1
+                    }
+                },
+                {
+                    "name": "gpt-4",
+                    "provider": "openai",
+                    "config": {
+                        "api_key": "sk-...",
+                        "model_name": "gpt-4-turbo",
+                        "base_url": "https://api.openai.com/v1"
+                    }
+                }
+            ]
+        }
+    }
 
     name: str = Field(
         description="Уникальное название модели для registry",
