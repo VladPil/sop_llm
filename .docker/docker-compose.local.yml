@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # Redis for caching and FastStream queue
+  redis:
+    image: redis:7-alpine
+    container_name: sop_llm_redis_local
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "${REDIS_PORT:-6381}:6379"
+    volumes:
+      - sop_llm_redis_data_local:/data
+      - ../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - sop_llm_redis_logs_local:/var/log/redis
+    networks:
+      - sop_llm_network_local
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # LLM Application (development with hot-reload)
+  app:
+    build:
+      context: ../..
+      dockerfile: .docker/dockerfiles/backend/Dockerfile
+      args:
+        - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
+        - INSTALL_GPU=${INSTALL_GPU:-false}
+        - CUDA_VERSION=${CUDA_VERSION:-12.1.0}
+    image: sop_llm:local
+    container_name: sop_llm_app_local
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8001}:${API_PORT:-8000}"
+      - "${METRICS_PORT:-9091}:9090"
+    volumes:
+      # Hot-reload: монтируем исходники
+      - ../../src:/app/src:rw
+      - ../../config:/app/config:rw
+      - ../../scripts:/app/scripts:ro
+      # Кэш моделей в volume для персистентности
+      - sop_llm_models_cache_local:/root/.cache/huggingface
+      # Логи в отдельном volume
+      - sop_llm_app_logs_local:/app/logs
+    networks:
+      - sop_llm_network_local
+    env_file:
+      - ./configs/.env.local
+    environment:
+      # Переопределяем для development
+      - SOP__SERVER__RELOAD=true
+      - SOP__DEBUG=true
+      - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    stop_grace_period: 10s
+    # Раскомментировать для GPU поддержки
+    # runtime: nvidia
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        # Раскомментировать для GPU
+        # reservations:
+        #   devices:
+        #     - driver: nvidia
+        #       count: 1
+        #       capabilities: [gpu]
+
+  # Redis Commander для UI управления Redis (только для разработки)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: sop_llm_redis_commander_local
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8082}:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0
+    networks:
+      - sop_llm_network_local
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  sop_llm_network_local:
+    driver: bridge
+    name: sop_llm_network_local
+
+volumes:
+  sop_llm_redis_data_local:
+    name: sop_llm_redis_data_local
+  sop_llm_redis_logs_local:
+    name: sop_llm_redis_logs_local
+  sop_llm_models_cache_local:
+    name: sop_llm_models_cache_local
+  sop_llm_app_logs_local:
+    name: sop_llm_app_logs_local

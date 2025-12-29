@@ -1,0 +1,230 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sop-llm"
+version = "1.0.0"
+description = "SOP LLM Service - Асинхронный сервис для работы с LLM моделями"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Vladislav", email = "vladislav@example.com"}
+]
+
+dependencies = [
+    # Веб-фреймворк
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "gunicorn>=21.2.0",
+
+    # Валидация данных
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.0",
+
+    # Кэш и очереди
+    "redis[hiredis]>=5.2.0",
+    "faststream[redis]>=0.5.28",
+
+    # ML/AI библиотеки
+    "torch>=2.5.1",
+    "transformers>=4.46.0",
+    "sentence-transformers>=3.2.1",
+    "accelerate>=1.1.1",
+    "safetensors>=0.4.5",
+    "sentencepiece>=0.2.0",
+    "protobuf>=5.28.3",
+    "tokenizers>=0.20.3",
+
+    # Claude API
+    "anthropic>=0.39.0",
+
+    # GGUF модели support
+    "llama-cpp-python>=0.3.2",
+
+    # HTTP клиенты
+    "httpx>=0.27.2",
+    "aiohttp>=3.11.2",
+
+    # Утилиты
+    "pyyaml>=6.0.2",
+    "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.12",
+    "numpy>=2.1.3",
+    "psutil>=6.1.0",
+
+    # Производительность
+    "orjson>=3.10.11",
+    "xxhash>=3.5.0",
+
+    # Логирование
+    "loguru>=0.7.2",
+    "python-json-logger>=3.1.0",
+
+    # Мониторинг
+    "prometheus-client>=0.21.0",
+    "prometheus-fastapi-instrumentator>=7.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Тестирование
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "faker>=22.0.0",
+    "asgi-lifespan>=2.1.0",
+
+    # Качество кода
+    "ruff>=0.7.4",
+    "mypy>=1.13.0",
+
+    # Отладка
+    "ipython>=8.0",
+    "ipdb>=0.13",
+]
+
+quantization = [
+    "bitsandbytes>=0.44.1",  # Требует CUDA
+]
+
+[project.urls]
+Homepage = "https://github.com/vladislav/sop_llm"
+Repository = "https://github.com/vladislav/sop_llm"
+
+[tool.setuptools]
+packages = ["src"]
+
+# ========================================
+# Ruff Configuration
+# ========================================
+
+[tool.ruff]
+fix = true
+unsafe-fixes = true
+line-length = 120
+cache-dir = ".ruff_cache"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "models",
+    "logs",
+    "data",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+ignore = [
+    "D1",       # Missing docstrings (разрешено)
+    "ANN001",   # Missing type annotation for argument
+    "ANN201",   # Missing return type annotation
+    "S101",     # Use of assert detected
+    "FBT001",   # Boolean-typed positional argument
+    "RUF001",   # Ambiguous unicode (кириллица)
+    "E501",     # Line too long (120 вместо 88)
+    "COM812",   # Missing trailing comma
+    "ISC001",   # Implicit string concatenation
+    "T201",     # Print found (разрешено для отладки)
+    "EM101",    # Exception must not use string literal
+    "TRY003",   # Avoid specifying long messages outside exception class
+    "PLR0913",  # Too many arguments
+]
+
+[tool.ruff.lint.isort]
+no-lines-before = ["standard-library", "local-folder"]
+known-local-folder = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # imported but unused
+"tests/**/*.py" = ["S101", "ANN", "D"]  # allow assert, skip type hints in tests
+
+# ========================================
+# MyPy Configuration
+# ========================================
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_return_any = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "transformers.*",
+    "sentence_transformers.*",
+    "torch.*",
+    "redis.*",
+    "faststream.*",
+    "anthropic.*",
+    "llama_cpp.*",
+]
+ignore_missing_imports = true
+
+# ========================================
+# Pytest Configuration
+# ========================================
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["src/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+
+markers = [
+    "unit: Unit tests (fast, isolated, use mocks)",
+    "system: System tests (real components like Redis)",
+    "api: API tests (HTTP endpoints)",
+    "integration: Integration tests",
+    "slow: Slow running tests (> 1s)",
+    "requires_redis: Tests requiring Redis",
+    "requires_gpu: Tests requiring GPU",
+]
+
+# ========================================
+# Coverage Configuration
+# ========================================
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/venv/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

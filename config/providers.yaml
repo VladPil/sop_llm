@@ -1,0 +1,44 @@
+# Конфигурация провайдеров для LLM
+# Каждый провайдер имеет имя, статус (enabled/disabled) и свою конфигурацию
+
+providers:
+  # Локальные модели через HuggingFace Transformers
+  - name: local
+    enabled: true
+    config:
+      default_model: "Qwen/Qwen2.5-3B-Instruct"  # Из settings.default_llm_model
+      max_concurrent_requests: 2
+      load_in_8bit: false
+
+  # Anthropic Claude API
+  - name: claude
+    enabled: true
+    config:
+      # API key читается из settings.anthropic_api_key (который берёт из ANTHROPIC_API_KEY env)
+      # Не указываем api_key здесь, чтобы использовался fallback на settings
+      default_model: "claude-3-haiku-20240307"
+      max_concurrent_requests: 5
+
+  # LM Studio - локальный сервер с OpenAI-compatible API
+  - name: lm_studio
+    enabled: false  # Отключён по умолчанию (включить если используете LM Studio)
+    config:
+      base_url: "http://localhost:1234/v1"
+      api_key: "lm-studio"  # Dummy key, LM Studio не требует настоящий ключ
+      timeout: 60
+      default_model: "local-model"  # Имя модели в LM Studio
+      max_concurrent_requests: 3
+
+# Примечания:
+# 1. Порядок провайдеров важен - первый доступный становится default
+# 2. Для включения провайдера установите enabled: true
+# 3. Для LM Studio:
+#    - Запустите LM Studio
+#    - Загрузите модель
+#    - Включите "Local Server" в настройках
+#    - Убедитесь что API доступен на http://localhost:1234
+# 4. Для Claude API:
+#    - Установите ANTHROPIC_API_KEY в .env файле или окружении
+# 5. Для локальных моделей:
+#    - Модели загружаются автоматически из HuggingFace
+#    - Требуется достаточно памяти (RAM или VRAM)

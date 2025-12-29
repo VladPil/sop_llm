@@ -1,0 +1,226 @@
+# ==============================================
+# LLM Models Configuration
+# ==============================================
+# This file defines all available LLM models for text generation
+
+llm_models:
+  # --------------------------------------------
+  # Qwen 7B Chat - Efficient Chinese/English LLM
+  # --------------------------------------------
+  - name: qwen-7b
+    display_name: "Qwen 7B Chat"
+    hf_repo: "Qwen/Qwen-7B-Chat"
+    model_type: "causal_lm"
+
+    # Resource settings
+    device: cuda  # cuda, cpu, or auto
+    max_concurrent: 2  # Maximum concurrent requests for this model
+    memory_limit: 16  # GB - Maximum memory allocation
+
+    # Loading options
+    load_in_8bit: false  # Enable 8-bit quantization (saves ~50% memory)
+    load_in_4bit: false  # Enable 4-bit quantization (saves ~75% memory)
+    torch_dtype: "auto"  # auto, float32, float16, bfloat16
+
+    # Generation defaults
+    generation_config:
+      max_new_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 50
+      repetition_penalty: 1.1
+      do_sample: true
+      num_beams: 1
+
+    # Performance tuning
+    use_cache: true  # Use KV cache for faster generation
+    use_flash_attention: false  # Requires flash-attn package
+
+    # Timeouts and limits
+    idle_timeout: 600  # Unload model after 600s of inactivity
+    max_tokens_per_request: 4096
+
+    # Trust and safety
+    trust_remote_code: true  # Required for Qwen models
+
+  # --------------------------------------------
+  # Llama 3.1 8B Instruct - Meta's instruction-tuned model
+  # --------------------------------------------
+  - name: llama-8b-instruct
+    display_name: "Llama 3.1 8B Instruct"
+    hf_repo: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    model_type: "causal_lm"
+
+    # Resource settings
+    device: cuda
+    max_concurrent: 2
+    memory_limit: 18
+
+    # Loading options
+    load_in_8bit: false
+    load_in_4bit: false
+    torch_dtype: "bfloat16"
+
+    # Generation defaults
+    generation_config:
+      max_new_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 50
+      repetition_penalty: 1.0
+      do_sample: true
+      num_beams: 1
+
+    # Performance tuning
+    use_cache: true
+    use_flash_attention: false
+
+    # Timeouts and limits
+    idle_timeout: 600
+    max_tokens_per_request: 8192
+
+    # Trust and safety
+    trust_remote_code: false
+
+  # --------------------------------------------
+  # Qwen 7B Quantized (4-bit) - Memory-efficient version
+  # --------------------------------------------
+  - name: qwen-7b-4bit
+    display_name: "Qwen 7B Chat (4-bit)"
+    hf_repo: "Qwen/Qwen-7B-Chat"
+    model_type: "causal_lm"
+
+    # Resource settings - Much lower requirements
+    device: cuda
+    max_concurrent: 4  # Can handle more concurrent requests
+    memory_limit: 6  # Only ~6GB needed with 4-bit
+
+    # Loading options
+    load_in_8bit: false
+    load_in_4bit: true  # 4-bit quantization enabled
+    torch_dtype: "auto"
+
+    # 4-bit quantization config
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_quant_type: "nf4"  # Normal Float 4-bit
+    bnb_4bit_use_double_quant: true  # Nested quantization
+
+    # Generation defaults
+    generation_config:
+      max_new_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 50
+      repetition_penalty: 1.1
+      do_sample: true
+      num_beams: 1
+
+    # Performance tuning
+    use_cache: true
+    use_flash_attention: false
+
+    # Timeouts and limits
+    idle_timeout: 1200  # Keep in memory longer (cheaper to load)
+    max_tokens_per_request: 4096
+
+    # Trust and safety
+    trust_remote_code: true
+
+  # --------------------------------------------
+  # GPT-OSS 20B GGUF - Open source GPT model (GGUF format)
+  # --------------------------------------------
+  - name: gpt-oss-20b
+    display_name: "GPT-OSS 20B (GGUF)"
+    model_path: "/home/vladislav/.cache/lm-studio/models/unsloth/gpt-oss-20b-GGUF"
+    model_type: "gguf"
+
+    # Resource settings
+    device: cuda  # GGUF supports both cuda and cpu
+    max_concurrent: 2
+    memory_limit: 12  # GGUF models are memory efficient
+
+    # GGUF specific settings
+    n_gpu_layers: -1  # -1 = use all GPU layers, 0 = CPU only
+    n_ctx: 4096  # Context window size
+    n_batch: 512  # Batch size for prompt processing
+    n_threads: 8  # Number of threads (for CPU portions)
+
+    # Generation defaults
+    generation_config:
+      max_new_tokens: 2048
+      temperature: 0.7
+      top_p: 0.9
+      top_k: 50
+      repetition_penalty: 1.1
+      do_sample: true
+
+    # Performance tuning
+    use_mmap: true  # Memory-map model file
+    use_mlock: false  # Lock model in RAM (prevents swapping)
+    rope_freq_base: 10000.0  # RoPE frequency base
+    rope_freq_scale: 1.0  # RoPE frequency scale
+
+    # Timeouts and limits
+    idle_timeout: 900
+    max_tokens_per_request: 4096
+
+# ==============================================
+# Global LLM Settings
+# ==============================================
+global_settings:
+  # Default settings applied to all models
+  default_temperature: 0.7
+  default_max_tokens: 2048
+  default_top_p: 0.9
+
+  # Resource management
+  max_total_memory: 32  # GB - Total memory limit across all models
+  enable_model_sharing: false  # Share models between requests (experimental)
+
+  # Caching
+  enable_kv_cache: true  # Enable key-value caching
+  cache_strategy: "lru"  # lru, fifo, or lfu
+
+  # Auto-optimization
+  auto_device_map: true  # Automatically distribute model across devices
+  offload_folder: "./offload"  # Folder for CPU offloading
+
+  # Monitoring
+  log_generation_stats: true  # Log tokens/sec, latency, etc.
+  enable_profiling: false  # Enable PyTorch profiler (performance impact)
+
+# ==============================================
+# Model Preloading
+# ==============================================
+# Models to load on startup (leave empty to lazy load)
+preload_models:
+  - qwen-7b-4bit  # Load quantized version for faster initial requests
+
+# ==============================================
+# Hardware-specific Configurations
+# ==============================================
+# Override settings based on available hardware
+hardware_profiles:
+  # High-end GPU (RTX 4090, A100)
+  high_end_gpu:
+    device: cuda
+    torch_dtype: "bfloat16"
+    load_in_4bit: false
+    max_concurrent: 3
+
+  # Mid-range GPU (RTX 3080, RTX 4070)
+  mid_range_gpu:
+    device: cuda
+    torch_dtype: "float16"
+    load_in_8bit: true
+    max_concurrent: 2
+
+  # Low-end GPU or CPU
+  cpu_only:
+    device: cpu
+    torch_dtype: "float32"
+    load_in_4bit: true
+    max_concurrent: 1
+
+# Active profile (comment out to auto-detect)
+# active_profile: mid_range_gpu

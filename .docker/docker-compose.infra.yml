@@ -1,0 +1,64 @@
+version: '3.8'
+
+# Инфраструктурные сервисы (только Redis)
+# Используется когда приложение запускается вне Docker (напр. локально через uvicorn)
+
+services:
+  # Redis for caching and FastStream queue
+  redis:
+    image: redis:7-alpine
+    container_name: sop_llm_redis_infra
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "${REDIS_PORT:-6381}:6379"
+    volumes:
+      - sop_llm_redis_data_infra:/data
+      - ../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - sop_llm_redis_logs_infra:/var/log/redis
+    networks:
+      - sop_llm_network_infra
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # Redis Commander для UI управления Redis (опционально)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: sop_llm_redis_commander_infra
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "${REDIS_COMMANDER_PORT:-8082}:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0
+    networks:
+      - sop_llm_network_infra
+    restart: unless-stopped
+    profiles:
+      - tools
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  sop_llm_network_infra:
+    driver: bridge
+    name: sop_llm_network_infra
+
+volumes:
+  sop_llm_redis_data_infra:
+    name: sop_llm_redis_data_infra
+  sop_llm_redis_logs_infra:
+    name: sop_llm_redis_logs_infra

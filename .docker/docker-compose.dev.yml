@@ -1,0 +1,65 @@
+version: '3.8'
+
+# Stateless application deployment (только app, без Redis)
+# Используется для deployment в окружениях где Redis уже запущен отдельно
+
+services:
+  # LLM Application (stateless)
+  app:
+    build:
+      context: ../..
+      dockerfile: .docker/dockerfiles/backend/Dockerfile
+      args:
+        - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
+        - INSTALL_GPU=${INSTALL_GPU:-true}
+        - CUDA_VERSION=${CUDA_VERSION:-12.1.0}
+    image: sop_llm:${APP_VERSION:-dev}
+    container_name: sop_llm_app_dev
+    ports:
+      - "${APP_PORT:-8001}:${API_PORT:-8000}"
+      - "${METRICS_PORT:-9091}:9090"
+    volumes:
+      # Только кэш моделей и логи (без исходников)
+      - sop_llm_models_cache_dev:/root/.cache/huggingface
+      - sop_llm_app_logs_dev:/app/logs
+    networks:
+      - sop_llm_network_dev
+    env_file:
+      - ./configs/.env.dev
+    environment:
+      # Redis должен быть доступен по сети
+      - SOP__REDIS__HOST=${REDIS_HOST:-redis}
+      - SOP__REDIS__PORT=${REDIS_PORT:-6379}
+      - SOP__REDIS__PASSWORD=${REDIS_PASSWORD:-}
+      - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    stop_grace_period: 10s
+    # GPU поддержка для dev окружения
+    runtime: nvidia
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+networks:
+  sop_llm_network_dev:
+    driver: bridge
+    name: sop_llm_network_dev
+
+volumes:
+  sop_llm_models_cache_dev:
+    name: sop_llm_models_cache_dev
+  sop_llm_app_logs_dev:
+    name: sop_llm_app_logs_dev

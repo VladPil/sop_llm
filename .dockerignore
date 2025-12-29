@@ -1,0 +1,130 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.docker/
+# Allow entrypoint script
+!.docker/app/entrypoint.sh
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+*.rst
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Cache directories
+.cache/
+*.cache/
+__pycache__/
+
+# Model cache (will be downloaded in container)
+models/
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Scripts (will be copied separately)
+scripts/
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Config examples
+*.example
+.env.example
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Large files
+*.zip
+*.tar.gz
+*.tar
+*.rar
