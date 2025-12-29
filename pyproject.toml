@@ -27,7 +27,7 @@ dependencies = [
     "redis[hiredis]>=5.2.0",
     "faststream[redis]>=0.5.28",
 
-    # ML/AI библиотеки
+    # ML/AI библиотеки (LEGACY - будут удалены после миграции)
     "torch>=2.5.1",
     "transformers>=4.46.0",
     "sentence-transformers>=3.2.1",
@@ -37,14 +37,16 @@ dependencies = [
     "protobuf>=5.28.3",
     "tokenizers>=0.20.3",
 
-    # Claude API
-    "anthropic>=0.39.0",
+    # LLM Inference (NEW ARCHITECTURE)
+    "llama-cpp-python>=0.3.2",  # Local GGUF models
+    "anthropic>=0.39.0",         # Claude API
+    "openai>=1.54.0",            # OpenAI API
 
-    # GGUF модели support
-    "llama-cpp-python>=0.3.2",
+    # GPU Monitoring
+    "pynvml>=12.560.30",         # NVIDIA GPU monitoring
 
     # HTTP клиенты
-    "httpx>=0.27.2",
+    "httpx>=0.27.2",             # Async HTTP для remote providers
     "aiohttp>=3.11.2",
 
     # Утилиты
