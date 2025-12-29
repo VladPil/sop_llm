@@ -18,7 +18,7 @@ from src.core.constants import (
     TASK_STATUS_PROCESSING,
 )
 
-# ==================== Enums ====================
+# ==================== Перечисления ====================
 
 
 class TaskType(str, Enum):
@@ -58,7 +58,7 @@ class TaskStatus(str, Enum):
     FAILED = TASK_STATUS_FAILED
 
 
-# ==================== Request Schemas ====================
+# ==================== Схемы запросов ====================
 
 
 class TaskRequest(BaseModel):
@@ -278,7 +278,7 @@ class SimilarityRequest(BaseModel):
     )
 
 
-# ==================== Response Schemas ====================
+# ==================== Схемы ответов ====================
 
 
 class TokenInfo(BaseModel):

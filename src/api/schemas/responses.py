@@ -33,19 +33,19 @@ class TaskResponse(BaseModel):
         description="Timestamp завершения (ISO 8601, только для completed/failed)",
     )
 
-    # Result (только для completed)
+    # Результат (только для completed)
     result: dict[str, Any] | None = Field(
         default=None,
         description="Результат генерации (только для completed статуса)",
     )
 
-    # Error (только для failed)
+    # Ошибка (только для failed)
     error: str | None = Field(
         default=None,
         description="Сообщение об ошибке (только для failed статуса)",
     )
 
-    # Metadata
+    # Метаданные
     webhook_url: str | None = Field(
         default=None,
         description="URL для callback",

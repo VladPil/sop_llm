@@ -161,10 +161,10 @@ class ProviderRegistry:
 
 
 # =================================================================
-# Global Registry Instance
+# Глобальный экземпляр реестра
 # =================================================================
 
-# Singleton instance
+# Синглтон экземпляр
 provider_registry = ProviderRegistry()
 
 

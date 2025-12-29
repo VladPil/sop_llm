@@ -78,7 +78,7 @@ class CreateTaskRequest(BaseModel):
         description="Random seed для воспроизводимости",
     )
 
-    # Structured output
+    # Структурированный вывод
     response_format: dict[str, Any] | None = Field(
         default=None,
         description="JSON schema для structured output (OpenAI-style)",
@@ -90,32 +90,32 @@ class CreateTaskRequest(BaseModel):
         description="GBNF grammar для llama.cpp structured output",
     )
 
-    # Streaming
+    # Стриминг
     stream: bool = Field(
         default=False,
         description="Использовать streaming генерацию",
     )
 
-    # Callbacks
+    # Обратные вызовы
     webhook_url: str | None = Field(
         default=None,
         description="URL для callback после завершения (опционально)",
     )
 
-    # Idempotency
+    # Идемпотентность
     idempotency_key: str | None = Field(
         default=None,
         description="Ключ идемпотентности для дедупликации запросов",
         examples=["user-123-request-456"],
     )
 
-    # Priority
+    # Приоритет
     priority: float = Field(
         default=0.0,
         description="Приоритет задачи (выше = раньше обработается)",
     )
 
-    # Provider-specific
+    # Параметры провайдера
     extra_params: dict[str, Any] = Field(
         default_factory=dict,
         description="Provider-specific параметры",
@@ -137,18 +137,18 @@ class RegisterModelRequest(BaseModel):
         description="Тип провайдера"
     )
 
-    # Provider-specific config
+    # Конфигурация провайдера
     config: dict[str, Any] = Field(
         description="Конфигурация провайдера (зависит от типа)",
         examples=[
             {
-                # Local provider
+                # Локальный провайдер
                 "model_path": "/app/models/qwen2.5-7b-instruct.gguf",
                 "context_window": 8192,
                 "gpu_layers": -1,
             },
             {
-                # OpenAI provider
+                # OpenAI провайдер
                 "api_key": "sk-...",
                 "model_name": "gpt-4-turbo",
             },

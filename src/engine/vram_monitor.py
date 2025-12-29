@@ -137,13 +137,13 @@ class VRAMMonitor:
             driver_version = pynvml.nvmlSystemGetDriverVersion()
             cuda_version = pynvml.nvmlSystemGetCudaDriverVersion()
 
-            # Temperature
+            # Температура
             try:
                 temperature = pynvml.nvmlDeviceGetTemperature(self._handle, pynvml.NVML_TEMPERATURE_GPU)
             except pynvml.NVMLError:
                 temperature = None
 
-            # Utilization
+            # Загрузка GPU
             try:
                 util = pynvml.nvmlDeviceGetUtilizationRates(self._handle)
                 gpu_util = util.gpu
@@ -179,7 +179,7 @@ class VRAMMonitor:
 
 
 # =================================================================
-# Global Instance
+# Глобальный экземпляр
 # =================================================================
 
 def get_vram_monitor() -> VRAMMonitor:

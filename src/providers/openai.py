@@ -54,7 +54,7 @@ class OpenAIProvider:
             msg = "OpenAI API key не установлен (OPENAI_API_KEY)"
             raise ValueError(msg)
 
-        # AsyncOpenAI client
+        # Асинхронный OpenAI клиент
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
@@ -148,7 +148,7 @@ class OpenAIProvider:
             text = choice.message.content or ""
             finish_reason = choice.finish_reason
 
-            # Token usage
+            # Использование токенов
             usage = {
                 "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
                 "completion_tokens": response.usage.completion_tokens if response.usage else 0,
@@ -233,7 +233,7 @@ class OpenAIProvider:
             # Streaming генерация
             stream = await self.client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
 
-            # Yield chunks
+            # Генерация chunks
             async for chunk in stream:
                 if not isinstance(chunk, ChatCompletionChunk):
                     continue
@@ -334,7 +334,7 @@ class OpenAIProvider:
 
 
 # =================================================================
-# Factory Function
+# Фабричная функция
 # =================================================================
 
 async def create_openai_provider(
