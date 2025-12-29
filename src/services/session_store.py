@@ -95,7 +95,7 @@ class SessionStore:
 
         # Сохранить сессию с TTL
         await self.redis.hset(session_key, mapping=session_data)  # type: ignore[arg-type]
-        await self.redis.expire(session_key, self.session_ttl)
+        await self.redis.expire(session_key, self.session_ttl)  # type: ignore[misc]
 
         logger.info(
             "Session создана",
@@ -137,7 +137,7 @@ class SessionStore:
         if status in ("completed", "failed"):
             update_data["finished_at"] = datetime.utcnow().isoformat()
 
-        await self.redis.hset(session_key, mapping=update_data)  # type: ignore[arg-type]
+        await self.redis.hset(session_key, mapping=update_data)  # type: ignore[arg-type,misc]
 
         logger.debug("Session обновлена", task_id=task_id, status=status)
 
@@ -152,7 +152,7 @@ class SessionStore:
 
         """
         session_key = f"session:{task_id}"
-        data = await self.redis.hgetall(session_key)
+        data = await self.redis.hgetall(session_key)  # type: ignore[misc]
 
         if not data:
             return None
@@ -179,8 +179,8 @@ class SessionStore:
             task_id или None
 
         """
-        result = await self.redis.get(f"idempotency:{idempotency_key}")
-        return result.decode("utf-8") if result else None
+        result = await self.redis.get(f"idempotency:{idempotency_key}")  # type: ignore[misc]
+        return result.decode("utf-8") if result else None  # type: ignore[no-any-return]
 
     async def delete_session(self, task_id: str) -> None:
         """Удалить сессию (для очистки).
@@ -222,7 +222,7 @@ class SessionStore:
 
         """
         # ZPOPMIN - извлечь элемент с минимальным score (наивысшим приоритетом)
-        result = await self.redis.zpopmin("queue:tasks", 1)
+        result = await self.redis.zpopmin("queue:tasks", 1)  # type: ignore[misc]
 
         if not result:
             return None
@@ -239,7 +239,7 @@ class SessionStore:
             Количество задач в очереди
 
         """
-        return await self.redis.zcard("queue:tasks")
+        return await self.redis.zcard("queue:tasks")  # type: ignore[no-any-return,misc]
 
     async def set_processing_task(self, task_id: str) -> None:
         """Установить задачу как обрабатываемую.
@@ -285,11 +285,11 @@ class SessionStore:
         }).decode("utf-8")
 
         # Добавить в logs:{task_id}
-        await self.redis.rpush(f"logs:{task_id}", log_entry)
+        await self.redis.rpush(f"logs:{task_id}", log_entry)  # type: ignore[misc]
 
         # Добавить в logs:recent (с ограничением размера)
-        await self.redis.rpush("logs:recent", log_entry)
-        await self.redis.ltrim("logs:recent", -self.logs_max_recent, -1)
+        await self.redis.rpush("logs:recent", log_entry)  # type: ignore[misc]
+        await self.redis.ltrim("logs:recent", -self.logs_max_recent, -1)  # type: ignore[misc]
 
     async def get_task_logs(self, task_id: str) -> list[dict[str, Any]]:
         """Получить логи задачи.
@@ -301,7 +301,7 @@ class SessionStore:
             Список логов
 
         """
-        logs = await self.redis.lrange(f"logs:{task_id}", 0, -1)
+        logs = await self.redis.lrange(f"logs:{task_id}", 0, -1)  # type: ignore[misc]
         return [orjson.loads(log) for log in logs]
 
     async def get_recent_logs(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -314,7 +314,7 @@ class SessionStore:
             Список последних логов
 
         """
-        logs = await self.redis.lrange("logs:recent", -limit, -1)
+        logs = await self.redis.lrange("logs:recent", -limit, -1)  # type: ignore[misc]
         return [orjson.loads(log) for log in logs]
 
     # =================================================================
@@ -330,7 +330,7 @@ class SessionStore:
         """
         queue_size = await self.get_queue_size()
         processing_task = await self.get_processing_task()
-        recent_logs_count = await self.redis.llen("logs:recent")
+        recent_logs_count = await self.redis.llen("logs:recent")  # type: ignore[misc]
 
         return {
             "queue_size": queue_size,
@@ -346,7 +346,7 @@ class SessionStore:
 
         """
         try:
-            await self.redis.ping()
+            await self.redis.ping()  # type: ignore[misc]
             return True
         except Exception as e:
             logger.exception("Redis недоступен", error=str(e))

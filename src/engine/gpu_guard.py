@@ -29,6 +29,7 @@ class GPUGuard:
     """
 
     _instance: "GPUGuard | None" = None
+    _initialized: bool
 
     def __new__(cls) -> "GPUGuard":
         """Singleton instance."""

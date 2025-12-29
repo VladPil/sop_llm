@@ -21,6 +21,7 @@ class VRAMMonitor:
     """
 
     _instance: "VRAMMonitor | None" = None
+    _initialized: bool
 
     def __new__(cls) -> "VRAMMonitor":
         """Singleton instance."""
