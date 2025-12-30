@@ -59,8 +59,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Копируем исходный код приложения
 COPY src/ /app/src/
-COPY config/ /app/config/
-COPY scripts/ /app/scripts/
 
 # Системные переменные Python
 ENV PYTHONUNBUFFERED=1 \
@@ -74,4 +72,4 @@ EXPOSE 8000 9090
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Команда запуска (порт и другие параметры через переменные окружения)
-CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${API_PORT:-8000} --timeout-graceful-shutdown 5"]
+CMD ["sh", "-c", "uvicorn src.app:app --host 0.0.0.0 --port ${API_PORT:-8000} --timeout-graceful-shutdown 5"]

@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk
 
-from config.settings import settings
+from src.config import settings
 from src.providers.base import (
     GenerationParams,
     GenerationResult,

@@ -63,10 +63,6 @@ dependencies = [
     # Логирование
     "loguru>=0.7.2",
     "python-json-logger>=3.1.0",
-
-    # Мониторинг
-    "prometheus-client>=0.21.0",
-    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]
@@ -98,10 +94,6 @@ Repository = "https://github.com/vladislav/sop_llm"
 
 [tool.setuptools]
 packages = ["src"]
-
-# ========================================
-# Ruff Configuration
-# ========================================
 
 [tool.ruff]
 fix = true
@@ -147,10 +139,6 @@ known-local-folder = ["src"]
 "__init__.py" = ["F401"]  # imported but unused
 "tests/**/*.py" = ["S101", "ANN", "D"]  # allow assert, skip type hints in tests
 
-# ========================================
-# MyPy Configuration
-# ========================================
-
 [tool.mypy]
 python_version = "3.11"
 strict = false
@@ -170,10 +158,6 @@ module = [
     "llama_cpp.*",
 ]
 ignore_missing_imports = true
-
-# ========================================
-# Pytest Configuration
-# ========================================
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -202,10 +186,6 @@ markers = [
     "requires_redis: Tests requiring Redis",
     "requires_gpu: Tests requiring GPU",
 ]
-
-# ========================================
-# Coverage Configuration
-# ========================================
 
 [tool.coverage.run]
 branch = true

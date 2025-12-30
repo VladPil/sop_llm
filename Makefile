@@ -1,8 +1,5 @@
 .PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis shell shell-redis build lint format type-check check test test-unit test-integration test-coverage clean clean-models clean-all
 
-# ============================================================================
-# ЦВЕТА ДЛЯ ВЫВОДА
-# ============================================================================
 RESET := \033[0m
 RED := \033[31m
 GREEN := \033[32m
@@ -12,10 +9,6 @@ MAGENTA := \033[35m
 CYAN := \033[36m
 BOLD := \033[1m
 
-# ============================================================================
-# АВТООПРЕДЕЛЕНИЕ DOCKER COMPOSE
-# ============================================================================
-
 # Автоопределение команды docker-compose (v1 или v2)
 DOCKER_COMPOSE := $(shell which docker-compose 2>/dev/null)
 ifeq ($(DOCKER_COMPOSE),)
@@ -24,9 +17,6 @@ else
     DOCKER_COMPOSE := docker-compose
 endif
 
-# ============================================================================
-# ОКРУЖЕНИЯ
-# ============================================================================
 # Выберите окружение через переменную ENV:
 #   make ENV=local up    - локальная разработка (все в Docker с volumes для hot-reload)
 #   make ENV=infra up    - только инфраструктура (Redis БЕЗ Backend)
@@ -61,10 +51,6 @@ PYPROJECT_CONFIG := pyproject.toml
 PYTHON := python3
 VENV := .venv
 VENV_ACTIVATE := . $(VENV)/bin/activate
-
-# ============================================================================
-# ПОМОЩЬ
-# ============================================================================
 
 help:
 	@echo "$(BOLD)$(CYAN)SOP LLM Service - Доступные команды$(RESET)"
@@ -122,10 +108,6 @@ help:
 	@echo "  $(GREEN)clean-all$(RESET)         - Полная очистка (включая Docker тома)"
 	@echo ""
 
-# ============================================================================
-# УСТАНОВКА ЗАВИСИМОСТЕЙ
-# ============================================================================
-
 install:
 	@echo "$(CYAN)Установка production зависимостей...$(RESET)"
 	@if [ ! -d "$(VENV)" ]; then \
@@ -146,21 +128,13 @@ install-dev:
 	@$(VENV_ACTIVATE) && pip install -e ".[dev]"
 	@echo "$(GREEN)Установка dev зависимостей завершена$(RESET)"
 
-# ============================================================================
-# ЗАПУСК ПРИЛОЖЕНИЯ
-# ============================================================================
-
 run:
 	@echo "$(CYAN)Запуск приложения...$(RESET)"
-	@$(VENV_ACTIVATE) && python -m uvicorn src.main:app --host 0.0.0.0 --port 8000
+	@$(VENV_ACTIVATE) && python -m uvicorn src.app:app --host 0.0.0.0 --port 8000
 
 run-dev:
 	@echo "$(CYAN)Запуск приложения с hot-reload...$(RESET)"
-	@$(VENV_ACTIVATE) && python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
-
-# ============================================================================
-# УПРАВЛЕНИЕ DOCKER
-# ============================================================================
+	@$(VENV_ACTIVATE) && python -m uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
 
 up:
 	@echo "$(CYAN)Запуск сервисов (ENV=$(ENV))...$(RESET)"
@@ -194,10 +168,6 @@ build:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) build
 	@echo "$(GREEN)Сборка завершена$(RESET)"
 
-# ============================================================================
-# ЛОГИРОВАНИЕ И ОТЛАДКА
-# ============================================================================
-
 logs:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f
 
@@ -214,10 +184,6 @@ shell:
 shell-redis:
 	@echo "$(CYAN)Подключение к Redis CLI...$(RESET)"
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec redis redis-cli
-
-# ============================================================================
-# КАЧЕСТВО КОДА
-# ============================================================================
 
 lint:
 	@echo "$(CYAN)Проверка кода с помощью ruff...$(RESET)"
@@ -238,10 +204,6 @@ type-check:
 check: lint type-check
 	@echo "$(GREEN)Все проверки пройдены успешно$(RESET)"
 
-# ============================================================================
-# ТЕСТИРОВАНИЕ
-# ============================================================================
-
 test:
 	@echo "$(CYAN)Запуск всех тестов...$(RESET)"
 	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG)
@@ -261,10 +223,6 @@ test-coverage:
 	@echo "$(CYAN)Запуск тестов с покрытием...$(RESET)"
 	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
 	@echo "$(GREEN)Отчет о покрытии готов: $(CYAN)htmlcov/index.html$(RESET)"
-
-# ============================================================================
-# ОЧИСТКА
-# ============================================================================
 
 clean:
 	@echo "$(CYAN)Очистка временных файлов...$(RESET)"

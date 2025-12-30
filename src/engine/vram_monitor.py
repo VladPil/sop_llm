@@ -8,7 +8,7 @@ from typing import Any
 
 import pynvml
 
-from config.settings import settings
+from src.config import settings
 from src.utils.logging import get_logger
 
 logger = get_logger()

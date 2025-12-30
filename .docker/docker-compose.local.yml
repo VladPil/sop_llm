@@ -45,13 +45,8 @@ services:
       - "${APP_PORT:-8001}:${API_PORT:-8000}"
       - "${METRICS_PORT:-9091}:9090"
     volumes:
-      # Hot-reload: монтируем исходники
       - ../../src:/app/src:rw
-      - ../../config:/app/config:rw
-      - ../../scripts:/app/scripts:ro
-      # Кэш моделей в volume для персистентности
       - sop_llm_models_cache_local:/root/.cache/huggingface
-      # Логи в отдельном volume
       - sop_llm_app_logs_local:/app/logs
     networks:
       - sop_llm_network_local

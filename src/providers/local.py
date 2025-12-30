@@ -6,9 +6,15 @@
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from llama_cpp import Llama, LlamaGrammar
+try:
+    from llama_cpp import Llama, LlamaGrammar
+    LLAMA_CPP_AVAILABLE = True
+except ImportError:
+    LLAMA_CPP_AVAILABLE = False
+    Llama = None  # type: ignore[misc,assignment]
+    LlamaGrammar = None  # type: ignore[misc,assignment]
 
-from config.settings import settings
+from src.config import settings
 from src.engine.gpu_guard import get_gpu_guard
 from src.engine.vram_monitor import get_vram_monitor
 from src.providers.base import (
@@ -398,10 +404,6 @@ class LocalProvider:
 
             logger.info("Модель unloaded", model=self.model_name)
 
-
-# =================================================================
-# Factory Function
-# =================================================================
 
 async def create_local_provider(
     model_name: str,

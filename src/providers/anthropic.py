@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 
 from anthropic import AsyncAnthropic
 
-from config.settings import settings
+from src.config import settings
 from src.providers.base import (
     GenerationParams,
     GenerationResult,

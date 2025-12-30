@@ -17,7 +17,7 @@ from typing import Any
 import orjson
 from redis.asyncio import Redis
 
-from config.settings import settings
+from src.config import settings
 from src.utils.logging import get_logger
 
 logger = get_logger()
@@ -44,10 +44,6 @@ class SessionStore:
         self.session_ttl = settings.session_ttl_seconds
         self.idempotency_ttl = settings.idempotency_ttl_seconds
         self.logs_max_recent = settings.logs_max_recent
-
-    # =================================================================
-    # Session Management
-    # =================================================================
 
     async def create_session(
         self,
@@ -197,10 +193,6 @@ class SessionStore:
 
         logger.debug("Session удалена", task_id=task_id)
 
-    # =================================================================
-    # Queue Management
-    # =================================================================
-
     async def enqueue_task(self, task_id: str, priority: float = 0.0) -> None:
         """Добавить задачу в очередь.
 
@@ -264,10 +256,6 @@ class SessionStore:
         """Очистить обрабатываемую задачу."""
         await self.redis.delete("queue:processing")
 
-    # =================================================================
-    # Logging
-    # =================================================================
-
     async def add_log(self, task_id: str, level: str, message: str) -> None:
         """Добавить лог для задачи.
 
@@ -317,10 +305,6 @@ class SessionStore:
         logs = await self.redis.lrange("logs:recent", -limit, -1)  # type: ignore[misc]
         return [orjson.loads(log) for log in logs]
 
-    # =================================================================
-    # Health & Stats
-    # =================================================================
-
     async def get_stats(self) -> dict[str, Any]:
         """Получить статистику Redis.
 
@@ -352,10 +336,6 @@ class SessionStore:
             logger.exception("Redis недоступен", error=str(e))
             return False
 
-
-# =================================================================
-# Factory Function
-# =================================================================
 
 async def create_session_store() -> SessionStore:
     """Создать SessionStore с подключением к Redis.

@@ -8,16 +8,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_fastapi_instrumentator import Instrumentator
 
-from config.settings import settings
 from src.api.routes import models, monitor, tasks
+from src.config import settings
 from src.providers.registry import get_provider_registry
 from src.services.session_store import create_session_store
 from src.services.task_processor import create_task_processor, get_task_processor
 from src.utils.logging import get_logger, setup_logging
 
-# Setup logging
 setup_logging()
 logger = get_logger()
 
@@ -33,9 +31,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         None
 
     """
-    # =================================================================
-    # Startup
-    # =================================================================
     logger.info(
         "SOP LLM Executor запускается",
         env=settings.app_env,
@@ -65,9 +60,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     yield
 
-    # =================================================================
-    # Shutdown
-    # =================================================================
     logger.info("SOP LLM Executor останавливается")
 
     # Остановить TaskProcessor worker
@@ -86,10 +78,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("SOP LLM Executor остановлен")
 
-
-# =================================================================
-# FastAPI Application
-# =================================================================
 
 app = FastAPI(
     title=settings.app_name,
@@ -150,37 +138,18 @@ app = FastAPI(
     },
 )
 
-# =================================================================
-# Middleware
-# =================================================================
-
-# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В production настроить конкретные origins
+    allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Prometheus metrics
-if settings.app_env != "development":
-    Instrumentator().instrument(app).expose(app)
-    logger.info("Prometheus metrics enabled на /metrics")
-
-# =================================================================
-# Routes
-# =================================================================
-
-# API routes
 app.include_router(tasks.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
 app.include_router(monitor.router, prefix="/api")
 
-
-# =================================================================
-# Root Endpoint
-# =================================================================
 
 @app.get("/", tags=["root"])
 async def root() -> dict[str, str]:

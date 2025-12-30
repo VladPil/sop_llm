@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from config.settings import settings
+from src.config import settings
 from src.providers.base import GenerationParams
 from src.providers.registry import get_provider_registry
 from src.services.session_store import SessionStore
@@ -342,10 +342,6 @@ class TaskProcessor:
 
         return task_id
 
-
-# =================================================================
-# Global Instance
-# =================================================================
 
 _task_processor_instance: TaskProcessor | None = None
 
