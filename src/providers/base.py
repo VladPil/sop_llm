@@ -8,9 +8,6 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
-# =================================================================
-# Base Types (Pydantic Models)
-# =================================================================
 
 class GenerationParams(BaseModel):
     """Параметры генерации (общие для всех providers).
@@ -130,10 +127,6 @@ class ModelInfo(BaseModel):
         description="Provider-specific метаданные (VRAM usage, quantization, etc.)",
     )
 
-
-# =================================================================
-# LLMProvider Protocol
-# =================================================================
 
 @runtime_checkable
 class LLMProvider(Protocol):

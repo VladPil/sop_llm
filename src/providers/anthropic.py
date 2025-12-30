@@ -280,10 +280,6 @@ class AnthropicProvider:
         logger.info("AnthropicProvider cleanup выполнен", model=self.model_name)
 
 
-# =================================================================
-# Factory Function
-# =================================================================
-
 async def create_anthropic_provider(
     model_name: str,
     api_key: str | None = None,

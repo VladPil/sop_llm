@@ -333,10 +333,6 @@ class OpenAIProvider:
         logger.info("OpenAIProvider cleanup выполнен", model=self.model_name)
 
 
-# =================================================================
-# Фабричная функция
-# =================================================================
-
 async def create_openai_provider(
     model_name: str,
     api_key: str | None = None,

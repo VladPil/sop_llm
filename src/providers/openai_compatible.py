@@ -321,10 +321,6 @@ class OpenAICompatibleProvider:
         logger.info("OpenAICompatibleProvider cleanup выполнен", model=self.model_name)
 
 
-# =================================================================
-# Factory Function
-# =================================================================
-
 async def create_openai_compatible_provider(
     model_name: str,
     base_url: str | None = None,
