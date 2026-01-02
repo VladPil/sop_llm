@@ -42,17 +42,58 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
     """
     task_processor = get_task_processor()
 
+    # === Адаптация Intake-style запроса к SOP LLM формату ===
+
+    # 1. Определить модель (приоритет: provider_config > model field)
+    model_name = request.model
+    if request.provider_config and "model_name" in request.provider_config:
+        model_name = request.provider_config["model_name"]
+
+    if not model_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="model или provider_config.model_name обязательны",
+        )
+
+    # 2. Объединить промпт и input_text
+    full_prompt = request.prompt
+    if request.input_text:
+        full_prompt = f"{request.prompt}\n\n{request.input_text}"
+
+    # 3. Определить response_format (приоритет: output_schema > response_format)
+    response_fmt = request.response_format
+    if request.output_schema:
+        response_fmt = request.output_schema
+
+    # 4. Извлечь параметры генерации (приоритет: прямые поля > generation_params > provider_config)
+    temperature = request.temperature
+    max_tokens = request.max_tokens
+
+    # Из generation_params
+    if request.generation_params:
+        temperature = temperature or request.generation_params.get("temperature")
+        max_tokens = max_tokens or request.generation_params.get("max_tokens")
+
+    # Из provider_config
+    if request.provider_config:
+        temperature = temperature or request.provider_config.get("temperature")
+        max_tokens = max_tokens or request.provider_config.get("max_tokens")
+
+    # Defaults
+    temperature = temperature or 0.1
+    max_tokens = max_tokens or 2048
+
     # Подготовить параметры генерации
     gen_params = GenerationParams(
-        temperature=request.temperature,
-        max_tokens=request.max_tokens,
+        temperature=temperature,
+        max_tokens=max_tokens,
         top_p=request.top_p,
         top_k=request.top_k,
         frequency_penalty=request.frequency_penalty,
         presence_penalty=request.presence_penalty,
         stop_sequences=request.stop_sequences,
         seed=request.seed,
-        response_format=request.response_format,
+        response_format=response_fmt,
         grammar=request.grammar,
         extra=request.extra_params,
     )
@@ -60,8 +101,8 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
     try:
         # Создать задачу
         task_id = await task_processor.submit_task(
-            model=request.model,
-            prompt=request.prompt,
+            model=model_name,
+            prompt=full_prompt,
             params=gen_params,
             webhook_url=request.webhook_url,
             idempotency_key=request.idempotency_key,

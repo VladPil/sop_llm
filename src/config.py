@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Уровень логирования")
 
     server_host: str = Field(default="0.0.0.0", description="Хост сервера")
-    server_port: int = Field(default=8000, description="Порт сервера")
+    server_port: int = Field(default=8023, description="Порт сервера")
 
     redis_url: str = Field(default="redis://localhost:6379/0", description="URL для подключения к Redis")
     redis_host: str = Field(default="localhost", description="Хост Redis")

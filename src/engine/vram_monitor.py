@@ -1,12 +1,19 @@
 """VRAM Monitor для SOP LLM Executor.
 
-Обёртка над pynvml для мониторинга NVIDIA GPU памяти.
+Обёртка над nvidia-ml-py для мониторинга NVIDIA GPU памяти.
 """
 
 from contextlib import suppress
 from typing import Any
 
-import pynvml
+try:
+    import pynvml
+except ImportError:
+    # Fallback на nvidia-ml-py (новое название пакета)
+    try:
+        import nvidia_smi as pynvml  # type: ignore[import-not-found]
+    except ImportError:
+        pynvml = None  # type: ignore[assignment]
 
 from src.config import settings
 from src.utils.logging import get_logger
@@ -15,7 +22,7 @@ logger = get_logger()
 
 
 class VRAMMonitor:
-    """Мониторинг VRAM на NVIDIA GPU через pynvml.
+    """Мониторинг VRAM на NVIDIA GPU через nvidia-ml-py (pynvml).
 
     Singleton pattern - только один монитор на приложение.
     """
@@ -34,6 +41,14 @@ class VRAMMonitor:
         """Инициализировать VRAM Monitor."""
         if hasattr(self, "_initialized") and self._initialized:
             return
+
+        if pynvml is None:
+            msg = (
+                "pynvml/nvidia-ml-py не установлен. "
+                "Установите: pip install nvidia-ml-py или pip install pynvml"
+            )
+            logger.error(msg)
+            raise ImportError(msg)
 
         self.gpu_index = settings.gpu_index
         self.max_vram_percent = settings.max_vram_usage_percent
@@ -101,10 +116,12 @@ class VRAMMonitor:
         usage = self.get_vram_usage()
 
         # Максимум VRAM с учётом процента
-        max_allowed_mb = (usage["total_mb"] * self.max_vram_percent) / 100
+        total_mb = float(usage["total_mb"])
+        used_mb = float(usage["used_mb"])
+        max_allowed_mb = (total_mb * self.max_vram_percent) / 100
 
         # Вычесть уже используемую VRAM и резерв
-        available_mb = max_allowed_mb - usage["used_mb"] - self.vram_reserve_mb
+        available_mb = max_allowed_mb - used_mb - self.vram_reserve_mb
 
         return max(0.0, available_mb)
 

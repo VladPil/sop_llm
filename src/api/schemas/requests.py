@@ -40,7 +40,9 @@ class CreateTaskRequest(BaseModel):
         }
     }
 
-    model: str = Field(
+    # === SOP LLM style (legacy) ===
+    model: str | None = Field(
+        default=None,
         description="Название модели (должна быть зарегистрирована в registry)",
         examples=["qwen2.5-7b-instruct", "gpt-4-turbo", "claude-3-opus"],
     )
@@ -51,16 +53,37 @@ class CreateTaskRequest(BaseModel):
         examples=["Explain quantum computing in simple terms."],
     )
 
-    # Generation parameters (опциональные, используются defaults)
-    temperature: float = Field(
-        default=0.1,
+    # === SOP Intake style (новый формат) ===
+    input_text: str | None = Field(
+        default=None,
+        description="Отдельный контекст/текст для анализа (Intake-style)",
+    )
+
+    output_schema: dict[str, Any] | None = Field(
+        default=None,
+        description="JSON schema для structured output (Intake-style, alias для response_format)",
+    )
+
+    provider_config: dict[str, Any] | None = Field(
+        default=None,
+        description="Конфигурация провайдера (Intake-style): {model_name, temperature, ...}",
+    )
+
+    generation_params: dict[str, Any] | None = Field(
+        default=None,
+        description="Параметры генерации (Intake-style): {max_tokens, top_p, ...}",
+    )
+
+    # Generation parameters (опциональные, используются defaults или из generation_params)
+    temperature: float | None = Field(
+        default=None,
         ge=0.0,
         le=2.0,
         description="Температура генерации",
     )
 
-    max_tokens: int = Field(
-        default=2048,
+    max_tokens: int | None = Field(
+        default=None,
         ge=1,
         le=128000,
         description="Максимум токенов в ответе",
@@ -216,4 +239,37 @@ class UnregisterModelRequest(BaseModel):
     cleanup: bool = Field(
         default=True,
         description="Очистить ресурсы модели (unload, close connections)",
+    )
+
+
+class EmbeddingRequest(BaseModel):
+    """Запрос на генерацию embeddings.
+
+    POST /api/v1/embeddings
+    """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "texts": [
+                        "Это первый текст для анализа",
+                        "Это второй текст для сравнения"
+                    ],
+                    "model_name": "intfloat/multilingual-e5-large"
+                }
+            ]
+        }
+    }
+
+    texts: list[str] = Field(
+        description="Список текстов для генерации embeddings",
+        min_length=1,
+        examples=[["Текст 1", "Текст 2"]],
+    )
+
+    model_name: str = Field(
+        default="intfloat/multilingual-e5-large",
+        description="Название embedding модели",
+        examples=["intfloat/multilingual-e5-large", "sentence-transformers/all-MiniLM-L6-v2"],
     )

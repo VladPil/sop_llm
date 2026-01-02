@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import models, monitor, tasks
+from src.api.routes import embeddings, models, monitor, tasks
 from src.config import settings
 from src.providers.registry import get_provider_registry
 from src.services.session_store import create_session_store
@@ -128,6 +128,10 @@ app = FastAPI(
             "name": "monitor",
             "description": "Мониторинг состояния системы, GPU и очереди",
         },
+        {
+            "name": "embeddings",
+            "description": "Генерация векторных представлений (embeddings) для текстов",
+        },
     ],
     contact={
         "name": "Vladislav",
@@ -146,9 +150,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API v1 endpoints (для совместимости с SOP Intake)
+app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
+app.include_router(models.router, prefix="/api/v1", tags=["models"])
+app.include_router(monitor.router, prefix="/api/v1", tags=["monitor"])
+app.include_router(embeddings.router, prefix="/api/v1", tags=["embeddings"])
+
+# Legacy endpoints без версии (обратная совместимость)
 app.include_router(tasks.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
 app.include_router(monitor.router, prefix="/api")
+app.include_router(embeddings.router, prefix="/api")
 
 
 @app.get("/", tags=["root"])

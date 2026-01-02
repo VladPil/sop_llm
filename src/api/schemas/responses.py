@@ -182,6 +182,21 @@ class QueueStatsResponse(BaseModel):
     recent_logs_count: int = Field(description="Количество последних логов")
 
 
+class EmbeddingResponse(BaseModel):
+    """Ответ с embeddings.
+
+    POST /api/v1/embeddings
+    """
+
+    embeddings: list[list[float]] = Field(
+        description="Список векторных представлений для каждого текста"
+    )
+
+    model: str = Field(description="Название использованной модели")
+
+    dimensions: int = Field(description="Размерность векторов")
+
+
 class ErrorResponse(BaseModel):
     """Стандартный error response.
 

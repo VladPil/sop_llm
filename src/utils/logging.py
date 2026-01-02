@@ -8,12 +8,10 @@
 - Перехват логов сторонних библиотек (uvicorn, fastapi) и перенаправление в Loguru
 """
 
-import json
 import logging
 import sys
-from typing import Any
 
-from loguru import Logger, logger
+from loguru import logger
 
 from src.config import settings
 
@@ -38,6 +36,7 @@ class InterceptHandler(logging.Handler):
 
         Args:
             record: Запись лога из стандартного logging со всей информацией
+
         """
         try:
             level = logger.level(record.levelname).name
@@ -56,40 +55,6 @@ class InterceptHandler(logging.Handler):
                     break
 
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
-
-
-def json_formatter(record: dict[str, Any]) -> str:
-    """JSON formatter для production логирования.
-
-    Args:
-        record: Record от Loguru
-
-    Returns:
-        JSON строка для логирования
-    """
-    log_entry = {
-        "timestamp": record["time"].isoformat(),
-        "level": record["level"].name,
-        "message": record["message"],
-        "module": record["name"],
-        "function": record["function"],
-        "line": record["line"],
-    }
-
-    for key, value in record["extra"].items():
-        if key in {"password", "token", "secret", "api_key", "access_token"}:
-            log_entry[key] = "***REDACTED***"
-        else:
-            log_entry[key] = value
-
-    if record.get("exception"):
-        log_entry["exception"] = {
-            "type": record["exception"].type.__name__ if record["exception"].type else None,
-            "value": str(record["exception"].value) if record["exception"].value else None,
-            "traceback": record["exception"].traceback if record["exception"].traceback else None,
-        }
-
-    return json.dumps(log_entry, ensure_ascii=False) + "\n"
 
 
 def setup_logging() -> None:
@@ -119,27 +84,15 @@ def setup_logging() -> None:
             diagnose=True,
         )
     else:
+        # Production: JSON формат через serialize=True
         logger.add(
             sys.stdout,
-            format=json_formatter,
+            format="{message}",
             level=settings.log_level,
-            serialize=False,
+            serialize=True,
             backtrace=True,
             diagnose=False,
             enqueue=True,
-        )
-
-    if settings.debug:
-        logger.add(
-            "logs/sop_llm_{time:YYYY-MM-DD}.log",
-            format=json_formatter,
-            level="DEBUG",
-            rotation="50 MB",
-            retention="7 days",
-            compression="zip",
-            serialize=False,
-            backtrace=True,
-            diagnose=True,
         )
 
     configure_third_party_loggers()
@@ -187,7 +140,7 @@ def configure_third_party_loggers() -> None:
     logger.debug("Сторонние логгеры настроены")
 
 
-def get_logger(name: str | None = None) -> Logger:
+def get_logger(name: str | None = None):
     """Получить настроенный logger instance.
 
     Args:
@@ -195,6 +148,7 @@ def get_logger(name: str | None = None) -> Logger:
 
     Returns:
         Настроенный Loguru logger
+
     """
     if name:
         return logger.bind(name=name)
