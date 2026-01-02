@@ -17,19 +17,37 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Application Settings
     app_name: str = Field(default="SOP LLM Executor", description="Название приложения")
     app_env: str = Field(default="development", description="Окружение (development/production)")
     debug: bool = Field(default=True, description="Режим отладки")
     log_level: str = Field(default="INFO", description="Уровень логирования")
 
+    # Server Settings
     server_host: str = Field(default="0.0.0.0", description="Хост сервера")
-    server_port: int = Field(default=8023, description="Порт сервера")
+    server_port: int = Field(default=8000, description="Порт сервера")
 
-    redis_url: str = Field(default="redis://localhost:6379/0", description="URL для подключения к Redis")
-    redis_host: str = Field(default="localhost", description="Хост Redis")
+    # PostgreSQL Settings (для будущей интеграции с централизованной БД)
+    postgres_host: str = Field(default="postgres", description="Хост PostgreSQL")
+    postgres_port: int = Field(default=5432, description="Порт PostgreSQL")
+    postgres_user: str = Field(default="sop_admin", description="Пользователь PostgreSQL")
+    postgres_password: str = Field(default="change_me", description="Пароль PostgreSQL")
+    postgres_db: str = Field(default="sop_llm_db", description="Имя БД PostgreSQL")
+
+    # Redis Settings (централизованный Redis из sop_infrastructure)
+    redis_url: str = Field(default="redis://redis:6379/1", description="URL для подключения к Redis")
+    redis_host: str = Field(default="redis", description="Хост Redis")
     redis_port: int = Field(default=6379, description="Порт Redis")
-    redis_db: int = Field(default=0, description="Номер БД Redis")
+    redis_db: int = Field(default=1, description="Номер БД Redis (1 для sop_llm)")
     redis_password: str | None = Field(default=None, description="Пароль Redis")
+
+    # Kafka Settings (для будущей интеграции)
+    kafka_bootstrap_servers: str = Field(default="kafka:9092", description="Kafka bootstrap servers")
+
+    # MinIO Settings (для будущей интеграции)
+    minio_endpoint: str = Field(default="http://minio:9000", description="MinIO endpoint")
+    minio_access_key: str = Field(default="minio_admin", description="MinIO access key")
+    minio_secret_key: str = Field(default="change_me", description="MinIO secret key")
 
     session_ttl_seconds: int = Field(default=3600, description="TTL сессий в секундах")
     idempotency_ttl_seconds: int = Field(default=86400, description="TTL idempotency ключей в секундах")

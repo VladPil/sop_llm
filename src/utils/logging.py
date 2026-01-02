@@ -62,7 +62,7 @@ def setup_logging() -> None:
 
     Конфигурация:
     - Development: human-readable в stdout с цветами
-    - Production: JSON формат для structured logging
+    - Production: JSON формат для Loki structured logging
     - Перехват сторонних логгеров (uvicorn, fastapi, redis)
     """
     logger.remove()
@@ -84,12 +84,18 @@ def setup_logging() -> None:
             diagnose=True,
         )
     else:
-        # Production: JSON формат через serialize=True
+        # Production: JSON формат для Loki
+        # serialize=True автоматически создает JSON с полями:
+        # - timestamp (ISO format)
+        # - level
+        # - message
+        # - module, function, line
+        # - extra (дополнительные поля)
         logger.add(
             sys.stdout,
             format="{message}",
             level=settings.log_level,
-            serialize=True,
+            serialize=True,  # Автоматический JSON формат
             backtrace=True,
             diagnose=False,
             enqueue=True,
@@ -97,7 +103,12 @@ def setup_logging() -> None:
 
     configure_third_party_loggers()
 
-    logger.info("Логгер настроен", extra={"level": settings.log_level, "env": settings.app_env})
+    logger.info(
+        "Логгер настроен для Loki JSON logging",
+        level=settings.log_level,
+        env=settings.app_env,
+        service="sop_llm",
+    )
 
 
 def configure_third_party_loggers() -> None:

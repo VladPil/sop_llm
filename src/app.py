@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
+from starlette.requests import Request
+from starlette.responses import Response
 
 from src.api.routes import embeddings, models, monitor, tasks
 from src.config import settings
@@ -177,3 +180,35 @@ async def root() -> dict[str, str]:
         "status": "running",
         "docs": "/docs" if settings.debug else "disabled",
     }
+
+
+@app.get("/health", tags=["root"])
+async def health() -> dict[str, str]:
+    """Health check endpoint для Docker и мониторинга.
+
+    Простой health check который всегда возвращает OK.
+    Для детального health check используйте /api/v1/monitor/health
+
+    Returns:
+        Статус сервиса
+
+    """
+    return {
+        "status": "ok",
+        "service": "sop_llm",
+        "version": "1.0.0",
+    }
+
+
+@app.get("/metrics", tags=["root"])
+async def metrics(_request: Request) -> Response:
+    """Prometheus metrics endpoint.
+
+    Экспортирует метрики в формате Prometheus для сбора мониторингом.
+    Доступен на порту 9090 внутри контейнера.
+
+    Returns:
+        Response: Метрики в формате Prometheus
+
+    """
+    return Response(content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
