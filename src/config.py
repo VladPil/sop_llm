@@ -44,11 +44,6 @@ class Settings(BaseSettings):
     # Kafka Settings (для будущей интеграции)
     kafka_bootstrap_servers: str = Field(default="kafka:9092", description="Kafka bootstrap servers")
 
-    # MinIO Settings (для будущей интеграции)
-    minio_endpoint: str = Field(default="http://minio:9000", description="MinIO endpoint")
-    minio_access_key: str = Field(default="minio_admin", description="MinIO access key")
-    minio_secret_key: str = Field(default="change_me", description="MinIO secret key")
-
     session_ttl_seconds: int = Field(default=3600, description="TTL сессий в секундах")
     idempotency_ttl_seconds: int = Field(default=86400, description="TTL idempotency ключей в секундах")
     logs_max_recent: int = Field(default=100, description="Максимальное количество последних логов")
