@@ -26,6 +26,12 @@ from src.core import (
     REDIS_SESSION_PREFIX,
     TaskStatus,
 )
+
+# Дополнительные ключи Redis согласно ТЗ
+REDIS_GPU_CACHE_KEY = "system:gpu"
+REDIS_STATS_PREFIX = "stats:daily:"
+GPU_CACHE_TTL = 5  # 5 секунд
+STATS_TTL = 7 * 24 * 60 * 60  # 7 дней
 from src.core.config import settings
 from src.shared.logging import get_logger
 
@@ -344,6 +350,84 @@ class SessionStore:
         except Exception as e:
             logger.exception("Redis недоступен", error=str(e))
             return False
+
+    # === GPU Cache (согласно ТЗ) ===
+
+    async def cache_gpu_stats(self, stats: dict[str, Any]) -> None:
+        """Кэшировать GPU статистику.
+
+        Args:
+            stats: Словарь с GPU статистикой
+        """
+        data = orjson.dumps(stats).decode("utf-8")
+        await self.redis.setex(REDIS_GPU_CACHE_KEY, GPU_CACHE_TTL, data)
+
+    async def get_cached_gpu_stats(self) -> dict[str, Any] | None:
+        """Получить кэшированную GPU статистику.
+
+        Returns:
+            Кэшированные данные или None если кэш устарел
+        """
+        data = await self.redis.get(REDIS_GPU_CACHE_KEY)
+        if data:
+            return orjson.loads(data)
+        return None
+
+    # === Daily Statistics (согласно ТЗ) ===
+
+    async def increment_daily_stat(self, stat_name: str, increment: int = 1) -> None:
+        """Инкрементировать дневную статистику.
+
+        Args:
+            stat_name: Название метрики (tasks_completed, tokens_used, etc.)
+            increment: Значение инкремента
+        """
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        key = f"{REDIS_STATS_PREFIX}{today}"
+
+        await self.redis.hincrby(key, stat_name, increment)  # type: ignore[misc]
+        await self.redis.expire(key, STATS_TTL)  # type: ignore[misc]
+
+    async def get_daily_stats(self, date: str | None = None) -> dict[str, int]:
+        """Получить дневную статистику.
+
+        Args:
+            date: Дата в формате YYYY-MM-DD (по умолчанию сегодня)
+
+        Returns:
+            Словарь со статистикой
+        """
+        if date is None:
+            date = datetime.utcnow().strftime("%Y-%m-%d")
+
+        key = f"{REDIS_STATS_PREFIX}{date}"
+        data = await self.redis.hgetall(key)  # type: ignore[misc]
+
+        if not data:
+            return {}
+
+        return {k.decode("utf-8"): int(v) for k, v in data.items()}
+
+    async def record_task_completion(
+        self,
+        tokens_used: int,
+        duration_ms: int,
+        success: bool = True,
+    ) -> None:
+        """Записать завершение задачи в статистику.
+
+        Args:
+            tokens_used: Использовано токенов
+            duration_ms: Время выполнения в мс
+            success: Успешное завершение
+        """
+        if success:
+            await self.increment_daily_stat("tasks_completed")
+        else:
+            await self.increment_daily_stat("tasks_failed")
+
+        await self.increment_daily_stat("tokens_used", tokens_used)
+        await self.increment_daily_stat("total_duration_ms", duration_ms)
 
 
 async def create_session_store() -> SessionStore:

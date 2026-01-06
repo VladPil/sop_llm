@@ -3,10 +3,33 @@
 Endpoints для генерации векторных представлений текстов.
 """
 
-from fastapi import APIRouter, HTTPException, status
+import math
 
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field
+
+from src.docs import embeddings as docs
 from src.api.schemas.requests import EmbeddingRequest
 from src.api.schemas.responses import EmbeddingResponse, ErrorResponse
+
+
+class SimilarityRequest(BaseModel):
+    """Запрос на вычисление сходства текстов."""
+
+    text1: str = Field(description="Первый текст для сравнения")
+    text2: str = Field(description="Второй текст для сравнения")
+    model_name: str = Field(description="Имя embedding модели")
+
+
+class SimilarityResponse(BaseModel):
+    """Ответ с результатом вычисления сходства."""
+
+    similarity: float = Field(description="Косинусное сходство (0.0 - 1.0)")
+    model: str = Field(description="Использованная модель")
+    text1_preview: str = Field(description="Превью первого текста (первые 100 символов)")
+    text2_preview: str = Field(description="Превью второго текста (первые 100 символов)")
+
+
 from src.providers.registry import get_provider_registry
 from src.shared.logging import get_logger
 
@@ -20,65 +43,7 @@ router = APIRouter(prefix="/embeddings", tags=["embeddings"])
     response_model=EmbeddingResponse,
     status_code=status.HTTP_200_OK,
     summary="Генерация векторных представлений (embeddings)",
-    description="""
-Генерирует векторные представления (embeddings) для списка текстов.
-
-## Что такое embeddings
-
-Embeddings — это числовые векторы, представляющие семантическое значение текста.
-Тексты с похожим смыслом имеют близкие векторы в многомерном пространстве.
-
-## Применение
-
-- **Семантический поиск** — поиск документов по смыслу, а не по ключевым словам
-- **RAG** — Retrieval-Augmented Generation для LLM
-- **Кластеризация** — группировка похожих текстов
-- **Дедупликация** — обнаружение дубликатов контента
-- **Рекомендации** — поиск похожих товаров/статей
-
-## Доступные модели
-
-| Модель | Dimensions | Языки | Описание |
-|--------|------------|-------|----------|
-| `multilingual-e5-large` | 1024 | 100+ | Лучшее качество, мультиязычная |
-| `all-MiniLM-L6-v2` | 384 | EN | Быстрая, компактная |
-
-## Параметры запроса
-
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `texts` | list[str] | Список текстов для векторизации (макс. 100) |
-| `model_name` | string | Имя зарегистрированной embedding модели |
-
-## Формат ответа
-
-| Поле | Описание |
-|------|----------|
-| `embeddings` | Список векторов (по одному на текст) |
-| `model` | Использованная модель |
-| `dimensions` | Размерность вектора |
-
-## Рекомендации
-
-- **Нормализация** — удаляйте лишние пробелы и переносы строк
-- **Батчинг** — отправляйте тексты группами по 32-64 штуки
-- **Кэширование** — сохраняйте embeddings в БД, не генерируйте повторно
-- **E5 модели** — добавляйте префикс "query: " или "passage: "
-
-## Ошибки
-
-| Код | Описание |
-|-----|----------|
-| 400 | Невалидный запрос (пустой список, слишком много текстов) |
-| 404 | Embedding модель не зарегистрирована |
-| 500 | Ошибка генерации (проблемы с моделью или GPU) |
-
-## Регистрация embedding модели
-
-Перед использованием модель должна быть зарегистрирована через:
-- `/models/register-from-preset` — из готового пресета
-- `/models/register` — вручную с указанием конфигурации
-""",
+    description=docs.GENERATE_EMBEDDINGS,
     responses={
         200: {
             "description": "Embeddings успешно сгенерированы",
@@ -171,4 +136,122 @@ async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка генерации embeddings: {e}",
+        ) from e
+
+
+def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
+    """Вычислить косинусное сходство двух векторов.
+
+    Args:
+        vec1: Первый вектор
+        vec2: Второй вектор
+
+    Returns:
+        Косинусное сходство (0.0 - 1.0)
+    """
+    if len(vec1) != len(vec2):
+        raise ValueError("Векторы должны иметь одинаковую размерность")
+
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    magnitude1 = math.sqrt(sum(a * a for a in vec1))
+    magnitude2 = math.sqrt(sum(b * b for b in vec2))
+
+    if magnitude1 == 0 or magnitude2 == 0:
+        return 0.0
+
+    similarity = dot_product / (magnitude1 * magnitude2)
+    # Нормализовать в диапазон [0, 1]
+    return (similarity + 1) / 2
+
+
+@router.post(
+    "/similarity",
+    response_model=SimilarityResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Вычислить сходство двух текстов",
+    description=docs.CALCULATE_SIMILARITY,
+    responses={
+        200: {
+            "description": "Сходство успешно вычислено",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "similarity": 0.85,
+                        "model": "multilingual-e5-large",
+                        "text1_preview": "Машинное обучение - это область...",
+                        "text2_preview": "ML является частью AI",
+                    }
+                }
+            },
+        },
+        400: {"model": ErrorResponse, "description": "Невалидный запрос"},
+        404: {"model": ErrorResponse, "description": "Embedding модель не зарегистрирована"},
+        500: {"model": ErrorResponse, "description": "Ошибка вычисления сходства"},
+    },
+)
+async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse:
+    """Вычислить сходство между двумя текстами.
+
+    Args:
+        request: Параметры запроса (text1, text2, model_name)
+
+    Returns:
+        SimilarityResponse с результатом сходства
+
+    Raises:
+        HTTPException: 404 если модель не найдена
+    """
+    registry = get_provider_registry()
+
+    # Проверить наличие модели
+    if request.model_name not in registry.list_providers():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Embedding модель '{request.model_name}' не зарегистрирована",
+        )
+
+    try:
+        provider = registry.get(request.model_name)
+
+        # Проверить что provider поддерживает embeddings
+        if not hasattr(provider, "generate_embeddings"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Модель '{request.model_name}' не поддерживает генерацию embeddings",
+            )
+
+        logger.info(
+            "Вычисление сходства",
+            model=request.model_name,
+            text1_len=len(request.text1),
+            text2_len=len(request.text2),
+        )
+
+        # Генерация embeddings для обоих текстов
+        embeddings = await provider.generate_embeddings([request.text1, request.text2])
+
+        # Вычисление косинусного сходства
+        similarity = _cosine_similarity(embeddings[0], embeddings[1])
+
+        logger.info(
+            "Сходство вычислено",
+            model=request.model_name,
+            similarity=similarity,
+        )
+
+        return SimilarityResponse(
+            similarity=round(similarity, 4),
+            model=request.model_name,
+            text1_preview=request.text1[:100] + "..." if len(request.text1) > 100 else request.text1,
+            text2_preview=request.text2[:100] + "..." if len(request.text2) > 100 else request.text2,
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        logger.exception("Ошибка вычисления сходства", error=str(e), model=request.model_name)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка вычисления сходства: {e}",
         ) from e

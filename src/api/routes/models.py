@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
+from src.docs import models as docs
 from src.api.schemas.requests import (
     CheckCompatibilityRequest,
     RegisterFromPresetRequest,
@@ -44,34 +45,7 @@ router = APIRouter(prefix="/models", tags=["models"])
     "/",
     response_model=ModelsListResponse,
     summary="Список зарегистрированных моделей",
-    description="""
-Возвращает полный список всех моделей, зарегистрированных в системе.
-
-## Что возвращает
-
-Для каждой модели возвращается:
-- **name** — уникальное имя модели в системе (используется в запросах генерации)
-- **provider** — тип провайдера (`openai`, `anthropic`, `local`, `openai_compatible`)
-- **context_window** — максимальный размер контекста в токенах
-- **max_output_tokens** — максимальное количество токенов в ответе
-- **supports_streaming** — поддерживает ли модель потоковую генерацию
-- **supports_structured_output** — поддерживает ли JSON Schema / GBNF грамматики
-- **loaded** — загружена ли модель в память (для локальных моделей)
-
-## Типы провайдеров
-
-| Провайдер | Описание |
-|-----------|----------|
-| `openai` | OpenAI API (GPT-4, GPT-3.5) |
-| `anthropic` | Anthropic API (Claude) |
-| `local` | Локальные GGUF модели через llama.cpp |
-| `openai_compatible` | Любой OpenAI-совместимый API (Ollama, vLLM) |
-
-## Примечания
-
-- Модели регистрируются при старте приложения или через API `/models/register`
-- Для добавления новых моделей используйте `/models/register` или `/models/register-from-preset`
-""",
+    description=docs.LIST_MODELS,
     responses={
         200: {
             "description": "Список моделей успешно получен",
@@ -130,47 +104,7 @@ async def list_models() -> ModelsListResponse:
     "/presets",
     response_model=PresetsListResponse,
     summary="Список доступных пресетов моделей",
-    description="""
-Возвращает список всех предустановленных конфигураций моделей из YAML файлов.
-
-## Что такое пресеты
-
-Пресеты — это готовые конфигурации моделей, которые можно быстро зарегистрировать
-через `/models/register-from-preset` без ручного указания всех параметров.
-
-## Типы пресетов
-
-### Локальные модели (local_models)
-GGUF модели для запуска на GPU через llama.cpp:
-- Qwen 2.5 (3B, 7B, 14B, Coder)
-- LLaMA 3.2 (3B, 8B)
-- Mistral 7B, Phi-3, Gemma 2
-
-Содержат информацию о:
-- HuggingFace репозитории для автозагрузки
-- Требованиях VRAM для разных квантизаций
-- Размере контекстного окна
-
-### Облачные модели (cloud_models)
-API провайдеры (требуют API ключи):
-- Claude 3.5 Sonnet/Haiku, Claude 3 Opus
-- GPT-4 Turbo, GPT-4o, GPT-4o-mini
-- Gemini Pro, Mistral Large
-- Groq, Together AI, DeepSeek
-
-### Embedding модели (embedding_models)
-Модели для векторизации текста:
-- E5 (multilingual-large, base, small)
-- Sentence Transformers
-- BGE, Cohere, Jina
-
-## Следующие шаги
-
-После получения списка пресетов:
-1. Выберите нужный пресет
-2. Проверьте совместимость с GPU: `POST /models/check-compatibility`
-3. Зарегистрируйте: `POST /models/register-from-preset`
-""",
+    description=docs.LIST_PRESETS,
     responses={
         200: {"description": "Список пресетов успешно получен"},
     },
@@ -230,28 +164,7 @@ async def list_presets(
     "/{model_name}",
     response_model=ModelInfo,
     summary="Детальная информация о модели",
-    description="""
-Возвращает подробную информацию о конкретной зарегистрированной модели.
-
-## Параметры
-
-- **model_name** (path) — уникальное имя модели в системе
-
-## Что возвращает
-
-- **name** — имя модели
-- **provider** — тип провайдера
-- **context_window** — размер контекстного окна (в токенах)
-- **max_output_tokens** — максимум токенов в ответе
-- **supports_streaming** — поддержка потоковой генерации
-- **supports_structured_output** — поддержка JSON Schema / GBNF
-- **loaded** — статус загрузки (для локальных моделей)
-- **extra** — дополнительные метаданные (VRAM usage, версия API и т.д.)
-
-## Ошибки
-
-- **404 Not Found** — модель с указанным именем не зарегистрирована
-""",
+    description=docs.GET_MODEL_INFO,
     responses={
         200: {
             "description": "Информация о модели успешно получена",
@@ -316,40 +229,7 @@ async def get_model_info(model_name: str) -> ModelInfo:
     response_model=ModelInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Зарегистрировать модель вручную",
-    description="""
-Динамически регистрирует новую модель в системе с полной конфигурацией.
-
-## Когда использовать
-
-Используйте этот endpoint, когда нужно:
-- Подключить модель с нестандартными параметрами
-- Зарегистрировать модель, отсутствующую в пресетах
-- Подключить кастомный OpenAI-совместимый API
-
-**Для стандартных моделей рекомендуется использовать** `/models/register-from-preset`
-
-## Типы провайдеров и конфигурация
-
-| Провайдер | Обязательные поля в config |
-|-----------|---------------------------|
-| `openai` | `api_key`, `model_name` |
-| `anthropic` | `api_key`, `model_name` |
-| `local` | `model_path`, `context_window` |
-| `openai_compatible` | `model_name`, `base_url`, `api_key` |
-
-### Дополнительные поля config
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `timeout` | int | Таймаут запроса в секундах (default: 120) |
-| `max_retries` | int | Количество повторов при ошибке (default: 3) |
-| `gpu_layers` | int | Слои на GPU для local (-1 = все) |
-
-## Ошибки
-
-- **400 Bad Request** — невалидная конфигурация или ошибка инициализации провайдера
-- **409 Conflict** — модель с таким именем уже зарегистрирована
-""",
+    description=docs.REGISTER_MODEL,
     responses={
         201: {
             "description": "Модель успешно зарегистрирована",
@@ -437,33 +317,7 @@ async def register_model(request: RegisterModelRequest) -> ModelInfo:
     "/{model_name}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить модель из системы",
-    description="""
-Удаляет зарегистрированную модель из системы.
-
-## Что происходит при удалении
-
-1. Модель удаляется из registry и становится недоступной для генерации
-2. Если `cleanup=true` (по умолчанию):
-   - Для локальных моделей: выгружается из GPU/RAM
-   - Для облачных: закрываются HTTP соединения
-
-## Параметры
-
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `model_name` | path | Имя модели для удаления |
-| `cleanup` | query | Выполнить очистку ресурсов (default: true) |
-
-## Важно
-
-- Файлы моделей НЕ удаляются с диска
-- Нельзя удалить модель во время выполнения задачи
-- После удаления модель можно зарегистрировать заново
-
-## Ошибки
-
-- **404 Not Found** — модель не найдена в registry
-""",
+    description=docs.UNREGISTER_MODEL,
     responses={
         204: {"description": "Модель успешно удалена из системы"},
         404: {"model": ErrorResponse, "description": "Модель не найдена в registry"},
@@ -513,41 +367,7 @@ async def unregister_model(
     response_model=ModelInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Зарегистрировать модель из пресета",
-    description="""
-Регистрирует модель из предустановленного пресета с автоматической загрузкой.
-
-## Как это работает
-
-### Для локальных моделей (GGUF)
-1. Проверяется совместимость с GPU (доступная VRAM)
-2. Если модель отсутствует локально и `auto_download=true` — скачивается с HuggingFace
-3. Модель загружается в GPU/RAM
-4. Регистрируется в системе
-
-### Для облачных моделей
-1. Проверяется наличие API ключа в переменных окружения
-2. Создаётся подключение к API провайдера
-3. Модель регистрируется в системе
-
-## Параметры запроса
-
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `preset_name` | string | Имя пресета из `/models/presets` |
-| `auto_download` | bool | Автозагрузка с HuggingFace (default: true) |
-| `quantization` | string | Переопределить квантизацию (q4_k_m, q5_k_m, q8_0, fp16) |
-
-## Рекомендации
-
-- Перед регистрацией локальной модели проверьте совместимость через `/models/check-compatibility`
-- Для облачных моделей убедитесь что API ключ установлен в переменных окружения
-
-## Ошибки
-
-- **400** — ошибка загрузки или инициализации модели
-- **404** — пресет не найден
-- **409** — модель с таким именем уже зарегистрирована
-""",
+    description=docs.REGISTER_FROM_PRESET,
     responses={
         201: {"description": "Модель успешно зарегистрирована из пресета"},
         400: {"model": ErrorResponse, "description": "Ошибка загрузки модели или отсутствует API ключ"},
@@ -617,54 +437,7 @@ async def register_from_preset(
     "/check-compatibility",
     response_model=CompatibilityResponse,
     summary="Проверить совместимость модели с GPU",
-    description="""
-Проверяет, поместится ли локальная модель в доступную видеопамять (VRAM).
-
-## Зачем это нужно
-
-Локальные GGUF модели требуют значительного объёма VRAM для работы.
-Этот endpoint позволяет заранее проверить:
-- Поместится ли модель в доступную VRAM
-- Какую квантизацию лучше использовать
-- Сколько памяти потребуется
-
-## Как работает
-
-1. Получает требования VRAM из пресета модели
-2. Запрашивает текущую доступную VRAM у GPU
-3. Сравнивает и выдаёт рекомендацию
-
-## Параметры запроса
-
-| Параметр | Тип | Описание |
-|----------|-----|----------|
-| `preset_name` | string | Имя локального пресета |
-| `quantization` | string | Квантизация для проверки (опционально) |
-
-## Квантизации
-
-| Квантизация | Размер | Качество | Пример для 7B модели |
-|-------------|--------|----------|---------------------|
-| `q4_k_m` | ~50% | Хорошее | ~4-5 GB |
-| `q5_k_m` | ~60% | Очень хорошее | ~5-6 GB |
-| `q8_0` | ~90% | Отличное | ~8-9 GB |
-| `fp16` | 100% | Максимальное | ~14 GB |
-
-## Что возвращает
-
-| Поле | Описание |
-|------|----------|
-| `compatible` | Поместится ли модель в VRAM |
-| `required_vram_mb` | Требуемая VRAM в MB |
-| `available_vram_mb` | Доступная VRAM в MB |
-| `recommended_quantization` | Рекомендуемая квантизация (если не compatible) |
-| `warning` | Предупреждение о нехватке памяти |
-
-## Примечание
-
-Проверка выполняется только для **локальных** моделей.
-Облачные модели не требуют локальных ресурсов GPU.
-""",
+    description=docs.CHECK_COMPATIBILITY,
     responses={
         200: {"description": "Результат проверки совместимости с GPU"},
         404: {"model": ErrorResponse, "description": "Локальный пресет не найден"},
@@ -711,39 +484,217 @@ async def check_compatibility(
     )
 
 
+@router.post(
+    "/load",
+    response_model=dict,
+    summary="Загрузить модель в VRAM",
+    description=docs.LOAD_MODEL,
+    responses={
+        200: {
+            "description": "Модель успешно загружена",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "qwen2.5-7b-instruct",
+                        "loaded": True,
+                        "load_time_ms": 3500,
+                        "vram_used_mb": 5500,
+                    }
+                }
+            },
+        },
+        400: {"model": ErrorResponse, "description": "Модель не поддерживает явную загрузку"},
+        404: {"model": ErrorResponse, "description": "Модель не найдена"},
+    },
+)
+async def load_model(model_name: str) -> dict:
+    """Загрузить модель в VRAM.
+
+    Args:
+        model_name: Имя зарегистрированной модели
+
+    Returns:
+        Информация о загрузке
+
+    Raises:
+        HTTPException: 404 если модель не найдена, 400 если не поддерживает загрузку
+    """
+    import time
+    from src.api.routes.websocket import broadcast_model_loaded
+
+    registry = get_provider_registry()
+
+    try:
+        provider = registry.get(model_name)
+    except KeyError as e:
+        available = ", ".join(registry.list_providers()) or "нет доступных"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Модель '{model_name}' не найдена. Доступные: {available}",
+        ) from e
+
+    # Проверить что provider поддерживает load_model
+    if not hasattr(provider, "load_model"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Модель '{model_name}' не поддерживает явную загрузку в VRAM (облачная модель?)",
+        )
+
+    try:
+        start_time = time.time()
+
+        # Загрузить модель
+        await provider.load_model()
+
+        load_time_ms = int((time.time() - start_time) * 1000)
+
+        # Получить VRAM usage
+        vram_used_mb = 0
+        try:
+            from src.engine.vram_monitor import get_vram_monitor
+            vram_monitor = get_vram_monitor()
+            vram_usage = vram_monitor.get_vram_usage()
+            vram_used_mb = vram_usage.get("used_mb", 0)
+        except Exception:
+            pass
+
+        # Broadcast событие
+        try:
+            await broadcast_model_loaded(model_name, vram_used_mb)
+        except Exception:
+            pass
+
+        logger.info(
+            "Модель загружена через API",
+            model=model_name,
+            load_time_ms=load_time_ms,
+            vram_used_mb=vram_used_mb,
+        )
+
+        return {
+            "model_name": model_name,
+            "loaded": True,
+            "load_time_ms": load_time_ms,
+            "vram_used_mb": vram_used_mb,
+        }
+
+    except Exception as e:
+        logger.exception("Ошибка загрузки модели", model=model_name, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка загрузки модели: {e}",
+        ) from e
+
+
+@router.post(
+    "/unload",
+    response_model=dict,
+    summary="Выгрузить модель из VRAM",
+    description=docs.UNLOAD_MODEL,
+    responses={
+        200: {
+            "description": "Модель успешно выгружена",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "model_name": "qwen2.5-7b-instruct",
+                        "unloaded": True,
+                        "vram_freed_mb": 5500,
+                    }
+                }
+            },
+        },
+        400: {"model": ErrorResponse, "description": "Модель не поддерживает выгрузку"},
+        404: {"model": ErrorResponse, "description": "Модель не найдена"},
+    },
+)
+async def unload_model(model_name: str) -> dict:
+    """Выгрузить модель из VRAM.
+
+    Args:
+        model_name: Имя зарегистрированной модели
+
+    Returns:
+        Информация о выгрузке
+
+    Raises:
+        HTTPException: 404 если модель не найдена, 400 если не поддерживает выгрузку
+    """
+    from src.api.routes.websocket import broadcast_model_unloaded
+
+    registry = get_provider_registry()
+
+    try:
+        provider = registry.get(model_name)
+    except KeyError as e:
+        available = ", ".join(registry.list_providers()) or "нет доступных"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Модель '{model_name}' не найдена. Доступные: {available}",
+        ) from e
+
+    # Проверить что provider поддерживает unload_model
+    if not hasattr(provider, "unload_model"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Модель '{model_name}' не поддерживает выгрузку из VRAM (облачная модель?)",
+        )
+
+    try:
+        # Получить VRAM до выгрузки
+        vram_before = 0
+        try:
+            from src.engine.vram_monitor import get_vram_monitor
+            vram_monitor = get_vram_monitor()
+            vram_usage = vram_monitor.get_vram_usage()
+            vram_before = vram_usage.get("used_mb", 0)
+        except Exception:
+            pass
+
+        # Выгрузить модель
+        await provider.unload_model()
+
+        # Получить VRAM после выгрузки
+        vram_after = 0
+        try:
+            vram_usage = vram_monitor.get_vram_usage()
+            vram_after = vram_usage.get("used_mb", 0)
+        except Exception:
+            pass
+
+        vram_freed_mb = max(0, vram_before - vram_after)
+
+        # Broadcast событие
+        try:
+            await broadcast_model_unloaded(model_name, vram_freed_mb)
+        except Exception:
+            pass
+
+        logger.info(
+            "Модель выгружена через API",
+            model=model_name,
+            vram_freed_mb=vram_freed_mb,
+        )
+
+        return {
+            "model_name": model_name,
+            "unloaded": True,
+            "vram_freed_mb": vram_freed_mb,
+        }
+
+    except Exception as e:
+        logger.exception("Ошибка выгрузки модели", model=model_name, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка выгрузки модели: {e}",
+        ) from e
+
+
 @router.get(
     "/download-status/{preset_name}",
     response_model=DownloadStatusResponse,
     summary="Проверить статус загрузки модели",
-    description="""
-Проверяет, скачана ли локальная модель и доступна ли она на HuggingFace Hub.
-
-## Зачем это нужно
-
-Перед регистрацией локальной модели полезно проверить:
-- Есть ли модель уже на диске (не нужно качать заново)
-- Доступна ли модель на HuggingFace для скачивания
-- Какой размер файла модели
-
-## Параметры
-
-- **preset_name** (path) — имя локального пресета из `/models/presets`
-
-## Что возвращает
-
-| Поле | Описание |
-|------|----------|
-| `preset_name` | Имя пресета |
-| `exists_locally` | Модель уже скачана |
-| `local_path` | Путь к файлу на диске |
-| `file_size_mb` | Размер файла в MB |
-| `available_on_hf` | Доступна на HuggingFace |
-
-## Использование
-
-Если модель не скачана (`exists_locally=false`), она автоматически загрузится
-при вызове `/models/register-from-preset` с `auto_download=true`.
-""",
+    description=docs.DOWNLOAD_STATUS,
     responses={
         200: {"description": "Статус загрузки модели"},
         404: {"model": ErrorResponse, "description": "Локальный пресет не найден"},

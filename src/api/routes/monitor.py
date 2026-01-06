@@ -12,6 +12,7 @@ from typing import Any
 import psutil
 from fastapi import APIRouter, HTTPException, Response, status
 
+from src.docs import monitor as docs
 from src.api.schemas.responses import (
     ComponentHealth,
     ErrorResponse,
@@ -116,47 +117,7 @@ def _get_system_resources() -> SystemResources:
     "/health",
     response_model=HealthCheckResponse,
     summary="Комплексная проверка состояния системы",
-    description="""
-Выполняет полную проверку всех компонентов системы и возвращает детальный статус.
-
-## Что проверяется
-
-### Критические компоненты
-- **Redis** — хранилище сессий и очередь задач
-
-### Провайдеры моделей
-- Все зарегистрированные LLM провайдеры
-- Статус каждого провайдера отдельно
-
-### Системные ресурсы
-- Использование диска (%)
-- Свободное место на диске (GB)
-- Использование RAM (%)
-- Доступная RAM (GB)
-
-### GPU (если доступен)
-- Название GPU
-- Использование VRAM (%)
-
-## Статусы ответа
-
-| Статус | HTTP код | Описание |
-|--------|----------|----------|
-| `healthy` | 200 | Все компоненты работают |
-| `degraded` | 503 | Некоторые компоненты недоступны |
-| `unhealthy` | 503 | Критические компоненты недоступны |
-
-## Использование
-
-Подходит для:
-- **Kubernetes** — livenessProbe и readinessProbe
-- **Docker Compose** — healthcheck
-- **Load Balancer** — проверка доступности backend
-
-## Примечание
-
-Для простого health check без деталей используйте `/health` (root endpoint).
-""",
+    description=docs.HEALTH_CHECK,
     responses={
         200: {
             "description": "Система работает нормально",
@@ -298,37 +259,7 @@ async def health_check(response: Response) -> HealthCheckResponse:
     "/gpu",
     response_model=GPUStatsResponse,
     summary="Детальная статистика GPU",
-    description="""
-Возвращает полную информацию о GPU и использовании видеопамяти (VRAM).
-
-## Что возвращает
-
-### GPU Info
-- **name** — название GPU (например, "NVIDIA RTX 4090")
-- **driver_version** — версия драйвера NVIDIA
-- **cuda_version** — версия CUDA
-- **compute_capability** — вычислительные возможности GPU
-
-### VRAM Usage
-- **total_mb** — общий объём VRAM в MB
-- **used_mb** — использовано VRAM в MB
-- **free_mb** — свободно VRAM в MB
-- **used_percent** — процент использования VRAM
-
-### Lock Status
-- **is_locked** — занят ли GPU задачей генерации
-- **current_task_id** — ID текущей задачи (если GPU занят)
-
-## Использование
-
-- Проверка доступной VRAM перед загрузкой модели
-- Мониторинг занятости GPU текущими задачами
-- Отслеживание использования ресурсов в Grafana/Prometheus
-
-## Ошибки
-
-- **503 Service Unavailable** — GPU недоступен (нет NVIDIA GPU или драйверов)
-""",
+    description=docs.GPU_STATS,
     responses={
         200: {
             "description": "Статистика GPU успешно получена",
@@ -395,40 +326,87 @@ async def get_gpu_stats() -> GPUStatsResponse:
 
 
 @router.get(
+    "/logs",
+    response_model=dict,
+    summary="Получить логи системы",
+    description=docs.GET_LOGS,
+    responses={
+        200: {
+            "description": "Логи системы",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "logs": [
+                            {
+                                "timestamp": "2024-01-15T10:30:00Z",
+                                "task_id": "task_abc123",
+                                "level": "INFO",
+                                "message": "Task started",
+                            }
+                        ],
+                        "total": 100,
+                        "filtered": 50,
+                    }
+                }
+            },
+        }
+    },
+)
+async def get_logs(
+    limit: int = 100,
+    level: str | None = None,
+    task_id: str | None = None,
+) -> dict:
+    """Получить логи системы.
+
+    Args:
+        limit: Максимум записей (default: 100, max: 1000)
+        level: Фильтр по уровню лога
+        task_id: Фильтр по ID задачи
+
+    Returns:
+        Словарь с логами и метаданными
+    """
+    # Ограничить limit
+    limit = min(limit, 1000)
+
+    session_store = get_session_store()
+
+    # Получить логи
+    if task_id:
+        # Логи конкретной задачи
+        logs = await session_store.get_task_logs(task_id)
+    else:
+        # Последние логи системы
+        logs = await session_store.get_recent_logs(limit=limit * 2)  # Запросить больше для фильтрации
+
+    total = len(logs)
+
+    # Фильтрация по уровню
+    if level:
+        level_upper = level.upper()
+        logs = [log for log in logs if log.get("level", "").upper() == level_upper]
+
+    # Ограничить количество
+    logs = logs[-limit:]
+
+    return {
+        "logs": logs,
+        "total": total,
+        "filtered": len(logs),
+        "filters": {
+            "limit": limit,
+            "level": level,
+            "task_id": task_id,
+        },
+    }
+
+
+@router.get(
     "/queue",
     response_model=QueueStatsResponse,
     summary="Статистика очереди задач",
-    description="""
-Возвращает информацию о текущем состоянии очереди задач генерации.
-
-## Что возвращает
-
-### Метрики очереди
-- **queue_size** — количество задач в очереди ожидания
-- **processing_task** — ID задачи, которая сейчас выполняется (или null)
-- **recent_logs_count** — количество записей в логах за последний период
-
-## Использование
-
-- Мониторинг нагрузки на сервис
-- Балансировка запросов между серверами
-- Алертинг при переполнении очереди
-
-## Интерпретация значений
-
-| queue_size | Статус | Рекомендация |
-|------------|--------|--------------|
-| 0 | Idle | Система простаивает |
-| 1-10 | Normal | Нормальная нагрузка |
-| 11-50 | Busy | Повышенная нагрузка |
-| 50+ | Overloaded | Рассмотреть масштабирование |
-
-## Связь с другими endpoints
-
-- `/monitor/health` — общий статус системы
-- `/monitor/gpu` — детали о GPU и VRAM
-- `/tasks/{task_id}` — статус конкретной задачи
-""",
+    description=docs.QUEUE_STATS,
     responses={
         200: {
             "description": "Статистика очереди успешно получена",
@@ -459,3 +437,59 @@ async def get_queue_stats() -> QueueStatsResponse:
         processing_task=stats["processing_task"],
         recent_logs_count=stats["recent_logs_count"],
     )
+
+
+@router.get(
+    "/stats",
+    response_model=dict,
+    summary="Дневная статистика сервиса",
+    description=docs.DAILY_STATS,
+    responses={
+        200: {
+            "description": "Дневная статистика",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "date": "2024-01-15",
+                        "tasks_completed": 150,
+                        "tasks_failed": 5,
+                        "tokens_used": 250000,
+                        "total_duration_ms": 3600000,
+                        "avg_duration_ms": 23225,
+                    }
+                }
+            },
+        }
+    },
+)
+async def get_daily_stats(date: str | None = None) -> dict:
+    """Получить дневную статистику.
+
+    Args:
+        date: Дата в формате YYYY-MM-DD (по умолчанию сегодня)
+
+    Returns:
+        Словарь со статистикой
+    """
+    from datetime import datetime as dt
+
+    if date is None:
+        date = dt.utcnow().strftime("%Y-%m-%d")
+
+    session_store = get_session_store()
+    stats = await session_store.get_daily_stats(date)
+
+    # Вычислить среднее время
+    tasks_total = stats.get("tasks_completed", 0) + stats.get("tasks_failed", 0)
+    avg_duration_ms = 0
+    if tasks_total > 0:
+        avg_duration_ms = stats.get("total_duration_ms", 0) // tasks_total
+
+    return {
+        "date": date,
+        "tasks_completed": stats.get("tasks_completed", 0),
+        "tasks_failed": stats.get("tasks_failed", 0),
+        "tokens_used": stats.get("tokens_used", 0),
+        "total_duration_ms": stats.get("total_duration_ms", 0),
+        "avg_duration_ms": avg_duration_ms,
+    }

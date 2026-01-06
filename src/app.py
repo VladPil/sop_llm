@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from src.api.routes import embeddings, models, monitor, tasks
+from src.api.routes import embeddings, models, monitor, tasks, websocket
 from src.core.config import settings
 from src.providers.litellm_provider import LiteLLMProvider
 from src.providers.registry import get_provider_registry
@@ -182,6 +182,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     logger.info("SOP LLM Executor останавливается")
 
+    # Остановить WebSocket broadcaster
+    from src.api.routes.websocket import stop_broadcaster
+    await stop_broadcaster()
+    logger.info("WebSocket broadcaster остановлен")
+
     # Остановить TaskOrchestrator worker
     orchestrator = get_task_orchestrator()
     await orchestrator.stop()
@@ -279,6 +284,9 @@ app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(models.router, prefix="/api/v1")
 app.include_router(monitor.router, prefix="/api/v1")
 app.include_router(embeddings.router, prefix="/api/v1")
+
+# WebSocket endpoint (без версии, как в ТЗ)
+app.include_router(websocket.router)
 
 # Legacy endpoints без версии (обратная совместимость, не показываются в Swagger)
 app.include_router(tasks.router, prefix="/api", include_in_schema=False)
