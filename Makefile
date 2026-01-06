@@ -28,16 +28,16 @@ ENV ?= local
 # Выбор файла docker-compose и .env в зависимости от окружения
 ifeq ($(ENV),local)
     COMPOSE_FILE := .docker/docker-compose.local.yml
-    ENV_FILE := .docker/configs/.env.local
+    ENV_FILE := .env
 else ifeq ($(ENV),infra)
     COMPOSE_FILE := .docker/docker-compose.infra.yml
-    ENV_FILE := .docker/configs/.env.local
+    ENV_FILE := .env
 else ifeq ($(ENV),dev)
     COMPOSE_FILE := .docker/docker-compose.dev.yml
     ENV_FILE := .docker/configs/.env.dev
 else
     COMPOSE_FILE := .docker/docker-compose.local.yml
-    ENV_FILE := .docker/configs/.env.local
+    ENV_FILE := .env
 endif
 
 # Директория скриптов
@@ -141,7 +141,7 @@ up:
 	@if [ ! -f "$(ENV_FILE)" ]; then \
 		echo "$(RED)Ошибка: Файл окружения $(ENV_FILE) не найден!$(RESET)"; \
 		echo "$(YELLOW)Пожалуйста, создайте файл конфигурации из примера:$(RESET)"; \
-		echo "  cp .docker/configs/.env.example $(ENV_FILE)"; \
+		echo "  cp .docker/configs/.env.local $(ENV_FILE)"; \
 		exit 1; \
 	fi
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up -d

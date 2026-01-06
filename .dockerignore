@@ -67,8 +67,6 @@ logs/
 
 # Docker
 .docker/
-# Allow entrypoint script
-!.docker/app/entrypoint.sh
 Dockerfile*
 docker-compose*.yml
 .dockerignore

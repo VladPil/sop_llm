@@ -27,13 +27,6 @@ class Settings(BaseSettings):
     server_host: str = Field(default="0.0.0.0", description="Хост сервера")
     server_port: int = Field(default=8000, description="Порт сервера")
 
-    # PostgreSQL Settings (для будущей интеграции с централизованной БД)
-    postgres_host: str = Field(default="postgres", description="Хост PostgreSQL")
-    postgres_port: int = Field(default=5432, description="Порт PostgreSQL")
-    postgres_user: str = Field(default="sop_admin", description="Пользователь PostgreSQL")
-    postgres_password: str = Field(default="change_me", description="Пароль PostgreSQL")
-    postgres_db: str = Field(default="sop_llm_db", description="Имя БД PostgreSQL")
-
     # Redis Settings (централизованный Redis из sop_infrastructure)
     redis_url: str = Field(default="redis://redis:6379/1", description="URL для подключения к Redis")
     redis_host: str = Field(default="redis", description="Хост Redis")
@@ -62,13 +55,24 @@ class Settings(BaseSettings):
     max_vram_usage_percent: float = Field(default=90.0, description="Максимальный процент использования VRAM")
     vram_reserve_mb: int = Field(default=512, description="Резерв VRAM в МБ")
 
+    # LLM Provider API Keys (используются через LiteLLM)
     openai_api_key: str | None = Field(default=None, description="API ключ OpenAI")
-    openai_base_url: str | None = Field(default=None, description="Base URL для OpenAI API")
-
     anthropic_api_key: str | None = Field(default=None, description="API ключ Anthropic")
+    gemini_api_key: str | None = Field(default=None, description="API ключ Google Gemini")
+    mistral_api_key: str | None = Field(default=None, description="API ключ Mistral AI")
+    cohere_api_key: str | None = Field(default=None, description="API ключ Cohere")
 
-    openai_compatible_base_url: str | None = Field(default=None, description="Base URL для OpenAI-compatible API")
-    openai_compatible_api_key: str | None = Field(default=None, description="API ключ для OpenAI-compatible")
+    # LiteLLM Configuration
+    litellm_debug: bool = Field(default=False, description="Включить debug режим LiteLLM")
+    litellm_drop_params: bool = Field(default=True, description="Автоматически удалять несовместимые параметры")
+    litellm_max_retries: int = Field(default=3, description="Максимальное количество повторов LiteLLM")
+    litellm_timeout: int = Field(default=600, description="Таймаут LiteLLM запросов (секунды)")
+
+    # Langfuse Observability Configuration
+    langfuse_enabled: bool = Field(default=True, description="Включить Langfuse observability")
+    langfuse_public_key: str | None = Field(default=None, description="Langfuse public API key")
+    langfuse_secret_key: str | None = Field(default=None, description="Langfuse secret API key")
+    langfuse_host: str = Field(default="http://langfuse:3000", description="Langfuse server URL (self-hosted)")
 
     enable_json_fixing: bool = Field(default=False, description="Включить JSON fixing")
     json_fixer_timeout: int = Field(default=30, description="Таймаут для JSON fixer")

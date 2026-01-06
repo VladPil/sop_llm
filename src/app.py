@@ -3,18 +3,19 @@
 Главное приложение с инициализацией всех компонентов.
 """
 
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import litellm
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, generate_latest
-from starlette.requests import Request
-from starlette.responses import Response
 
 from src.api.routes import embeddings, models, monitor, tasks
 from src.config import settings
+from src.providers.litellm_provider import LiteLLMProvider
 from src.providers.registry import get_provider_registry
+from src.services.observability import configure_litellm_callbacks, flush_observations, initialize_langfuse
 from src.services.session_store import create_session_store
 from src.services.task_processor import create_task_processor, get_task_processor
 from src.utils.logging import get_logger, setup_logging
@@ -41,6 +42,29 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         log_level=settings.log_level,
     )
 
+    # Инициализация Langfuse Observability
+    if settings.langfuse_enabled and settings.langfuse_public_key and settings.langfuse_secret_key:
+        try:
+            initialize_langfuse(
+                public_key=settings.langfuse_public_key,
+                secret_key=settings.langfuse_secret_key,
+                host=settings.langfuse_host,
+                enabled=True,
+            )
+            logger.info("Langfuse observability инициализирован")
+
+            # Configure LiteLLM callbacks для автоматического трейсинга
+            configure_litellm_callbacks()
+        except Exception as e:
+            logger.warning(f"Не удалось инициализировать Langfuse: {e}")
+    else:
+        logger.info("Langfuse observability отключен")
+
+    # Настроить LiteLLM
+    litellm.drop_params = settings.litellm_drop_params
+    litellm.set_verbose = settings.litellm_debug
+    logger.info(f"LiteLLM настроен: debug={settings.litellm_debug}, drop_params={settings.litellm_drop_params}")
+
     # Создать SessionStore
     session_store = await create_session_store()
     logger.info("SessionStore инициализирован")
@@ -53,7 +77,40 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await task_processor.start()
     logger.info("TaskProcessor worker запущен")
 
-    # Модели регистрируются через API (/api/v1/models/register)
+    # Инициализировать LiteLLM providers для доступных API keys
+    registry = get_provider_registry()
+
+    if settings.anthropic_api_key:
+        claude_provider = LiteLLMProvider(
+            model_name="claude-3-5-sonnet-20241022",
+            api_key=settings.anthropic_api_key,
+            timeout=settings.litellm_timeout,
+            max_retries=settings.litellm_max_retries,
+        )
+        registry.register("claude-3.5-sonnet", claude_provider)
+        logger.info("Claude 3.5 Sonnet provider зарегистрирован")
+
+    if settings.openai_api_key:
+        gpt4_provider = LiteLLMProvider(
+            model_name="gpt-4-turbo",
+            api_key=settings.openai_api_key,
+            timeout=settings.litellm_timeout,
+            max_retries=settings.litellm_max_retries,
+        )
+        registry.register("gpt-4-turbo", gpt4_provider)
+        logger.info("GPT-4 Turbo provider зарегистрирован")
+
+    if settings.gemini_api_key:
+        gemini_provider = LiteLLMProvider(
+            model_name="gemini/gemini-pro",
+            api_key=settings.gemini_api_key,
+            timeout=settings.litellm_timeout,
+            max_retries=settings.litellm_max_retries,
+        )
+        registry.register("gemini-pro", gemini_provider)
+        logger.info("Gemini Pro provider зарегистрирован")
+
+    # Модели также регистрируются через API (/api/v1/models/register)
 
     logger.info(
         "SOP LLM Executor готов",
@@ -79,6 +136,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await session_store.redis.close()
     logger.info("Redis connection закрыт")
 
+    # Flush Langfuse observations
+    flush_observations()
+
     logger.info("SOP LLM Executor остановлен")
 
 
@@ -102,9 +162,7 @@ app = FastAPI(
 ## Поддерживаемые провайдеры
 
 - **Local** - llama.cpp (GGUF модели)
-- **OpenAI** - GPT-4, GPT-3.5 и др.
-- **Anthropic** - Claude 3 модели
-- **OpenAI-Compatible** - любые OpenAI-совместимые API
+- **LiteLLM** - 100+ LLM провайдеров (Anthropic, OpenAI, Google Gemini, Mistral, Cohere, и др.)
 
 ## Архитектура
 
@@ -200,15 +258,18 @@ async def health() -> dict[str, str]:
     }
 
 
-@app.get("/metrics", tags=["root"])
-async def metrics(_request: Request) -> Response:
-    """Prometheus metrics endpoint.
-
-    Экспортирует метрики в формате Prometheus для сбора мониторингом.
-    Доступен на порту 9090 внутри контейнера.
+@app.get("/observability", tags=["root"])
+async def observability_info() -> dict[str, str]:
+    """Информация об observability (Langfuse).
 
     Returns:
-        Response: Метрики в формате Prometheus
+        Информация о конфигурации observability
 
     """
-    return Response(content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
+    from src.services.observability import is_observability_enabled
+
+    return {
+        "enabled": is_observability_enabled(),
+        "platform": "langfuse" if is_observability_enabled() else "disabled",
+        "host": settings.langfuse_host if settings.langfuse_enabled else None,
+    }

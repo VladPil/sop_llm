@@ -8,7 +8,7 @@ services:
   app:
     build:
       context: ../..
-      dockerfile: .docker/dockerfiles/backend/Dockerfile
+      dockerfile: .docker/containers/backend/Dockerfile
       args:
         - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
         - INSTALL_GPU=${INSTALL_GPU:-true}

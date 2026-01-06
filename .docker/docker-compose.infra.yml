@@ -13,7 +13,7 @@ services:
       - "${REDIS_PORT:-6381}:6379"
     volumes:
       - sop_llm_redis_data_infra:/data
-      - ../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./containers/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - sop_llm_redis_logs_infra:/var/log/redis
     networks:
       - sop_llm_network_infra

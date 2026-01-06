@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  langfuse-server:
+    image: langfuse/langfuse:latest
+    container_name: sop-langfuse
+    restart: unless-stopped
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Database configuration
+      DATABASE_URL: postgresql://langfuse:langfuse_password@langfuse-db:5432/langfuse
+
+      # NextAuth configuration
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-change_this_to_random_string_min_32_chars}
+
+      # Salt for API key hashing
+      SALT: ${LANGFUSE_SALT:-change_this_to_random_salt_min_32_chars}
+
+      # Telemetry (opt-out)
+      TELEMETRY_ENABLED: "false"
+
+      # Optional: Email configuration for user invites
+      # EMAIL_FROM_ADDRESS: noreply@example.com
+      # EMAIL_FROM_NAME: Langfuse
+      # SMTP_HOST: smtp.example.com
+      # SMTP_PORT: 587
+      # SMTP_AUTH_USER: user@example.com
+      # SMTP_AUTH_PASSWORD: password
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - langfuse-network
+
+  langfuse-db:
+    image: postgres:15-alpine
+    container_name: sop-langfuse-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse_password
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - langfuse-network
+
+volumes:
+  langfuse-db-data:
+    name: sop-langfuse-db-data
+
+networks:
+  langfuse-network:
+    name: sop-langfuse-network
+    driver: bridge

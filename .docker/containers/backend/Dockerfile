@@ -18,8 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Рабочая директория
 WORKDIR /app
 
-# Копируем файлы зависимостей
+# Копируем файлы зависимостей и код
 COPY pyproject.toml /app/pyproject.toml
+COPY src/ /app/src/
 
 # Базовые настройки Python
 ENV PIP_NO_CACHE_DIR=1 \
@@ -60,6 +61,15 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Копируем исходный код приложения
 COPY src/ /app/src/
 
+# Создаем non-root пользователя
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app && \
+    mkdir -p /app/logs && \
+    chown -R appuser:appuser /app/logs
+
+# Переключаемся на non-root пользователя
+USER appuser
+
 # Системные переменные Python
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -71,5 +81,9 @@ EXPOSE 8000 9090
 # Используем tini как init-процесс
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Команда запуска (порт и другие параметры через переменные окружения)
-CMD ["sh", "-c", "uvicorn src.app:app --host 0.0.0.0 --port ${API_PORT:-8000} --timeout-graceful-shutdown 5"]
+# Healthcheck (внутри контейнера порт 8000)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Команда запуска
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "5"]

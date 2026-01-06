@@ -107,11 +107,18 @@ class StreamChunk(BaseModel):
     )
 
 
+class ChatMessage(BaseModel):
+    """Сообщение в формате OpenAI Chat Completions API."""
+
+    role: Literal["system", "user", "assistant"] = Field(description="Роль отправителя")
+    content: str = Field(description="Содержание сообщения")
+
+
 class ModelInfo(BaseModel):
     """Метаданные модели."""
 
     name: str = Field(description="Название модели")
-    provider: Literal["local", "openai_compatible", "anthropic", "openai", "custom"] = Field(
+    provider: Literal["local", "litellm", "anthropic", "openai", "custom"] = Field(
         description="Тип провайдера"
     )
     context_window: int = Field(description="Размер контекстного окна")
@@ -138,13 +145,15 @@ class LLMProvider(Protocol):
 
     async def generate(
         self,
-        prompt: str,
-        params: GenerationParams,
+        prompt: str | None = None,
+        messages: list[ChatMessage] | None = None,
+        params: GenerationParams | None = None,
     ) -> GenerationResult:
         """Сгенерировать текст (не-streaming).
 
         Args:
-            prompt: Промпт для генерации
+            prompt: Промпт для генерации (простой текст)
+            messages: Сообщения в формате Chat Completions API
             params: Параметры генерации
 
         Returns:
@@ -152,19 +161,24 @@ class LLMProvider(Protocol):
 
         Raises:
             RuntimeError: Ошибка генерации
+            ValueError: Если не указан ни prompt, ни messages
 
+        Note:
+            Можно использовать либо prompt, либо messages, но не оба одновременно.
         """
         ...
 
     async def generate_stream(
         self,
-        prompt: str,
-        params: GenerationParams,
+        prompt: str | None = None,
+        messages: list[ChatMessage] | None = None,
+        params: GenerationParams | None = None,
     ) -> AsyncIterator[StreamChunk]:
         """Сгенерировать текст (streaming).
 
         Args:
-            prompt: Промпт для генерации
+            prompt: Промпт для генерации (простой текст)
+            messages: Сообщения в формате Chat Completions API
             params: Параметры генерации
 
         Yields:
@@ -172,7 +186,10 @@ class LLMProvider(Protocol):
 
         Raises:
             RuntimeError: Ошибка генерации
+            ValueError: Если не указан ни prompt, ни messages
 
+        Note:
+            Можно использовать либо prompt, либо messages, но не оба одновременно.
         """
         ...
 

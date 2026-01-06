@@ -27,20 +27,21 @@ dependencies = [
     "redis[hiredis]>=5.2.0",
     "faststream[redis]>=0.5.28",
 
-    # ML/AI библиотеки (LEGACY - будут удалены после миграции)
-    "torch>=2.5.1",
-    "transformers>=4.46.0",
-    "sentence-transformers>=3.2.1",
-    "accelerate>=1.1.1",
-    "safetensors>=0.4.5",
-    "sentencepiece>=0.2.0",
-    "protobuf>=5.28.3",
-    "tokenizers>=0.20.3",
+    # ML/AI библиотеки (для локальных embeddings)
+    "sentence-transformers>=3.2.1",  # Локальные embeddings
+    "torch>=2.5.1",                   # Требуется для sentence-transformers
+    "safetensors>=0.4.5",             # Безопасная загрузка моделей
 
-    # LLM Inference (NEW ARCHITECTURE)
-    "llama-cpp-python>=0.3.2",  # Local GGUF models
-    "anthropic>=0.39.0",         # Claude API
-    "openai>=1.54.0",            # OpenAI API
+    # LLM Inference (NEW ARCHITECTURE - PRODUCTION)
+    "llama-cpp-python>=0.3.2",  # Local GGUF models with GPU support
+    "litellm>=1.52.0",           # Unified LLM interface for 100+ providers
+    "anthropic>=0.39.0",         # Claude API (used by LiteLLM)
+    "openai>=1.54.0",            # OpenAI API (used by LiteLLM)
+
+    # LLM Observability & Tracing
+    "langfuse>=2.51.0",          # LLM observability platform
+    "opentelemetry-api>=1.28.0", # Distributed tracing
+    "opentelemetry-sdk>=1.28.0", # Tracing SDK
 
     # GPU Monitoring
     "pynvml>=12.560.30",         # NVIDIA GPU monitoring
@@ -63,9 +64,6 @@ dependencies = [
     # Логирование
     "loguru>=0.7.2",
     "python-json-logger>=3.1.0",
-
-    # Мониторинг
-    "prometheus-client>=0.21.0",
 ]
 
 [project.optional-dependencies]
@@ -152,13 +150,15 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = [
-    "transformers.*",
     "sentence_transformers.*",
     "torch.*",
     "redis.*",
     "faststream.*",
     "anthropic.*",
     "llama_cpp.*",
+    "litellm.*",
+    "langfuse.*",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
 
