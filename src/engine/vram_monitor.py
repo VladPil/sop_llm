@@ -15,8 +15,8 @@ except ImportError:
     except ImportError:
         pynvml = None  # type: ignore[assignment]
 
-from src.config import settings
-from src.utils.logging import get_logger
+from src.core.config import settings
+from src.shared.logging import get_logger
 
 logger = get_logger()
 

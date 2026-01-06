@@ -11,7 +11,6 @@ from typing import Any
 
 import orjson
 
-
 # Паттерны для sanitization чувствительных данных
 SENSITIVE_PATTERNS = [
     (re.compile(r'"(password|pwd)"\s*:\s*"[^"]*"', re.IGNORECASE), r'"\1": "***"'),
@@ -32,6 +31,7 @@ def sanitize_sensitive_data(text: str) -> str:
 
     Returns:
         Текст с замаскированными чувствительными данными
+
     """
     for pattern, replacement in SENSITIVE_PATTERNS:
         text = pattern.sub(replacement, text)
@@ -56,6 +56,7 @@ def json_formatter(record: dict[str, Any]) -> str:
 
     Returns:
         JSON строка для structured logging
+
     """
     # Базовые поля
     log_entry = {
@@ -92,7 +93,7 @@ def json_formatter(record: dict[str, Any]) -> str:
     json_str = orjson.dumps(log_entry).decode("utf-8")
 
     # Sanitize чувствительные данные в production
-    from src.config import settings
+    from src.core.config import settings
 
     if settings.app_env == "production":
         json_str = sanitize_sensitive_data(json_str)
@@ -113,6 +114,7 @@ def console_formatter(record: dict[str, Any]) -> str:
 
     Returns:
         Отформатированная строка для консоли
+
     """
     # Базовый формат с цветами (Loguru сам обрабатывает цветовые теги)
     base_format = (
@@ -145,6 +147,7 @@ def get_formatter(env: str = "development") -> str:
 
     Returns:
         Строка форматтера для Loguru
+
     """
     if env == "production":
         # Для production используем JSON форматтер через serialize=True в Loguru

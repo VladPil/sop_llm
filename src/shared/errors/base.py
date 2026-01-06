@@ -5,6 +5,7 @@
 """
 
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +16,7 @@ class ErrorResponse(BaseModel):
         error_code: Уникальный код ошибки (генерируется из имени класса).
         message: Человекочитаемое описание ошибки.
         details: Дополнительная информация об ошибке (опционально).
+
     """
 
     error_code: str = Field(..., description="Уникальный код ошибки")
@@ -44,6 +46,7 @@ class AppException(Exception):
         'custom_error'
         >>> error.message
         'Произошла кастомная ошибка.'
+
     """
 
     status_code: int = 500
@@ -58,6 +61,7 @@ class AppException(Exception):
         Args:
             message: Описание ошибки. Если не указано, берется из docstring.
             details: Дополнительная информация об ошибке.
+
         """
         self.code = self._generate_error_code()
         self.message = message or self._get_default_message()
@@ -75,6 +79,7 @@ class AppException(Exception):
         Examples:
             >>> ValidationError -> validation_error
             >>> NotFoundError -> not_found_error
+
         """
         name = self.__class__.__name__
         # Вставляем подчеркивание перед заглавными буквами
@@ -90,6 +95,7 @@ class AppException(Exception):
 
         Returns:
             Первая строка docstring или имя класса, если docstring отсутствует.
+
         """
         doc = self.__class__.__doc__
         if doc:
@@ -103,6 +109,7 @@ class AppException(Exception):
 
         Returns:
             ErrorResponse: Схема ответа с ошибкой для сериализации в JSON.
+
         """
         return ErrorResponse(
             error_code=self.code,

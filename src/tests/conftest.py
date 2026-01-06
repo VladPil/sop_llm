@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
 
 from src.app import app
-from src.config import settings
+from src.core.config import settings
 
 
 @pytest.fixture(scope="session")

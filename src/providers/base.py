@@ -8,6 +8,8 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
+from src.core import FinishReason, ProviderType
+
 
 class GenerationParams(BaseModel):
     """Параметры генерации (общие для всех providers).
@@ -80,9 +82,7 @@ class GenerationResult(BaseModel):
     """Результат генерации."""
 
     text: str = Field(description="Сгенерированный текст")
-    finish_reason: Literal["stop", "length", "error"] = Field(
-        description="Причина завершения генерации"
-    )
+    finish_reason: FinishReason = Field(description="Причина завершения генерации")
     usage: dict[str, int] = Field(
         description="Статистика использования токенов (prompt_tokens, completion_tokens, total_tokens)"
     )
@@ -97,7 +97,7 @@ class StreamChunk(BaseModel):
     """Chunk для streaming генерации."""
 
     text: str = Field(description="Текст chunk'а")
-    finish_reason: Literal["stop", "length", "error"] | None = Field(
+    finish_reason: FinishReason | None = Field(
         default=None,
         description="Причина завершения (только в последнем chunk)",
     )
@@ -118,9 +118,7 @@ class ModelInfo(BaseModel):
     """Метаданные модели."""
 
     name: str = Field(description="Название модели")
-    provider: Literal["local", "litellm", "anthropic", "openai", "custom"] = Field(
-        description="Тип провайдера"
-    )
+    provider: ProviderType = Field(description="Тип провайдера")
     context_window: int = Field(description="Размер контекстного окна")
     max_output_tokens: int = Field(description="Максимум токенов в ответе")
     supports_streaming: bool = Field(default=True, description="Поддержка streaming")
@@ -165,10 +163,11 @@ class LLMProvider(Protocol):
 
         Note:
             Можно использовать либо prompt, либо messages, но не оба одновременно.
+
         """
         ...
 
-    async def generate_stream(
+    def generate_stream(
         self,
         prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
@@ -190,6 +189,7 @@ class LLMProvider(Protocol):
 
         Note:
             Можно использовать либо prompt, либо messages, но не оба одновременно.
+
         """
         ...
 

@@ -1,70 +1,56 @@
 """Маппинг инфраструктурных исключений на доменные.
 
 Этот модуль содержит `ExceptionMapper` для преобразования исключений
-инфраструктурного слоя (БД, кэш, внешние API) в доменные исключения.
+инфраструктурного слоя (кэш, внешние API) в доменные исключения.
 """
 
-from typing import Type
-import asyncpg
-import redis.exceptions
+
 import litellm.exceptions
+import redis.exceptions
+
 from src.shared.errors.base import AppException
 from src.shared.errors.domain_errors import (
-    ConflictError,
-    ServiceUnavailableError,
-    RateLimitError,
     BadRequestError,
     InternalServerError,
-    UnauthorizedError,
+    RateLimitError,
+    ServiceUnavailableError,
     TimeoutError,
 )
 from src.shared.errors.llm_errors import (
-    ModelNotFoundError,
-    ProviderUnavailableError,
-    TokenLimitExceededError,
-    GenerationFailedError,
-    ProviderAuthenticationError,
     ContextLengthExceededError,
+    GenerationFailedError,
+    ModelNotFoundError,
+    ProviderAuthenticationError,
+    ProviderUnavailableError,
 )
 
 
 class ExceptionMapper:
     """Маппер для преобразования инфраструктурных исключений в доменные.
 
-    Преобразует исключения от внешних библиотек (asyncpg, redis, litellm)
+    Преобразует исключения от внешних библиотек (redis, litellm)
     в доменные исключения приложения.
 
     Examples:
         >>> mapper = ExceptionMapper()
         >>> try:
-        ...     # Операция с БД
+        ...     # Операция с кэшем или LLM
         ...     pass
         ... except Exception as e:
         ...     domain_error = mapper.map(e)
         ...     raise domain_error
+
     """
 
-    # Маппинг PostgreSQL ошибок
-    _POSTGRES_MAPPING: dict[Type[Exception], Type[AppException]] = {
-        asyncpg.UniqueViolationError: ConflictError,
-        asyncpg.ForeignKeyViolationError: ConflictError,
-        asyncpg.IntegrityConstraintViolationError: ConflictError,
-        asyncpg.PostgresConnectionError: ServiceUnavailableError,
-        asyncpg.TooManyConnectionsError: ServiceUnavailableError,
-        asyncpg.InvalidSQLStatementNameError: BadRequestError,
-        asyncpg.UndefinedTableError: BadRequestError,
-        asyncpg.PostgresError: ServiceUnavailableError,
-    }
-
     # Маппинг Redis ошибок
-    _REDIS_MAPPING: dict[Type[Exception], Type[AppException]] = {
+    _REDIS_MAPPING: dict[type[Exception], type[AppException]] = {
         redis.exceptions.ConnectionError: ServiceUnavailableError,
         redis.exceptions.TimeoutError: TimeoutError,
         redis.exceptions.RedisError: ServiceUnavailableError,
     }
 
     # Маппинг LiteLLM ошибок
-    _LITELLM_MAPPING: dict[Type[Exception], Type[AppException]] = {
+    _LITELLM_MAPPING: dict[type[Exception], type[AppException]] = {
         litellm.exceptions.NotFoundError: ModelNotFoundError,
         litellm.exceptions.AuthenticationError: ProviderAuthenticationError,
         litellm.exceptions.RateLimitError: RateLimitError,
@@ -77,8 +63,7 @@ class ExceptionMapper:
 
     def __init__(self) -> None:
         """Инициализация маппера."""
-        self._mapping: dict[Type[Exception], Type[AppException]] = {
-            **self._POSTGRES_MAPPING,
+        self._mapping: dict[type[Exception], type[AppException]] = {
             **self._REDIS_MAPPING,
             **self._LITELLM_MAPPING,
         }
@@ -94,10 +79,11 @@ class ExceptionMapper:
 
         Examples:
             >>> mapper = ExceptionMapper()
-            >>> db_error = asyncpg.UniqueViolationError("duplicate key")
-            >>> domain_error = mapper.map(db_error)
-            >>> isinstance(domain_error, ConflictError)
+            >>> redis_error = redis.exceptions.ConnectionError("connection failed")
+            >>> domain_error = mapper.map(redis_error)
+            >>> isinstance(domain_error, ServiceUnavailableError)
             True
+
         """
         # Если уже доменное исключение, возвращаем как есть
         if isinstance(exception, AppException):
@@ -122,7 +108,7 @@ class ExceptionMapper:
 
     def _create_domain_exception(
         self,
-        domain_exc_type: Type[AppException],
+        domain_exc_type: type[AppException],
         original_exc: Exception,
     ) -> AppException:
         """Создает доменное исключение из исходного.
@@ -133,6 +119,7 @@ class ExceptionMapper:
 
         Returns:
             AppException: Экземпляр доменного исключения.
+
         """
         message = str(original_exc)
         details = {
@@ -146,19 +133,12 @@ class ExceptionMapper:
             if hasattr(original_exc, "llm_provider"):
                 details["provider"] = original_exc.llm_provider
 
-        # Для PostgreSQL исключений извлекаем детали
-        if isinstance(original_exc, asyncpg.PostgresError):
-            if hasattr(original_exc, "detail"):
-                details["db_detail"] = original_exc.detail
-            if hasattr(original_exc, "constraint_name"):
-                details["constraint"] = original_exc.constraint_name
-
         return domain_exc_type(message=message, details=details)
 
     def register(
         self,
-        exception_type: Type[Exception],
-        domain_exception_type: Type[AppException],
+        exception_type: type[Exception],
+        domain_exception_type: type[AppException],
     ) -> None:
         """Регистрирует новый маппинг исключения.
 
@@ -173,6 +153,7 @@ class ExceptionMapper:
             >>> class CustomDomainError(AppException):
             ...     status_code = 400
             >>> mapper.register(CustomError, CustomDomainError)
+
         """
         self._mapping[exception_type] = domain_exception_type
 
@@ -192,9 +173,10 @@ def map_exception(exception: Exception) -> AppException:
 
     Examples:
         >>> try:
-        ...     # Операция с БД
+        ...     # Операция с кэшем или LLM
         ...     pass
         ... except Exception as e:
         ...     raise map_exception(e)
+
     """
     return exception_mapper.map(exception)

@@ -14,7 +14,8 @@ except ImportError:
     Llama = None  # type: ignore[misc,assignment]
     LlamaGrammar = None  # type: ignore[misc,assignment]
 
-from src.config import settings
+from src.core import FinishReason
+from src.core.config import settings
 from src.engine.gpu_guard import get_gpu_guard
 from src.engine.vram_monitor import get_vram_monitor
 from src.providers.base import (
@@ -23,7 +24,8 @@ from src.providers.base import (
     ModelInfo,
     StreamChunk,
 )
-from src.utils.logging import get_logger
+from src.services.observability import trace_llm_generation
+from src.shared.logging import get_logger
 
 logger = get_logger()
 
@@ -135,6 +137,7 @@ class LocalProvider:
             vram_percent=vram_usage["used_percent"],
         )
 
+    @trace_llm_generation(name="local_llm_generate", capture_input=True, capture_output=True)
     async def generate(
         self,
         prompt: str,
@@ -151,6 +154,9 @@ class LocalProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
+        Note:
+            Автоматически трейсится в Langfuse через @trace_llm_generation.
 
         """
         # Эксклюзивный доступ к GPU
@@ -215,7 +221,7 @@ class LocalProvider:
 
                 return GenerationResult(
                     text=text,
-                    finish_reason=finish_reason if finish_reason in ("stop", "length") else "error",
+                    finish_reason=finish_reason if finish_reason in (FinishReason.STOP.value, FinishReason.LENGTH.value) else FinishReason.ERROR.value,
                     usage=usage,
                     model=self.model_name,
                     extra={
@@ -233,6 +239,7 @@ class LocalProvider:
                 msg = f"Ошибка генерации: {e}"
                 raise RuntimeError(msg) from e
 
+    @trace_llm_generation(name="local_llm_generate_stream", capture_input=True, capture_output=True)
     async def generate_stream(
         self,
         prompt: str,
@@ -249,6 +256,9 @@ class LocalProvider:
 
         Raises:
             RuntimeError: Ошибка генерации
+
+        Note:
+            Автоматически трейсится в Langfuse через @trace_llm_generation.
 
         """
         # Эксклюзивный доступ к GPU
@@ -316,7 +326,7 @@ class LocalProvider:
 
                         yield StreamChunk(
                             text=text,
-                            finish_reason=finish_reason if finish_reason in ("stop", "length") else "error",
+                            finish_reason=finish_reason if finish_reason in (FinishReason.STOP.value, FinishReason.LENGTH.value) else FinishReason.ERROR.value,
                             usage=usage,
                         )
 

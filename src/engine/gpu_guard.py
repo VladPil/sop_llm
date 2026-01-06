@@ -1,7 +1,7 @@
 """GPU Guard для SOP LLM Executor.
 
 Обеспечивает эксклюзивный доступ к GPU через asyncio.Lock.
-Критично для Single Worker Architecture (согласно ТЗ).
+Критично для Single Worker Architecture.
 """
 
 import asyncio
@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from src.engine.vram_monitor import get_vram_monitor
-from src.utils.logging import get_logger
+from src.shared.logging import get_logger
 
 logger = get_logger()
 
@@ -172,7 +172,7 @@ def get_gpu_guard() -> GPUGuard:
         Singleton GPUGuard
 
     """
-    global _gpu_guard_instance  # noqa: PLW0603
+    global _gpu_guard_instance
 
     if _gpu_guard_instance is None:
         _gpu_guard_instance = GPUGuard()

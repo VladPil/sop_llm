@@ -1,4 +1,4 @@
-.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis shell shell-redis build lint format type-check check test test-unit test-integration test-coverage clean clean-models clean-all
+.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-integration test-coverage clean clean-models clean-all
 
 RESET := \033[0m
 RED := \033[31m
@@ -28,23 +28,20 @@ ENV ?= local
 # Выбор файла docker-compose и .env в зависимости от окружения
 ifeq ($(ENV),local)
     COMPOSE_FILE := .docker/docker-compose.local.yml
-    ENV_FILE := .env
-else ifeq ($(ENV),infra)
-    COMPOSE_FILE := .docker/docker-compose.infra.yml
-    ENV_FILE := .env
+    ENV_FILE := .docker/configs/.env.local
 else ifeq ($(ENV),dev)
     COMPOSE_FILE := .docker/docker-compose.dev.yml
     ENV_FILE := .docker/configs/.env.dev
 else
     COMPOSE_FILE := .docker/docker-compose.local.yml
-    ENV_FILE := .env
+    ENV_FILE := .docker/configs/.env.local
 endif
 
 # Директория скриптов
 SCRIPTS_DIR := scripts
 
 # Пути к конфигурационным файлам
-PYTEST_CONFIG := pytest.ini
+PYTEST_CONFIG := config/pytest.ini
 PYPROJECT_CONFIG := pyproject.toml
 
 # Python переменные
@@ -58,14 +55,12 @@ help:
 	@echo ""
 	@echo "$(BOLD)$(YELLOW)ОКРУЖЕНИЯ:$(RESET)"
 	@echo "  $(GREEN)ENV=local$(RESET)         - Локальная разработка (все в Docker + volumes для hot-reload)"
-	@echo "  $(GREEN)ENV=infra$(RESET)         - Только инфраструктура (Redis БЕЗ Backend)"
 	@echo "  $(GREEN)ENV=dev$(RESET)           - Dev окружение (stateless backend для Kubernetes)"
 	@echo "  $(GREEN)По умолчанию$(RESET)      - ENV=local"
 	@echo ""
 	@echo "$(BOLD)$(BLUE)Примеры использования:$(RESET)"
 	@echo "  $(CYAN)make up$(RESET)                   - Запустить локальное окружение (ENV=local)"
 	@echo "  $(CYAN)make ENV=local up$(RESET)         - Запустить полное локальное окружение с hot-reload"
-	@echo "  $(CYAN)make ENV=infra up$(RESET)         - Запустить только инфраструктуру (Redis)"
 	@echo "  $(CYAN)make ENV=dev up$(RESET)           - Запустить stateless backend для dev"
 	@echo ""
 	@echo "$(BOLD)$(YELLOW)Установка зависимостей:$(RESET)"
@@ -87,6 +82,7 @@ help:
 	@echo "  $(GREEN)logs$(RESET)              - Показать все логи"
 	@echo "  $(GREEN)logs-app$(RESET)          - Показать логи приложения"
 	@echo "  $(GREEN)logs-redis$(RESET)        - Показать логи Redis"
+	@echo "  $(GREEN)logs-langfuse$(RESET)     - Показать логи Langfuse"
 	@echo "  $(GREEN)shell$(RESET)             - Открыть оболочку в контейнере приложения"
 	@echo "  $(GREEN)shell-redis$(RESET)       - Открыть Redis CLI"
 	@echo ""
@@ -113,9 +109,9 @@ install:
 	@if [ ! -d "$(VENV)" ]; then \
 		echo "$(YELLOW)Создание виртуального окружения...$(RESET)"; \
 		$(PYTHON) -m venv $(VENV); \
-	fi
-	@$(VENV_ACTIVATE) && pip install --upgrade pip setuptools wheel
-	@$(VENV_ACTIVATE) && pip install -e .
+	fi; \
+	$(VENV)/bin/pip install --upgrade pip setuptools wheel; \
+	$(VENV)/bin/pip install -e .
 	@echo "$(GREEN)Установка завершена$(RESET)"
 
 install-dev:
@@ -123,9 +119,9 @@ install-dev:
 	@if [ ! -d "$(VENV)" ]; then \
 		echo "$(YELLOW)Создание виртуального окружения...$(RESET)"; \
 		$(PYTHON) -m venv $(VENV); \
-	fi
-	@$(VENV_ACTIVATE) && pip install --upgrade pip setuptools wheel
-	@$(VENV_ACTIVATE) && pip install -e ".[dev]"
+	fi; \
+	$(VENV)/bin/pip install --upgrade pip setuptools wheel; \
+	$(VENV)/bin/pip install -e ".[dev]"
 	@echo "$(GREEN)Установка dev зависимостей завершена$(RESET)"
 
 run:
@@ -148,10 +144,14 @@ up:
 	@echo "$(GREEN)Сервисы запущены успешно$(RESET)"
 	@echo ""
 	@echo "$(CYAN)Доступные сервисы:$(RESET)"
-	@echo "  API:             http://localhost:8001"
-	@echo "  API Docs:        http://localhost:8001/docs"
-	@echo "  Metrics:         http://localhost:9091/metrics"
-	@echo "  Redis Commander: http://localhost:8082"
+	@echo "  $(BOLD)API:$(RESET)              http://localhost:8200"
+	@echo "  $(BOLD)API Docs:$(RESET)         http://localhost:8200/docs"
+	@echo "  $(BOLD)Metrics:$(RESET)          http://localhost:8200/metrics"
+	@echo "  $(BOLD)Langfuse:$(RESET)         http://localhost:3001"
+	@echo ""
+	@echo "$(CYAN)Langfuse credentials:$(RESET)"
+	@echo "  Email:    admin@local.dev"
+	@echo "  Password: admin123"
 
 down:
 	@echo "$(CYAN)Остановка сервисов...$(RESET)"
@@ -172,14 +172,17 @@ logs:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f
 
 logs-app:
-	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f --tail=100 app
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f --tail=100 sop_llm
 
 logs-redis:
 	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f --tail=100 redis
 
+logs-langfuse:
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f --tail=100 langfuse
+
 shell:
 	@echo "$(CYAN)Подключение к контейнеру приложения...$(RESET)"
-	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec app /bin/bash
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm /bin/bash
 
 shell-redis:
 	@echo "$(CYAN)Подключение к Redis CLI...$(RESET)"
@@ -187,41 +190,78 @@ shell-redis:
 
 lint:
 	@echo "$(CYAN)Проверка кода с помощью ruff...$(RESET)"
-	@$(VENV_ACTIVATE) && ruff check src tests
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && ruff check src; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm ruff check src; \
+	fi
 	@echo "$(GREEN)Проверка завершена$(RESET)"
 
 format:
 	@echo "$(CYAN)Форматирование кода...$(RESET)"
-	@$(VENV_ACTIVATE) && ruff format src tests
-	@$(VENV_ACTIVATE) && ruff check --fix src tests
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && ruff format src && ruff check --fix src; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm ruff format src; \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm ruff check --fix src; \
+	fi
 	@echo "$(GREEN)Форматирование завершено$(RESET)"
 
 type-check:
 	@echo "$(CYAN)Проверка типов с помощью mypy...$(RESET)"
-	@$(VENV_ACTIVATE) && mypy --config-file $(PYPROJECT_CONFIG) src
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && mypy --config-file $(PYPROJECT_CONFIG) src; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm mypy --config-file $(PYPROJECT_CONFIG) src; \
+	fi
 	@echo "$(GREEN)Проверка типов завершена$(RESET)"
 
-check: lint type-check
+pyright-check:
+	@echo "$(CYAN)Проверка импортов и типов с помощью pyright...$(RESET)"
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && pyright src; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pyright src; \
+	fi
+	@echo "$(GREEN)Проверка pyright завершена$(RESET)"
+
+check: lint type-check pyright-check
 	@echo "$(GREEN)Все проверки пройдены успешно$(RESET)"
 
 test:
 	@echo "$(CYAN)Запуск всех тестов...$(RESET)"
-	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG)
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG); \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG); \
+	fi
 	@echo "$(GREEN)Все тесты завершены$(RESET)"
 
 test-unit:
 	@echo "$(CYAN)Запуск unit тестов...$(RESET)"
-	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG) -m unit
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) -m unit; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) -m unit; \
+	fi
 	@echo "$(GREEN)Unit тесты завершены$(RESET)"
 
 test-integration:
 	@echo "$(CYAN)Запуск integration тестов...$(RESET)"
-	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG) -m integration
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) -m integration; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) -m integration; \
+	fi
 	@echo "$(GREEN)Integration тесты завершены$(RESET)"
 
 test-coverage:
 	@echo "$(CYAN)Запуск тестов с покрытием...$(RESET)"
-	@$(VENV_ACTIVATE) && pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
+	@if [ -d "$(VENV)" ]; then \
+		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml; \
+	else \
+		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml; \
+	fi
 	@echo "$(GREEN)Отчет о покрытии готов: $(CYAN)htmlcov/index.html$(RESET)"
 
 clean:

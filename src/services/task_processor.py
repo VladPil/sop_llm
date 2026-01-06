@@ -11,11 +11,11 @@ from typing import Any
 
 import httpx
 
-from src.config import settings
+from src.core.config import settings
 from src.providers.base import GenerationParams
 from src.providers.registry import get_provider_registry
 from src.services.session_store import SessionStore
-from src.utils.logging import get_logger
+from src.shared.logging import get_logger
 
 logger = get_logger()
 
@@ -370,7 +370,7 @@ def create_task_processor(session_store: SessionStore) -> TaskProcessor:
         TaskProcessor instance
 
     """
-    global _task_processor_instance  # noqa: PLW0603
+    global _task_processor_instance
 
     _task_processor_instance = TaskProcessor(session_store)
     return _task_processor_instance

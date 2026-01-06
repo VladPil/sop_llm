@@ -36,6 +36,7 @@ def langfuse_patcher(record: dict[str, Any]) -> None:
             "trace_id": "abc123...",  # <- Добавлено автоматически
             "span_id": "xyz789..."    # <- Добавлено автоматически
         }
+
     """
     try:
         # Импортируем здесь чтобы избежать circular imports
@@ -74,6 +75,7 @@ def install_langfuse_patcher() -> None:
     Example:
         >>> install_langfuse_patcher()
         >>> logger.info("Test")  # trace_id добавится автоматически
+
     """
     logger.configure(patcher=langfuse_patcher)
 
@@ -90,6 +92,7 @@ def opentelemetry_patcher(record: dict[str, Any]) -> None:
 
     Args:
         record: Loguru record dictionary, который будет модифицирован in-place
+
     """
     try:
         from opentelemetry import trace
@@ -123,5 +126,6 @@ def install_opentelemetry_patcher() -> None:
     Note:
         Не используется в текущей архитектуре (используется Langfuse).
         Предоставляется для возможной будущей интеграции.
+
     """
     logger.configure(patcher=opentelemetry_patcher)

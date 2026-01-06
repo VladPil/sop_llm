@@ -4,7 +4,6 @@
 соответствующих распространенным HTTP статус-кодам.
 """
 
-from typing import Any
 from src.shared.errors.base import AppException
 
 

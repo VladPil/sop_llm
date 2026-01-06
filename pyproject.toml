@@ -33,7 +33,6 @@ dependencies = [
     "safetensors>=0.4.5",             # Безопасная загрузка моделей
 
     # LLM Inference (NEW ARCHITECTURE - PRODUCTION)
-    "llama-cpp-python>=0.3.2",  # Local GGUF models with GPU support
     "litellm>=1.52.0",           # Unified LLM interface for 100+ providers
     "anthropic>=0.39.0",         # Claude API (used by LiteLLM)
     "openai>=1.54.0",            # OpenAI API (used by LiteLLM)
@@ -42,6 +41,7 @@ dependencies = [
     "langfuse>=2.51.0",          # LLM observability platform
     "opentelemetry-api>=1.28.0", # Distributed tracing
     "opentelemetry-sdk>=1.28.0", # Tracing SDK
+    "prometheus-fastapi-instrumentator>=7.0.0",  # Prometheus metrics
 
     # GPU Monitoring
     "pynvml>=12.560.30",         # NVIDIA GPU monitoring
@@ -56,6 +56,8 @@ dependencies = [
     "python-multipart>=0.0.12",
     "numpy>=2.1.3",
     "psutil>=6.1.0",
+    "jinja2>=3.1.4",  # Prompt templating
+    "huggingface-hub>=0.20.0",  # HuggingFace model downloads
 
     # Производительность
     "orjson>=3.10.11",
@@ -79,10 +81,15 @@ dev = [
     # Качество кода
     "ruff>=0.7.4",
     "mypy>=1.13.0",
+    "pyright>=1.1.390",
 
     # Отладка
     "ipython>=8.0",
     "ipdb>=0.13",
+]
+
+local = [
+    "llama-cpp-python>=0.3.2",  # Local GGUF models with GPU support
 ]
 
 quantization = [
@@ -118,18 +125,48 @@ select = ["ALL"]
 
 ignore = [
     "D1",       # Missing docstrings (разрешено)
+    "D401",     # Imperative mood (стилистика)
     "ANN001",   # Missing type annotation for argument
+    "ANN002",   # Missing type annotation for *args
+    "ANN003",   # Missing type annotation for **kwargs
     "ANN201",   # Missing return type annotation
+    "ANN202",   # Missing return type annotation for private function
+    "ANN401",   # Dynamically typed expressions (Any)
     "S101",     # Use of assert detected
+    "S104",     # Binding to all interfaces (0.0.0.0 нормально для сервера)
+    "S701",     # Jinja2 autoescape=False (для промптов это нормально)
     "FBT001",   # Boolean-typed positional argument
+    "FBT002",   # Boolean default positional argument
     "RUF001",   # Ambiguous unicode (кириллица)
+    "RUF002",   # Ambiguous unicode in docstring (кириллица)
+    "RUF003",   # Ambiguous unicode in comment (кириллица)
+    "RUF012",   # Mutable class default (валидно для маппингов)
     "E501",     # Line too long (120 вместо 88)
     "COM812",   # Missing trailing comma
     "ISC001",   # Implicit string concatenation
     "T201",     # Print found (разрешено для отладки)
     "EM101",    # Exception must not use string literal
     "TRY003",   # Avoid specifying long messages outside exception class
+    "TRY300",   # Consider moving to else block (опционально)
+    "TRY301",   # Abstract raise to inner function
     "PLR0913",  # Too many arguments
+    "PLR0915",  # Too many statements (нормально для startup)
+    "PLR2004",  # Magic value in comparison
+    "PLC0415",  # Import outside top-level (для circular imports)
+    "PLW0603",  # Global statements (нормально для синглтонов)
+    "ASYNC109", # Timeout parameters (валидный паттерн)
+    "G004",     # f-strings в логах (нормально для structured logging)
+    "ERA001",   # Commented code (много ложных срабатываний)
+    "SIM113",   # Use enumerate (не всегда применимо)
+    "PT011",    # pytest.raises too broad (разрешено в тестах)
+    "ARG001",   # Unused function argument (разрешено для интерфейсов)
+    "ARG002",   # Unused method argument (разрешено для mock)
+    "BLE001",   # Blind except Exception
+    "SLF001",   # Private member access (в тестах допустимо)
+    "DTZ",      # Datetime without timezone (используем UTC по умолчанию)
+    "A001",     # Variable shadows builtin (TimeoutError и др.)
+    "C901",     # Complex function (нормально для некоторых функций)
+    "PERF",     # Performance hints (опционально)
 ]
 
 [tool.ruff.lint.isort]
@@ -138,7 +175,12 @@ known-local-folder = ["src"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # imported but unused
-"tests/**/*.py" = ["S101", "ANN", "D"]  # allow assert, skip type hints in tests
+"tests/**/*.py" = ["S101", "S105", "S106", "ANN", "D", "PLC0415", "PT017", "ARG001", "ARG005", "N818", "SIM", "RUF012"]  # test-specific ignores
+"src/tests/**/*.py" = ["S101", "S105", "S106", "ANN", "D", "PLC0415", "PT017", "ARG001", "ARG005", "A004", "A001", "DTZ", "N818", "SIM", "RUF012", "INP001", "PERF", "C901", "S701"]  # test-specific ignores
+"src/shared/errors/__init__.py" = ["A004"]  # Shadowing builtins для custom exceptions
+"src/shared/errors/base.py" = ["N818"]  # AppException - базовый класс
+"src/shared/errors/examples.py" = ["PT017"]  # Examples - демонстрационный код
+"src/shared/errors/mapping.py" = ["A004"]  # TimeoutError shadowing
 
 [tool.mypy]
 python_version = "3.11"

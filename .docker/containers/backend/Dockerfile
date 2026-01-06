@@ -7,6 +7,7 @@ FROM python:${PYTHON_VERSION}-slim AS builder
 # Build arguments
 ARG INSTALL_GPU=false
 ARG CUDA_VERSION=12.1.0
+ARG INSTALL_DEV=false
 
 # Системные зависимости для сборки
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,7 +33,14 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Устанавливаем зависимости из pyproject.toml
 # Извлекаем зависимости и устанавливаем их
+# CMAKE_ARGS для избежания -march=native (segfault в Docker)
+ENV CMAKE_ARGS="-DLLAMA_NATIVE=OFF -DLLAMA_AVX=ON -DLLAMA_AVX2=ON -DLLAMA_F16C=ON -DLLAMA_FMA=ON"
 RUN pip install --no-cache-dir -e .
+
+# Устанавливаем dev-зависимости для локального окружения
+RUN if [ "$INSTALL_DEV" = "true" ]; then \
+      pip install --no-cache-dir -e ".[dev]"; \
+    fi
 
 # Если включен GPU-режим, переустанавливаем PyTorch с CUDA
 RUN if [ "$INSTALL_GPU" = "true" ]; then \

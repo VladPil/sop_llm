@@ -1,0 +1,132 @@
+"""Core модуль SOP LLM Executor.
+
+Содержит базовые компоненты: конфигурацию, enum'ы, константы, зависимости.
+"""
+
+from src.core.config import settings
+from src.core.constants import (
+    DEFAULT_API_PREFIX,
+    DEFAULT_APP_NAME,
+    DEFAULT_CLEANUP,
+    DEFAULT_CONTEXT_WINDOW,
+    DEFAULT_CORS_ORIGINS,
+    DEFAULT_DOCS_URL,
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_FREQUENCY_PENALTY,
+    DEFAULT_GPU_INDEX,
+    DEFAULT_HTTP_MAX_RETRIES,
+    DEFAULT_HTTP_TIMEOUT,
+    DEFAULT_IDEMPOTENCY_TTL,
+    DEFAULT_JSON_FIXER_TIMEOUT,
+    DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
+    DEFAULT_LANGFUSE_HOST,
+    DEFAULT_LITELLM_MAX_RETRIES,
+    DEFAULT_LOGS_MAX_RECENT,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_MAX_VRAM_USAGE_PERCENT,
+    DEFAULT_MODELS_DIR,
+    DEFAULT_OPENAPI_URL,
+    DEFAULT_PRESENCE_PENALTY,
+    DEFAULT_PRIORITY,
+    DEFAULT_REDIS_DB,
+    DEFAULT_REDIS_HOST,
+    DEFAULT_REDIS_PORT,
+    DEFAULT_REDOC_URL,
+    DEFAULT_SERVER_HOST,
+    DEFAULT_SERVER_PORT,
+    DEFAULT_SESSION_TTL,
+    DEFAULT_STREAM,
+    DEFAULT_TOP_K,
+    DEFAULT_TOP_P,
+    DEFAULT_VRAM_RESERVE_MB,
+    DEFAULT_WEBHOOK_MAX_RETRIES,
+    DEFAULT_WEBHOOK_TIMEOUT,
+    ISO_8601_FORMAT,
+    REDIS_IDEMPOTENCY_PREFIX,
+    REDIS_LOGS_PREFIX,
+    REDIS_LOGS_RECENT_KEY,
+    REDIS_PROCESSING_KEY,
+    REDIS_QUEUE_KEY,
+    REDIS_SESSION_PREFIX,
+)
+from src.core.enums import (
+    AppEnvironment,
+    FinishReason,
+    HealthStatus,
+    LogLevel,
+    ModelType,
+    ProviderType,
+    TaskStatus,
+)
+
+__all__ = [
+    # Constants - API
+    "DEFAULT_API_PREFIX",
+    # Constants - App
+    "DEFAULT_APP_NAME",
+    "DEFAULT_CLEANUP",
+    # Constants - LLM
+    "DEFAULT_CONTEXT_WINDOW",
+    # Constants - CORS
+    "DEFAULT_CORS_ORIGINS",
+    "DEFAULT_DOCS_URL",
+    # Constants - Models
+    "DEFAULT_EMBEDDING_MODEL",
+    "DEFAULT_FREQUENCY_PENALTY",
+    # Constants - GPU
+    "DEFAULT_GPU_INDEX",
+    # Constants - Retries
+    "DEFAULT_HTTP_MAX_RETRIES",
+    # Constants - Timeouts
+    "DEFAULT_HTTP_TIMEOUT",
+    "DEFAULT_IDEMPOTENCY_TTL",
+    "DEFAULT_JSON_FIXER_TIMEOUT",
+    # Constants - Kafka
+    "DEFAULT_KAFKA_BOOTSTRAP_SERVERS",
+    # Constants - Langfuse
+    "DEFAULT_LANGFUSE_HOST",
+    "DEFAULT_LITELLM_MAX_RETRIES",
+    # Constants - Limits
+    "DEFAULT_LOGS_MAX_RECENT",
+    "DEFAULT_MAX_TOKENS",
+    "DEFAULT_MAX_VRAM_USAGE_PERCENT",
+    "DEFAULT_MODELS_DIR",
+    "DEFAULT_OPENAPI_URL",
+    "DEFAULT_PRESENCE_PENALTY",
+    "DEFAULT_PRIORITY",
+    "DEFAULT_REDIS_DB",
+    # Constants - Redis
+    "DEFAULT_REDIS_HOST",
+    "DEFAULT_REDIS_PORT",
+    "DEFAULT_REDOC_URL",
+    # Constants - Server
+    "DEFAULT_SERVER_HOST",
+    "DEFAULT_SERVER_PORT",
+    # Constants - TTL
+    "DEFAULT_SESSION_TTL",
+    "DEFAULT_STREAM",
+    "DEFAULT_TOP_K",
+    # Constants - Request defaults
+    "DEFAULT_TOP_P",
+    "DEFAULT_VRAM_RESERVE_MB",
+    "DEFAULT_WEBHOOK_MAX_RETRIES",
+    "DEFAULT_WEBHOOK_TIMEOUT",
+    # Constants - Formats
+    "ISO_8601_FORMAT",
+    "REDIS_IDEMPOTENCY_PREFIX",
+    "REDIS_LOGS_PREFIX",
+    "REDIS_LOGS_RECENT_KEY",
+    "REDIS_PROCESSING_KEY",
+    "REDIS_QUEUE_KEY",
+    "REDIS_SESSION_PREFIX",
+    "AppEnvironment",
+    "FinishReason",
+    "HealthStatus",
+    "LogLevel",
+    "ModelType",
+    "ProviderType",
+    # Enums
+    "TaskStatus",
+    # Config
+    "settings",
+]

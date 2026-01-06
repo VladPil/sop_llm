@@ -47,8 +47,9 @@ ENV/
 *.swp
 .DS_Store
 
-# Кэш Ruff
+# Кэш Ruff\Mypy
 .ruff_cache/
+.mypy_cache/
 
 # Специфичные для проекта SOP LLM
 logs/

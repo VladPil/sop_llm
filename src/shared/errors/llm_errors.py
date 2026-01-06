@@ -5,6 +5,7 @@
 """
 
 from typing import Any
+
 from src.shared.errors.base import AppException
 
 
@@ -25,6 +26,7 @@ class ModelNotFoundError(AppException):
             model_name: Название модели, которая не найдена.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if model_name:
@@ -51,6 +53,7 @@ class ProviderUnavailableError(AppException):
             provider_name: Название провайдера.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if provider_name:
@@ -79,6 +82,7 @@ class TokenLimitExceededError(AppException):
             tokens_limit: Максимальный лимит токенов.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if tokens_used is not None:
@@ -111,6 +115,7 @@ class GenerationFailedError(AppException):
             reason: Причина ошибки генерации.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if model_name:
@@ -148,6 +153,7 @@ class InvalidModelConfigError(AppException):
             config_error: Описание ошибки конфигурации.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if model_name:
@@ -178,6 +184,7 @@ class ProviderAuthenticationError(AppException):
             provider_name: Название провайдера.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if provider_name:
@@ -206,6 +213,7 @@ class ContextLengthExceededError(AppException):
             max_context: Максимальная длина контекста.
             message: Описание ошибки.
             details: Дополнительная информация.
+
         """
         details = details or {}
         if context_length is not None:

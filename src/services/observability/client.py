@@ -1,4 +1,4 @@
-"""Langfuse Client Initialization and Singleton Management.
+"""Инициализация и управление Langfuse клиентом (Singleton).
 
 Отвечает за инициализацию и управление глобальным экземпляром Langfuse клиента.
 Реализует паттерн Singleton для обеспечения единственной точки доступа.
@@ -7,7 +7,7 @@
 from langfuse import Langfuse
 from loguru import logger
 
-# Global Langfuse client instance (Singleton)
+# Глобальный экземпляр Langfuse клиента (Singleton)
 _langfuse_client: Langfuse | None = None
 
 
@@ -42,11 +42,12 @@ def initialize_langfuse(
         ...     enabled=True
         ... )
         >>> assert client is not None
+
     """
     global _langfuse_client
 
     if not enabled:
-        logger.warning("Langfuse observability is disabled")
+        logger.warning("Langfuse observability отключен")
         _langfuse_client = None
         return None
 
@@ -55,12 +56,11 @@ def initialize_langfuse(
             public_key=public_key,
             secret_key=secret_key,
             host=host,
-            enabled=enabled,
         )
-        logger.info(f"Langfuse client initialized: {host}")
+        logger.info(f"Langfuse клиент инициализирован: {host}")
         return _langfuse_client
     except Exception as e:
-        logger.error(f"Failed to initialize Langfuse: {e}")
+        logger.error(f"Не удалось инициализировать Langfuse: {e}")
         _langfuse_client = None
         raise
 
@@ -75,6 +75,7 @@ def get_langfuse_client() -> Langfuse | None:
         >>> client = get_langfuse_client()
         >>> if client:
         ...     client.flush()
+
     """
     return _langfuse_client
 
@@ -87,12 +88,13 @@ def flush_observations() -> None:
 
     Example:
         >>> flush_observations()  # Перед shutdown приложения
+
     """
     if not _langfuse_client:
         return
 
     try:
         _langfuse_client.flush()
-        logger.info("Langfuse observations flushed")
+        logger.info("Langfuse observations отправлены")
     except Exception as e:
-        logger.error(f"Failed to flush Langfuse observations: {e}")
+        logger.error(f"Не удалось отправить Langfuse observations: {e}")

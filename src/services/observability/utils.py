@@ -22,6 +22,7 @@ def is_observability_enabled() -> bool:
     Example:
         >>> if is_observability_enabled():
         ...     log_generation(...)
+
     """
     return get_langfuse_client() is not None
 
@@ -36,6 +37,7 @@ def get_current_trace_id() -> str | None:
         >>> trace_id = get_current_trace_id()
         >>> if trace_id:
         ...     logger.info(f"Current trace: {trace_id}")
+
     """
     return _trace_id_var.get()
 
@@ -50,6 +52,7 @@ def get_current_span_id() -> str | None:
         >>> span_id = get_current_span_id()
         >>> if span_id:
         ...     logger.info(f"Current span: {span_id}")
+
     """
     return _span_id_var.get()
 
@@ -62,6 +65,7 @@ def set_trace_id(trace_id: str | None) -> None:
 
     Note:
         Используется внутренне context managers.
+
     """
     _trace_id_var.set(trace_id)
 
@@ -74,5 +78,6 @@ def set_span_id(span_id: str | None) -> None:
 
     Note:
         Используется внутренне context managers.
+
     """
     _span_id_var.set(span_id)

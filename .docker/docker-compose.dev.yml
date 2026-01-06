@@ -1,46 +1,62 @@
-version: '3.8'
-
-# Stateless application deployment (только app, без Redis)
-# Используется для deployment в окружениях где Redis уже запущен отдельно
+# SOP LLM - Development Environment
+# =============================================================================
+# Только backend Python приложение для dev окружения
+# Подключается к централизованной инфраструктуре (Redis в sop_infrastructure)
+# =============================================================================
 
 services:
-  # LLM Application (stateless)
-  app:
+  # Backend Python (FastAPI + LLM)
+  sop_llm:
     build:
-      context: ../..
+      context: ..
       dockerfile: .docker/containers/backend/Dockerfile
       args:
         - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
         - INSTALL_GPU=${INSTALL_GPU:-true}
         - CUDA_VERSION=${CUDA_VERSION:-12.1.0}
     image: sop_llm:${APP_VERSION:-dev}
-    container_name: sop_llm_app_dev
+    container_name: sop_llm_dev
     ports:
-      - "${APP_PORT:-8001}:${API_PORT:-8000}"
-      - "${METRICS_PORT:-9091}:9090"
+      - "${APP_PORT:-8201}:8000"  # API endpoint (PORT_MAPPING.md: 8201)
     volumes:
-      # Только кэш моделей и логи (без исходников)
+      # Только кэш моделей и логи (БЕЗ исходников для production-like окружения)
       - sop_llm_models_cache_dev:/root/.cache/huggingface
-      - sop_llm_app_logs_dev:/app/logs
+      - sop_llm_logs_dev:/app/logs
     networks:
-      - sop_llm_network_dev
+      - sop_network
     env_file:
-      - ./configs/.env.dev
+      - configs/.env.dev
     environment:
-      # Redis должен быть доступен по сети
-      - SOP__REDIS__HOST=${REDIS_HOST:-redis}
-      - SOP__REDIS__PORT=${REDIS_PORT:-6379}
-      - SOP__REDIS__PASSWORD=${REDIS_PASSWORD:-}
+      - APP_ENV=development
+      - DEBUG=false
+      - LOG_LEVEL=INFO
       - PYTHONPATH=/app
+
+      # Redis (подключение к централизованной инфраструктуре)
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-1}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/monitor/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
     restart: unless-stopped
     stop_grace_period: 10s
-    # GPU поддержка для dev окружения
+    # Loki logging labels для Promtail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service,env"
+    labels:
+      logging: "promtail"
+      service: "sop_llm"
+      env: "development"
+    # GPU поддержка для dev окружения (llama.cpp local models)
     runtime: nvidia
     deploy:
       resources:
@@ -53,13 +69,15 @@ services:
               count: 1
               capabilities: [gpu]
 
+# Внешняя сеть (создаётся в sop_infrastructure)
 networks:
-  sop_llm_network_dev:
-    driver: bridge
-    name: sop_llm_network_dev
+  sop_network:
+    external: true
+    name: sop_network
 
+# Volumes
 volumes:
   sop_llm_models_cache_dev:
     name: sop_llm_models_cache_dev
-  sop_llm_app_logs_dev:
-    name: sop_llm_app_logs_dev
+  sop_llm_logs_dev:
+    name: sop_llm_logs_dev

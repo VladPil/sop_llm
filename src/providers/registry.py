@@ -4,7 +4,7 @@
 """
 
 from src.providers.base import LLMProvider, ModelInfo
-from src.utils.logging import get_logger
+from src.shared.logging import get_logger
 
 logger = get_logger()
 

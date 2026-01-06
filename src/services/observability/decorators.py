@@ -1,4 +1,4 @@
-"""Decorators for Automatic Tracing.
+"""Декораторы для автоматического трейсинга.
 
 Декораторы для автоматического трейсинга функций и методов.
 Упрощают интеграцию observability в существующий код.
@@ -8,9 +8,25 @@ import functools
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from langfuse.decorators import langfuse_context, observe
-
 from src.services.observability.utils import is_observability_enabled
+
+try:
+    from langfuse.decorators import langfuse_context, observe
+except (ImportError, AttributeError):
+    # langfuse >= 3.0 moved these
+    try:
+        from langfuse import observe
+        from langfuse.client import langfuse_context
+    except ImportError:
+        # Fallback - create dummy implementations
+        class DummyContext:
+            def flush(self):
+                pass
+        langfuse_context = DummyContext()
+        def observe(*args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -37,6 +53,7 @@ def trace_llm_generation(
         >>> @trace_llm_generation(name="local_llm_inference")
         ... async def generate(self, prompt: str, **kwargs) -> str:
         ...     return await self._generate(prompt, **kwargs)
+
     """
 
     def decorator(func: F) -> F:
@@ -73,6 +90,7 @@ def trace_operation(
         >>> @trace_operation(name="redis_cache_lookup", metadata={"cache_type": "session"})
         ... async def get_from_cache(self, key: str) -> Any:
         ...     return await self.redis.get(key)
+
     """
 
     def decorator(func: F) -> F:

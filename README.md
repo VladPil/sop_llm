@@ -93,8 +93,8 @@ source .venv/bin/activate
 # Установить зависимости
 pip install -e ".[dev]"
 
-# Настроить переменные окружения
-cp .env.example .env
+# Настроить переменные окружения (выбрать нужное окружение)
+cp .docker/configs/.env.local .env
 # Отредактировать .env
 
 # Запустить Redis
@@ -354,7 +354,8 @@ sop_llm/
 ├── main.py              # Entry point
 ├── pyproject.toml       # Зависимости
 ├── README.md
-└── .env.example
+├── config/              # Конфигурационные файлы (pytest.ini, pre-commit)
+└── .docker/configs/     # Environment файлы (.env.local, .env.dev, .env.prod)
 ```
 
 ## Production Deployment

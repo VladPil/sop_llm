@@ -5,7 +5,7 @@
 
 from typing import Any
 
-from src.utils.logging import get_logger
+from src.shared.logging import get_logger
 
 logger = get_logger()
 
@@ -61,7 +61,7 @@ class SentenceTransformerProvider:
 
         """
         try:
-            from sentence_transformers import SentenceTransformer  # noqa: PLC0415
+            from sentence_transformers import SentenceTransformer
         except ImportError as e:
             msg = (
                 "sentence-transformers не установлен. "
@@ -101,7 +101,7 @@ class SentenceTransformerProvider:
             # Очистить CUDA cache если использовался GPU
             if "cuda" in self.device:
                 try:
-                    import torch  # noqa: PLC0415
+                    import torch
 
                     torch.cuda.empty_cache()
                 except ImportError:

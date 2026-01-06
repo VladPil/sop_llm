@@ -1,8 +1,11 @@
-version: '3.8'
+# SOP LLM - Local Development Environment
+# =============================================================================
+# Только backend Python приложение для разработки
+# Подключается к централизованной инфраструктуре (Redis в sop_infrastructure)
+# =============================================================================
 
 services:
-  # LLM Application (подключен к централизованной инфраструктуре)
-  app:
+  sop_llm:
     build:
       context: ..
       dockerfile: .docker/containers/backend/Dockerfile
@@ -10,63 +13,96 @@ services:
         - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
         - INSTALL_GPU=${INSTALL_GPU:-false}
         - CUDA_VERSION=${CUDA_VERSION:-12.1.0}
+        - INSTALL_DEV=true
     image: sop_llm:local
-    container_name: sop_llm_app_local
+    container_name: sop_llm_local
     ports:
-      - "${APP_PORT:-8200}:8000"      # API endpoint (согласно PORT_MAPPING.md)
-      - "${METRICS_PORT:-8291}:9090"  # Prometheus metrics
+      - "${APP_PORT:-8200}:8000"
     volumes:
-      - ../../src:/app/src:rw
+      # Исходники для hot-reload
+      - ../src:/app/src:rw
+      # Model presets (YAML конфиги)
+      - ../config:/app/config:ro
+      # Кэш моделей HuggingFace/Sentence-Transformers
       - sop_llm_models_cache_local:/root/.cache/huggingface
-      - sop_llm_app_logs_local:/app/logs
+      # Логи приложения
+      - sop_llm_logs_local:/app/logs
     networks:
       - sop_network
     env_file:
-      - ./configs/.env.local
+      - configs/.env.local
     environment:
-      # Переопределяем для development
-      - APP_ENV=development
+      # Development overrides
+      - APP_ENV=local
       - DEBUG=true
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=DEBUG
       - PYTHONPATH=/app
-
-      # PostgreSQL (подключение к централизованной инфраструктуре)
-      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_USER=${POSTGRES_USER:-sop_admin}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-sop_llm_db}
 
       # Redis (подключение к централизованной инфраструктуре)
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_DB=${REDIS_DB:-1}  # DB 1 для sop_llm (0 для intake, 2 для s3)
-
-      # Kafka (подключение к централизованной инфраструктуре)
-      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      - REDIS_DB=${REDIS_DB:-1}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/monitor/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
     restart: unless-stopped
     stop_grace_period: 10s
-    # Раскомментировать для GPU поддержки
-    # runtime: nvidia
+    # Loki logging labels для Promtail
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service,env"
+    labels:
+      logging: "promtail"
+      service: "sop_llm"
+      env: "local"
+    # GPU поддержка (llama.cpp local models)
+    runtime: nvidia
     deploy:
       resources:
         limits:
           cpus: '4'
           memory: 8G
-        # Раскомментировать для GPU
-        # reservations:
-        #   devices:
-        #     - driver: nvidia
-        #       count: 1
-        #       capabilities: [gpu]
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
+  # Langfuse - LLM Observability Platform
+  # Использует общий PostgreSQL из sop_infrastructure
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: sop_llm_langfuse
+    ports:
+      - "${LANGFUSE_PORT:-3001}:3000"
+    env_file:
+      - configs/.env.local
+    environment:
+      - DATABASE_URL=${LANGFUSE_DATABASE_URL}
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${LANGFUSE_NEXTAUTH_URL}
+      - SALT=${LANGFUSE_SALT}
+      - TELEMETRY_ENABLED=${LANGFUSE_TELEMETRY_ENABLED}
+      - AUTH_DISABLE_SIGNUP=${LANGFUSE_AUTH_DISABLE_SIGNUP}
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES}
+    networks:
+      - sop_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+# Внешняя сеть (создаётся в sop_infrastructure)
 networks:
   sop_network:
     external: true
@@ -75,5 +111,5 @@ networks:
 volumes:
   sop_llm_models_cache_local:
     name: sop_llm_models_cache_local
-  sop_llm_app_logs_local:
-    name: sop_llm_app_logs_local
+  sop_llm_logs_local:
+    name: sop_llm_logs_local

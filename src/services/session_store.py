@@ -17,8 +17,17 @@ from typing import Any
 import orjson
 from redis.asyncio import Redis
 
-from src.config import settings
-from src.utils.logging import get_logger
+from src.core import (
+    REDIS_IDEMPOTENCY_PREFIX,
+    REDIS_LOGS_PREFIX,
+    REDIS_LOGS_RECENT_KEY,
+    REDIS_PROCESSING_KEY,
+    REDIS_QUEUE_KEY,
+    REDIS_SESSION_PREFIX,
+    TaskStatus,
+)
+from src.core.config import settings
+from src.shared.logging import get_logger
 
 logger = get_logger()
 
@@ -65,11 +74,11 @@ class SessionStore:
             idempotency_key: Ключ идемпотентности (опционально)
 
         """
-        session_key = f"session:{task_id}"
+        session_key = f"{REDIS_SESSION_PREFIX}{task_id}"
 
         session_data = {
             "task_id": task_id,
-            "status": "pending",
+            "status": TaskStatus.PENDING.value,
             "model": model,
             "prompt": prompt,
             "params": orjson.dumps(params).decode("utf-8"),
@@ -84,7 +93,7 @@ class SessionStore:
             session_data["idempotency_key"] = idempotency_key
             # Сохранить маппинг idempotency_key -> task_id
             await self.redis.setex(
-                f"idempotency:{idempotency_key}",
+                f"{REDIS_IDEMPOTENCY_PREFIX}{idempotency_key}",
                 self.idempotency_ttl,
                 task_id,
             )
@@ -117,7 +126,7 @@ class SessionStore:
             error: Сообщение об ошибке (для failed)
 
         """
-        session_key = f"session:{task_id}"
+        session_key = f"{REDIS_SESSION_PREFIX}{task_id}"
 
         update_data: dict[str, str] = {
             "status": status,
@@ -130,7 +139,7 @@ class SessionStore:
         if error:
             update_data["error"] = error
 
-        if status in ("completed", "failed"):
+        if status in (TaskStatus.COMPLETED.value, TaskStatus.FAILED.value):
             update_data["finished_at"] = datetime.utcnow().isoformat()
 
         await self.redis.hset(session_key, mapping=update_data)  # type: ignore[arg-type,misc]
@@ -147,7 +156,7 @@ class SessionStore:
             Данные сессии или None если не найдена
 
         """
-        session_key = f"session:{task_id}"
+        session_key = f"{REDIS_SESSION_PREFIX}{task_id}"
         data = await self.redis.hgetall(session_key)  # type: ignore[misc]
 
         if not data:
@@ -175,7 +184,7 @@ class SessionStore:
             task_id или None
 
         """
-        result = await self.redis.get(f"idempotency:{idempotency_key}")  # type: ignore[misc]
+        result = await self.redis.get(f"{REDIS_IDEMPOTENCY_PREFIX}{idempotency_key}")  # type: ignore[misc]
         return result.decode("utf-8") if result else None  # type: ignore[no-any-return]
 
     async def delete_session(self, task_id: str) -> None:
@@ -185,11 +194,11 @@ class SessionStore:
             task_id: ID задачи
 
         """
-        session_key = f"session:{task_id}"
+        session_key = f"{REDIS_SESSION_PREFIX}{task_id}"
         await self.redis.delete(session_key)
 
         # Удалить логи задачи
-        await self.redis.delete(f"logs:{task_id}")
+        await self.redis.delete(f"{REDIS_LOGS_PREFIX}{task_id}")
 
         logger.debug("Session удалена", task_id=task_id)
 
@@ -202,7 +211,7 @@ class SessionStore:
 
         """
         # Sorted Set: score = -priority (чтобы больший приоритет был первым)
-        await self.redis.zadd("queue:tasks", {task_id: -priority})
+        await self.redis.zadd(REDIS_QUEUE_KEY, {task_id: -priority})
 
         logger.debug("Task добавлена в очередь", task_id=task_id, priority=priority)
 
@@ -214,7 +223,7 @@ class SessionStore:
 
         """
         # ZPOPMIN - извлечь элемент с минимальным score (наивысшим приоритетом)
-        result = await self.redis.zpopmin("queue:tasks", 1)  # type: ignore[misc]
+        result = await self.redis.zpopmin(REDIS_QUEUE_KEY, 1)  # type: ignore[misc]
 
         if not result:
             return None
@@ -231,7 +240,7 @@ class SessionStore:
             Количество задач в очереди
 
         """
-        return await self.redis.zcard("queue:tasks")  # type: ignore[no-any-return,misc]
+        return await self.redis.zcard(REDIS_QUEUE_KEY)  # type: ignore[no-any-return,misc]
 
     async def set_processing_task(self, task_id: str) -> None:
         """Установить задачу как обрабатываемую.
@@ -240,7 +249,7 @@ class SessionStore:
             task_id: ID задачи
 
         """
-        await self.redis.set("queue:processing", task_id)
+        await self.redis.set(REDIS_PROCESSING_KEY, task_id)
 
     async def get_processing_task(self) -> str | None:
         """Получить ID обрабатываемой задачи.
@@ -249,12 +258,12 @@ class SessionStore:
             task_id или None
 
         """
-        result = await self.redis.get("queue:processing")
+        result = await self.redis.get(REDIS_PROCESSING_KEY)
         return result.decode("utf-8") if result else None
 
     async def clear_processing_task(self) -> None:
         """Очистить обрабатываемую задачу."""
-        await self.redis.delete("queue:processing")
+        await self.redis.delete(REDIS_PROCESSING_KEY)
 
     async def add_log(self, task_id: str, level: str, message: str) -> None:
         """Добавить лог для задачи.
@@ -273,11 +282,11 @@ class SessionStore:
         }).decode("utf-8")
 
         # Добавить в logs:{task_id}
-        await self.redis.rpush(f"logs:{task_id}", log_entry)  # type: ignore[misc]
+        await self.redis.rpush(f"{REDIS_LOGS_PREFIX}{task_id}", log_entry)  # type: ignore[misc]
 
         # Добавить в logs:recent (с ограничением размера)
-        await self.redis.rpush("logs:recent", log_entry)  # type: ignore[misc]
-        await self.redis.ltrim("logs:recent", -self.logs_max_recent, -1)  # type: ignore[misc]
+        await self.redis.rpush(REDIS_LOGS_RECENT_KEY, log_entry)  # type: ignore[misc]
+        await self.redis.ltrim(REDIS_LOGS_RECENT_KEY, -self.logs_max_recent, -1)  # type: ignore[misc]
 
     async def get_task_logs(self, task_id: str) -> list[dict[str, Any]]:
         """Получить логи задачи.
@@ -289,7 +298,7 @@ class SessionStore:
             Список логов
 
         """
-        logs = await self.redis.lrange(f"logs:{task_id}", 0, -1)  # type: ignore[misc]
+        logs = await self.redis.lrange(f"{REDIS_LOGS_PREFIX}{task_id}", 0, -1)  # type: ignore[misc]
         return [orjson.loads(log) for log in logs]
 
     async def get_recent_logs(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -302,7 +311,7 @@ class SessionStore:
             Список последних логов
 
         """
-        logs = await self.redis.lrange("logs:recent", -limit, -1)  # type: ignore[misc]
+        logs = await self.redis.lrange(REDIS_LOGS_RECENT_KEY, -limit, -1)  # type: ignore[misc]
         return [orjson.loads(log) for log in logs]
 
     async def get_stats(self) -> dict[str, Any]:
@@ -314,7 +323,7 @@ class SessionStore:
         """
         queue_size = await self.get_queue_size()
         processing_task = await self.get_processing_task()
-        recent_logs_count = await self.redis.llen("logs:recent")  # type: ignore[misc]
+        recent_logs_count = await self.redis.llen(REDIS_LOGS_RECENT_KEY)  # type: ignore[misc]
 
         return {
             "queue_size": queue_size,
@@ -359,3 +368,35 @@ async def create_session_store() -> SessionStore:
 
     logger.info("SessionStore создан", redis_url=settings.redis_url)
     return store
+
+
+# Singleton instance
+_session_store_instance: SessionStore | None = None
+
+
+def get_session_store() -> SessionStore:
+    """Получить singleton instance SessionStore.
+
+    Returns:
+        Глобальный экземпляр SessionStore
+
+    Raises:
+        RuntimeError: Если SessionStore не инициализирован
+
+    """
+    if _session_store_instance is None:
+        msg = "SessionStore не инициализирован. Вызовите set_session_store() или создайте через startup event."
+        raise RuntimeError(msg)
+
+    return _session_store_instance
+
+
+def set_session_store(store: SessionStore) -> None:
+    """Установить global instance SessionStore.
+
+    Args:
+        store: SessionStore instance
+
+    """
+    global _session_store_instance
+    _session_store_instance = store

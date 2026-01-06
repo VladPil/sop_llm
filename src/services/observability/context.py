@@ -1,4 +1,4 @@
-"""Context Managers for Tracing.
+"""Context менеджеры для трейсинга.
 
 Async context managers для создания traces и spans в Langfuse.
 Обеспечивают автоматическое управление lifecycle трейсов.
@@ -8,8 +8,20 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from langfuse.decorators import langfuse_context
 from loguru import logger
+
+try:
+    from langfuse.decorators import langfuse_context
+except (ImportError, AttributeError):
+    # langfuse >= 3.0 moved langfuse_context
+    try:
+        from langfuse.client import langfuse_context
+    except ImportError:
+        # Fallback - create dummy context if langfuse not available
+        class DummyContext:
+            def flush(self):
+                pass
+        langfuse_context = DummyContext()
 
 from src.services.observability.utils import is_observability_enabled, set_span_id, set_trace_id
 
@@ -45,6 +57,7 @@ async def trace_context(
         ...     metadata={"task_id": "abc"},
         ... ):
         ...     result = await process_llm_request(...)
+
     """
     if not is_observability_enabled():
         yield
@@ -62,11 +75,11 @@ async def trace_context(
         # Сохраняем trace ID в context variable
         set_trace_id(trace.id if trace else None)
 
-        logger.debug(f"Trace started: {name} (user={user_id}, session={session_id})")
+        logger.debug(f"Trace начат: {name} (user={user_id}, session={session_id})")
         yield
 
     except Exception as e:
-        logger.error(f"Error in trace_context: {e}")
+        logger.error(f"Ошибка в trace_context: {e}")
         # Продолжаем выполнение даже если трейсинг не удался
         yield
     finally:
@@ -100,6 +113,7 @@ async def span_context(
         ...     metadata={"model_name": "llama-7b"},
         ... ):
         ...     model = await load_model(...)
+
     """
     if not is_observability_enabled():
         yield
@@ -117,7 +131,7 @@ async def span_context(
         yield
 
     except Exception as e:
-        logger.error(f"Error in span_context: {e}")
+        logger.error(f"Ошибка в span_context: {e}")
         yield
     finally:
         set_span_id(None)

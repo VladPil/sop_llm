@@ -1,0 +1,63 @@
+# Пресеты embedding моделей
+#
+# Используются для генерации векторных представлений текстов.
+# Модели загружаются с HuggingFace Hub.
+
+models:
+  # === Multilingual E5 (рекомендуется для русского языка) ===
+
+  - name: "multilingual-e5-large"
+    huggingface_repo: "intfloat/multilingual-e5-large"
+    dimensions: 1024
+
+  - name: "multilingual-e5-base"
+    huggingface_repo: "intfloat/multilingual-e5-base"
+    dimensions: 768
+
+  - name: "multilingual-e5-small"
+    huggingface_repo: "intfloat/multilingual-e5-small"
+    dimensions: 384
+
+  # === Sentence Transformers (английский) ===
+
+  - name: "all-MiniLM-L6-v2"
+    huggingface_repo: "sentence-transformers/all-MiniLM-L6-v2"
+    dimensions: 384
+
+  - name: "all-mpnet-base-v2"
+    huggingface_repo: "sentence-transformers/all-mpnet-base-v2"
+    dimensions: 768
+
+  - name: "paraphrase-multilingual-MiniLM-L12-v2"
+    huggingface_repo: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    dimensions: 384
+
+  # === BGE (BAAI General Embedding) ===
+
+  - name: "bge-m3"
+    huggingface_repo: "BAAI/bge-m3"
+    dimensions: 1024
+
+  - name: "bge-large-en-v1.5"
+    huggingface_repo: "BAAI/bge-large-en-v1.5"
+    dimensions: 1024
+
+  - name: "bge-base-en-v1.5"
+    huggingface_repo: "BAAI/bge-base-en-v1.5"
+    dimensions: 768
+
+  # === Cohere Embed (multilingual) ===
+
+  - name: "embed-multilingual-v3.0"
+    huggingface_repo: "Cohere/embed-multilingual-v3.0"
+    dimensions: 1024
+
+  # === Jina Embeddings ===
+
+  - name: "jina-embeddings-v2-base-en"
+    huggingface_repo: "jinaai/jina-embeddings-v2-base-en"
+    dimensions: 768
+
+  - name: "jina-embeddings-v2-small-en"
+    huggingface_repo: "jinaai/jina-embeddings-v2-small-en"
+    dimensions: 512

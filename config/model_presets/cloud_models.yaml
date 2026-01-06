@@ -1,0 +1,170 @@
+# Пресеты облачных моделей
+#
+# Поля точно маппятся в LiteLLMProvider (src/providers/litellm_provider.py):
+# - provider_config.model_name -> LiteLLMProvider.model_name
+# - provider_config.api_key -> LiteLLMProvider.api_key (или из env)
+# - provider_config.base_url -> LiteLLMProvider.base_url
+# - provider_config.timeout -> LiteLLMProvider.timeout
+# - provider_config.max_retries -> LiteLLMProvider.max_retries
+#
+# api_key_env_var указывает имя environment variable с API ключом.
+# Ключ берётся из env если provider_config.api_key не указан.
+
+models:
+  # === Anthropic Claude ===
+
+  - name: "claude-3.5-sonnet"
+    provider: "anthropic"
+    api_key_env_var: "ANTHROPIC_API_KEY"
+    provider_config:
+      model_name: "claude-3-5-sonnet-20241022"
+      timeout: 600
+      max_retries: 3
+
+  - name: "claude-3.5-haiku"
+    provider: "anthropic"
+    api_key_env_var: "ANTHROPIC_API_KEY"
+    provider_config:
+      model_name: "claude-3-5-haiku-20241022"
+      timeout: 300
+      max_retries: 3
+
+  - name: "claude-3-opus"
+    provider: "anthropic"
+    api_key_env_var: "ANTHROPIC_API_KEY"
+    provider_config:
+      model_name: "claude-3-opus-20240229"
+      timeout: 900
+      max_retries: 3
+
+  # === OpenAI GPT ===
+
+  - name: "gpt-4-turbo"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "gpt-4-turbo"
+      timeout: 600
+      max_retries: 3
+
+  - name: "gpt-4o"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "gpt-4o"
+      timeout: 600
+      max_retries: 3
+
+  - name: "gpt-4o-mini"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "gpt-4o-mini"
+      timeout: 300
+      max_retries: 3
+
+  - name: "gpt-3.5-turbo"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "gpt-3.5-turbo"
+      timeout: 300
+      max_retries: 3
+
+  - name: "o1-preview"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "o1-preview"
+      timeout: 900
+      max_retries: 3
+
+  - name: "o1-mini"
+    provider: "openai"
+    api_key_env_var: "OPENAI_API_KEY"
+    provider_config:
+      model_name: "o1-mini"
+      timeout: 600
+      max_retries: 3
+
+  # === Google Gemini (через LiteLLM) ===
+
+  - name: "gemini-1.5-pro"
+    provider: "openai_compatible"
+    api_key_env_var: "GOOGLE_API_KEY"
+    provider_config:
+      model_name: "gemini/gemini-1.5-pro"
+      timeout: 600
+      max_retries: 3
+
+  - name: "gemini-1.5-flash"
+    provider: "openai_compatible"
+    api_key_env_var: "GOOGLE_API_KEY"
+    provider_config:
+      model_name: "gemini/gemini-1.5-flash"
+      timeout: 300
+      max_retries: 3
+
+  # === Mistral AI ===
+
+  - name: "mistral-large"
+    provider: "openai_compatible"
+    api_key_env_var: "MISTRAL_API_KEY"
+    provider_config:
+      model_name: "mistral/mistral-large-latest"
+      timeout: 600
+      max_retries: 3
+
+  - name: "mistral-medium"
+    provider: "openai_compatible"
+    api_key_env_var: "MISTRAL_API_KEY"
+    provider_config:
+      model_name: "mistral/mistral-medium-latest"
+      timeout: 300
+      max_retries: 3
+
+  # === Groq (быстрый inference) ===
+
+  - name: "groq-llama-3.1-70b"
+    provider: "openai_compatible"
+    api_key_env_var: "GROQ_API_KEY"
+    provider_config:
+      model_name: "groq/llama-3.1-70b-versatile"
+      timeout: 120
+      max_retries: 3
+
+  - name: "groq-mixtral-8x7b"
+    provider: "openai_compatible"
+    api_key_env_var: "GROQ_API_KEY"
+    provider_config:
+      model_name: "groq/mixtral-8x7b-32768"
+      timeout: 120
+      max_retries: 3
+
+  # === Together AI ===
+
+  - name: "together-llama-3.1-405b"
+    provider: "openai_compatible"
+    api_key_env_var: "TOGETHER_API_KEY"
+    provider_config:
+      model_name: "together_ai/meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo"
+      timeout: 600
+      max_retries: 3
+
+  # === DeepSeek ===
+
+  - name: "deepseek-coder"
+    provider: "openai_compatible"
+    api_key_env_var: "DEEPSEEK_API_KEY"
+    provider_config:
+      model_name: "deepseek/deepseek-coder"
+      timeout: 300
+      max_retries: 3
+
+  - name: "deepseek-chat"
+    provider: "openai_compatible"
+    api_key_env_var: "DEEPSEEK_API_KEY"
+    provider_config:
+      model_name: "deepseek/deepseek-chat"
+      timeout: 300
+      max_retries: 3

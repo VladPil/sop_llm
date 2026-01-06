@@ -41,59 +41,60 @@ Examples:
     ...     pass
     ... except asyncpg.UniqueViolationError as e:
     ...     raise map_exception(e)  # Автоматически преобразуется в ConflictError
+
 """
 
 from src.shared.errors.base import AppException, ErrorResponse
 from src.shared.errors.domain_errors import (
-    ValidationError,
-    NotFoundError,
-    ConflictError,
-    ServiceUnavailableError,
-    RateLimitError,
-    UnauthorizedError,
-    ForbiddenError,
     BadRequestError,
+    ConflictError,
+    ForbiddenError,
     InternalServerError,
+    NotFoundError,
     NotImplementedError,
+    RateLimitError,
+    ServiceUnavailableError,
     TimeoutError,
+    UnauthorizedError,
+    ValidationError,
 )
 from src.shared.errors.llm_errors import (
-    ModelNotFoundError,
-    ProviderUnavailableError,
-    TokenLimitExceededError,
+    ContextLengthExceededError,
     GenerationFailedError,
     InvalidModelConfigError,
+    ModelNotFoundError,
     ProviderAuthenticationError,
-    ContextLengthExceededError,
+    ProviderUnavailableError,
+    TokenLimitExceededError,
 )
 from src.shared.errors.mapping import ExceptionMapper, exception_mapper, map_exception
 
 __all__ = [
     # Базовые классы
     "AppException",
-    "ErrorResponse",
-    # Доменные исключения
-    "ValidationError",
-    "NotFoundError",
-    "ConflictError",
-    "ServiceUnavailableError",
-    "RateLimitError",
-    "UnauthorizedError",
-    "ForbiddenError",
     "BadRequestError",
-    "InternalServerError",
-    "NotImplementedError",
-    "TimeoutError",
-    # LLM-специфичные исключения
-    "ModelNotFoundError",
-    "ProviderUnavailableError",
-    "TokenLimitExceededError",
-    "GenerationFailedError",
-    "InvalidModelConfigError",
-    "ProviderAuthenticationError",
+    "ConflictError",
     "ContextLengthExceededError",
+    "ErrorResponse",
     # Маппер исключений
     "ExceptionMapper",
+    "ForbiddenError",
+    "GenerationFailedError",
+    "InternalServerError",
+    "InvalidModelConfigError",
+    # LLM-специфичные исключения
+    "ModelNotFoundError",
+    "NotFoundError",
+    "NotImplementedError",
+    "ProviderAuthenticationError",
+    "ProviderUnavailableError",
+    "RateLimitError",
+    "ServiceUnavailableError",
+    "TimeoutError",
+    "TokenLimitExceededError",
+    "UnauthorizedError",
+    # Доменные исключения
+    "ValidationError",
     "exception_mapper",
     "map_exception",
 ]

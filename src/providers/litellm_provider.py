@@ -1,9 +1,9 @@
-"""LiteLLM Provider - Unified interface for 100+ cloud LLM providers.
+"""LiteLLM Provider - Унифицированный интерфейс для 100+ облачных LLM провайдеров.
 
-Replaces all custom cloud provider implementations (Anthropic, OpenAI, etc.)
-with a single provider backed by LiteLLM.
+Заменяет все кастомные реализации облачных провайдеров (Anthropic, OpenAI и т.д.)
+единым провайдером на базе LiteLLM.
 
-Supports: Anthropic, OpenAI, Google Gemini, Mistral, Cohere, Azure, and many more.
+Поддерживает: Anthropic, OpenAI, Google Gemini, Mistral, Cohere, Azure и многие другие.
 """
 
 from collections.abc import AsyncIterator
@@ -17,10 +17,10 @@ from src.providers.base import ChatMessage, GenerationParams, GenerationResult, 
 
 
 class LiteLLMProvider:
-    """Unified cloud LLM provider using LiteLLM.
+    """Унифицированный облачный LLM провайдер на базе LiteLLM.
 
-    Automatically handles parameter translation, retries, and error mapping
-    for all supported providers.
+    Автоматически обрабатывает трансляцию параметров, повторные попытки и маппинг ошибок
+    для всех поддерживаемых провайдеров.
 
     Examples:
         # Anthropic Claude
@@ -34,6 +34,7 @@ class LiteLLMProvider:
 
         # Mistral
         provider = LiteLLMProvider(model_name="mistral/mistral-large-latest")
+
     """
 
     def __init__(
@@ -46,16 +47,17 @@ class LiteLLMProvider:
         drop_params: bool = True,
         **extra_params: Any,
     ) -> None:
-        """Initialize LiteLLM provider.
+        """Инициализировать LiteLLM provider.
 
         Args:
-            model_name: Model identifier (e.g., "claude-3-opus-20240229", "gpt-4")
-            api_key: API key for the provider (optional if set via env var)
-            base_url: Custom base URL for API (optional)
-            timeout: Request timeout in seconds
-            max_retries: Maximum number of retries on failure
-            drop_params: Automatically drop unsupported parameters
-            **extra_params: Additional provider-specific parameters
+            model_name: Идентификатор модели (например, "claude-3-opus-20240229", "gpt-4")
+            api_key: API ключ для провайдера (опционально, если установлен через env var)
+            base_url: Кастомный base URL для API (опционально)
+            timeout: Таймаут запроса в секундах
+            max_retries: Максимальное количество повторных попыток при ошибке
+            drop_params: Автоматически удалять неподдерживаемые параметры
+            **extra_params: Дополнительные специфичные для провайдера параметры
+
         """
         self.model_name = model_name
         self.api_key = api_key
@@ -64,12 +66,12 @@ class LiteLLMProvider:
         self.max_retries = max_retries
         self.extra_params = extra_params
 
-        # Configure LiteLLM
+        # Настроить LiteLLM
         litellm.drop_params = drop_params
         litellm.num_retries = max_retries
 
         logger.info(
-            f"LiteLLMProvider initialized: model={model_name}, "
+            f"LiteLLMProvider инициализирован: model={model_name}, "
             f"timeout={timeout}s, retries={max_retries}"
         )
 
@@ -78,17 +80,18 @@ class LiteLLMProvider:
         prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
     ) -> list[dict[str, str]]:
-        """Convert prompt or messages to LiteLLM messages format.
+        """Конвертировать prompt или messages в формат LiteLLM messages.
 
         Args:
-            prompt: Simple text prompt
-            messages: Chat messages in OpenAI format
+            prompt: Простой текстовый промпт
+            messages: Сообщения чата в формате OpenAI
 
         Returns:
-            List of message dicts for LiteLLM
+            Список словарей сообщений для LiteLLM
 
         Raises:
-            ValueError: If neither prompt nor messages provided
+            ValueError: Если не указан ни prompt, ни messages
+
         """
         if messages:
             return [{"role": msg.role, "content": msg.content} for msg in messages]
@@ -96,16 +99,17 @@ class LiteLLMProvider:
         if prompt:
             return [{"role": "user", "content": prompt}]
 
-        raise ValueError("Either 'prompt' or 'messages' must be provided")
+        raise ValueError("Необходимо указать либо 'prompt', либо 'messages'")
 
     def _prepare_params(self, params: GenerationParams | None) -> dict[str, Any]:
-        """Convert GenerationParams to LiteLLM parameters.
+        """Конвертировать GenerationParams в параметры LiteLLM.
 
         Args:
-            params: Generation parameters
+            params: Параметры генерации
 
         Returns:
-            Dictionary of parameters for LiteLLM
+            Словарь параметров для LiteLLM
+
         """
         if params is None:
             params = GenerationParams()
@@ -116,7 +120,7 @@ class LiteLLMProvider:
             "top_p": params.top_p,
         }
 
-        # Add optional parameters
+        # Добавить опциональные параметры
         if params.frequency_penalty != 0.0:
             litellm_params["frequency_penalty"] = params.frequency_penalty
 
@@ -129,28 +133,29 @@ class LiteLLMProvider:
         if params.seed is not None:
             litellm_params["seed"] = params.seed
 
-        # Response format for structured output
+        # Response format для structured output
         if params.response_format:
             litellm_params["response_format"] = params.response_format
 
-        # Top-K (not all providers support this)
+        # Top-K (не все провайдеры поддерживают)
         if params.top_k > 0 and params.top_k != 40:
             litellm_params["top_k"] = params.top_k
 
-        # Merge extra provider-specific params
+        # Объединить с дополнительными специфичными для провайдера параметрами
         if params.extra:
             litellm_params.update(params.extra)
 
         return litellm_params
 
     def _extract_usage(self, response: ModelResponse) -> dict[str, int]:
-        """Extract token usage from LiteLLM response.
+        """Извлечь информацию об использовании токенов из ответа LiteLLM.
 
         Args:
-            response: LiteLLM response object
+            response: Объект ответа LiteLLM
 
         Returns:
-            Usage dict with prompt_tokens, completion_tokens, total_tokens
+            Словарь usage с prompt_tokens, completion_tokens, total_tokens
+
         """
         usage = getattr(response, "usage", None)
 
@@ -164,13 +169,14 @@ class LiteLLMProvider:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     def _map_finish_reason(self, reason: str | None) -> str:
-        """Map LiteLLM finish_reason to our standard format.
+        """Преобразовать finish_reason из LiteLLM в стандартный формат.
 
         Args:
-            reason: LiteLLM finish reason
+            reason: Причина завершения LiteLLM
 
         Returns:
-            Standardized finish reason
+            Стандартизированная причина завершения
+
         """
         if reason == "stop":
             return "stop"
@@ -184,25 +190,26 @@ class LiteLLMProvider:
         messages: list[ChatMessage] | None = None,
         params: GenerationParams | None = None,
     ) -> GenerationResult:
-        """Generate text using LiteLLM (non-streaming).
+        """Сгенерировать текст используя LiteLLM (без streaming).
 
         Args:
-            prompt: Simple text prompt
-            messages: Chat messages in OpenAI format
-            params: Generation parameters
+            prompt: Простой текстовый промпт
+            messages: Сообщения чата в формате OpenAI
+            params: Параметры генерации
 
         Returns:
-            Generation result with text and metadata
+            Результат генерации с текстом и метаданными
 
         Raises:
-            RuntimeError: If generation fails
-            ValueError: If neither prompt nor messages provided
+            RuntimeError: Если генерация не удалась
+            ValueError: Если не указан ни prompt, ни messages
+
         """
         try:
             messages_list = self._prepare_messages(prompt, messages)
             litellm_params = self._prepare_params(params)
 
-            logger.debug(f"LiteLLM generate: model={self.model_name}, messages={len(messages_list)}")
+            logger.debug(f"LiteLLM генерация: model={self.model_name}, messages={len(messages_list)}")
 
             response: ModelResponse = await acompletion(
                 model=self.model_name,
@@ -215,14 +222,14 @@ class LiteLLMProvider:
                 **self.extra_params,
             )
 
-            # Extract response content
+            # Извлечь содержимое ответа
             choice = response.choices[0]
             text = choice.message.content or ""
             finish_reason = self._map_finish_reason(choice.finish_reason)
             usage = self._extract_usage(response)
 
             logger.debug(
-                f"LiteLLM generation complete: tokens={usage['total_tokens']}, "
+                f"LiteLLM генерация завершена: tokens={usage['total_tokens']}, "
                 f"finish={finish_reason}"
             )
 
@@ -235,8 +242,9 @@ class LiteLLMProvider:
             )
 
         except Exception as e:
-            logger.error(f"LiteLLM generation failed: {e}")
-            raise RuntimeError(f"LiteLLM generation failed: {e}") from e
+            logger.error(f"Ошибка генерации LiteLLM: {e}")
+            msg = f"Ошибка генерации LiteLLM: {e}"
+            raise RuntimeError(msg) from e
 
     async def generate_stream(
         self,
@@ -244,19 +252,20 @@ class LiteLLMProvider:
         messages: list[ChatMessage] | None = None,
         params: GenerationParams | None = None,
     ) -> AsyncIterator[StreamChunk]:
-        """Generate text using LiteLLM (streaming).
+        """Сгенерировать текст используя LiteLLM (со streaming).
 
         Args:
-            prompt: Simple text prompt
-            messages: Chat messages in OpenAI format
-            params: Generation parameters
+            prompt: Простой текстовый промпт
+            messages: Сообщения чата в формате OpenAI
+            params: Параметры генерации
 
         Yields:
-            Stream chunks with incremental text
+            Stream chunks с инкрементальным текстом
 
         Raises:
-            RuntimeError: If generation fails
-            ValueError: If neither prompt nor messages provided
+            RuntimeError: Если генерация не удалась
+            ValueError: Если не указан ни prompt, ни messages
+
         """
         try:
             messages_list = self._prepare_messages(prompt, messages)
@@ -280,10 +289,10 @@ class LiteLLMProvider:
             async for chunk in response:
                 delta = chunk.choices[0].delta
 
-                # Extract text from delta
+                # Извлечь текст из delta
                 text = getattr(delta, "content", "") or ""
 
-                # Check if this is the final chunk
+                # Проверить, является ли это последним chunk
                 finish_reason = chunk.choices[0].finish_reason
                 is_final = finish_reason is not None
 
@@ -304,23 +313,25 @@ class LiteLLMProvider:
                     ),
                 )
 
-            logger.debug(f"LiteLLM stream complete: tokens≈{accumulated_tokens}")
+            logger.debug(f"LiteLLM stream завершён: tokens≈{accumulated_tokens}")
 
         except Exception as e:
-            logger.error(f"LiteLLM stream failed: {e}")
-            raise RuntimeError(f"LiteLLM stream failed: {e}") from e
+            logger.error(f"Ошибка LiteLLM stream: {e}")
+            msg = f"Ошибка LiteLLM stream: {e}"
+            raise RuntimeError(msg) from e
 
     async def get_model_info(self) -> ModelInfo:
-        """Get model metadata.
+        """Получить метаданные модели.
 
         Returns:
-            Model information with capabilities and limits
+            Информация о модели с возможностями и ограничениями
 
         Note:
-            LiteLLM doesn't provide a direct API for model metadata,
-            so we return reasonable defaults based on model name.
+            LiteLLM не предоставляет прямого API для метаданных модели,
+            поэтому возвращаем разумные значения по умолчанию на основе имени модели.
+
         """
-        # Try to infer context window from model name
+        # Попытаться определить context window из имени модели
         context_window = 4096  # Default
         max_output = 2048  # Default
 
@@ -340,15 +351,9 @@ class LiteLLMProvider:
                 context_window = 8192
                 max_output = 4096
         elif "gpt-3.5" in model_lower:
-            if "16k" in model_lower:
-                context_window = 16384
-            else:
-                context_window = 4096
+            context_window = 16384 if "16k" in model_lower else 4096
             max_output = 4096
-        elif "gemini" in model_lower:
-            context_window = 32000
-            max_output = 8192
-        elif "mistral" in model_lower:
+        elif "gemini" in model_lower or "mistral" in model_lower:
             context_window = 32000
             max_output = 8192
 
@@ -368,13 +373,14 @@ class LiteLLMProvider:
         )
 
     async def health_check(self) -> bool:
-        """Check if the model/provider is accessible.
+        """Проверить доступность модели/провайдера.
 
         Returns:
-            True if provider is healthy
+            True если провайдер работает
 
         Note:
-            Makes a minimal test request to verify connectivity.
+            Выполняет минимальный тестовый запрос для проверки подключения.
+
         """
         try:
             await self.generate(
@@ -383,13 +389,14 @@ class LiteLLMProvider:
             )
             return True
         except Exception as e:
-            logger.warning(f"LiteLLM health check failed for {self.model_name}: {e}")
+            logger.warning(f"Проверка работоспособности LiteLLM не удалась для {self.model_name}: {e}")
             return False
 
     async def cleanup(self) -> None:
-        """Cleanup resources.
+        """Очистить ресурсы.
 
         Note:
-            LiteLLM is stateless, so no cleanup needed.
+            LiteLLM не имеет состояния, поэтому очистка не требуется.
+
         """
         logger.debug(f"LiteLLM provider cleanup: {self.model_name}")
