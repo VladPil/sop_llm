@@ -8,9 +8,13 @@ import math
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from src.docs import embeddings as docs
 from src.api.schemas.requests import EmbeddingRequest
 from src.api.schemas.responses import EmbeddingResponse, ErrorResponse
+from src.docs import embeddings as docs
+from src.providers.registry import get_provider_registry
+from src.shared.logging import get_logger
+
+logger = get_logger()
 
 
 class SimilarityRequest(BaseModel):
@@ -29,18 +33,11 @@ class SimilarityResponse(BaseModel):
     text1_preview: str = Field(description="Превью первого текста (первые 100 символов)")
     text2_preview: str = Field(description="Превью второго текста (первые 100 символов)")
 
-
-from src.providers.registry import get_provider_registry
-from src.shared.logging import get_logger
-
-logger = get_logger()
-
 router = APIRouter(prefix="/embeddings", tags=["embeddings"])
 
 
 @router.post(
     "/",
-    response_model=EmbeddingResponse,
     status_code=status.HTTP_200_OK,
     summary="Генерация векторных представлений (embeddings)",
     description=docs.GENERATE_EMBEDDINGS,
@@ -148,11 +145,12 @@ def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 
     Returns:
         Косинусное сходство (0.0 - 1.0)
+
     """
     if len(vec1) != len(vec2):
         raise ValueError("Векторы должны иметь одинаковую размерность")
 
-    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    dot_product = sum(a * b for a, b in zip(vec1, vec2, strict=False))
     magnitude1 = math.sqrt(sum(a * a for a in vec1))
     magnitude2 = math.sqrt(sum(b * b for b in vec2))
 
@@ -166,7 +164,6 @@ def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 
 @router.post(
     "/similarity",
-    response_model=SimilarityResponse,
     status_code=status.HTTP_200_OK,
     summary="Вычислить сходство двух текстов",
     description=docs.CALCULATE_SIMILARITY,
@@ -200,6 +197,7 @@ async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse
 
     Raises:
         HTTPException: 404 если модель не найдена
+
     """
     registry = get_provider_registry()
 

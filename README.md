@@ -13,6 +13,7 @@ SOP LLM Executor — production-ready асинхронный сервис на F
 ### Ключевые особенности
 
 - **Унифицированный интерфейс** — работа с 100+ моделями через LiteLLM
+- **Multi-turn Conversations** — ведение диалогов с сохранением контекста в Redis
 - **Model Presets** — YAML конфиги для быстрой регистрации моделей
 - **Асинхронная архитектура** — полная поддержка async/await
 - **GPU Guard** — эксклюзивный доступ к GPU (Single Worker)
@@ -111,6 +112,21 @@ python main.py
 | `GET` | `/api/v1/tasks/{id}` | Получить статус задачи |
 | `GET` | `/api/v1/tasks/{id}/report` | Детальный отчёт о выполнении |
 | `DELETE` | `/api/v1/tasks/{id}` | Удалить задачу |
+
+### Conversations API
+
+| Method | Endpoint | Описание |
+|--------|----------|----------|
+| `POST` | `/api/v1/conversations` | Создать диалог |
+| `GET` | `/api/v1/conversations` | Список диалогов |
+| `GET` | `/api/v1/conversations/{id}` | Получить диалог с историей |
+| `PATCH` | `/api/v1/conversations/{id}` | Обновить метаданные диалога |
+| `DELETE` | `/api/v1/conversations/{id}` | Удалить диалог |
+| `POST` | `/api/v1/conversations/{id}/messages` | Добавить сообщение |
+| `GET` | `/api/v1/conversations/{id}/messages` | Получить историю сообщений |
+| `DELETE` | `/api/v1/conversations/{id}/messages` | Очистить историю |
+
+> Подробная документация: [docs/conversations.md](docs/conversations.md)
 
 ### Models API
 

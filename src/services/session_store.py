@@ -26,16 +26,16 @@ from src.core import (
     REDIS_SESSION_PREFIX,
     TaskStatus,
 )
+from src.core.config import settings
+from src.shared.logging import get_logger
+
+logger = get_logger()
 
 # Дополнительные ключи Redis согласно ТЗ
 REDIS_GPU_CACHE_KEY = "system:gpu"
 REDIS_STATS_PREFIX = "stats:daily:"
 GPU_CACHE_TTL = 5  # 5 секунд
 STATS_TTL = 7 * 24 * 60 * 60  # 7 дней
-from src.core.config import settings
-from src.shared.logging import get_logger
-
-logger = get_logger()
 
 
 class SessionStore:
@@ -358,6 +358,7 @@ class SessionStore:
 
         Args:
             stats: Словарь с GPU статистикой
+
         """
         data = orjson.dumps(stats).decode("utf-8")
         await self.redis.setex(REDIS_GPU_CACHE_KEY, GPU_CACHE_TTL, data)
@@ -367,6 +368,7 @@ class SessionStore:
 
         Returns:
             Кэшированные данные или None если кэш устарел
+
         """
         data = await self.redis.get(REDIS_GPU_CACHE_KEY)
         if data:
@@ -381,6 +383,7 @@ class SessionStore:
         Args:
             stat_name: Название метрики (tasks_completed, tokens_used, etc.)
             increment: Значение инкремента
+
         """
         today = datetime.utcnow().strftime("%Y-%m-%d")
         key = f"{REDIS_STATS_PREFIX}{today}"
@@ -396,6 +399,7 @@ class SessionStore:
 
         Returns:
             Словарь со статистикой
+
         """
         if date is None:
             date = datetime.utcnow().strftime("%Y-%m-%d")
@@ -420,6 +424,7 @@ class SessionStore:
             tokens_used: Использовано токенов
             duration_ms: Время выполнения в мс
             success: Успешное завершение
+
         """
         if success:
             await self.increment_daily_stat("tasks_completed")

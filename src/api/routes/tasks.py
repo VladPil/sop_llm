@@ -18,7 +18,13 @@ except (ImportError, AttributeError):
 from src.api.schemas.requests import CreateTaskRequest
 from src.api.schemas.responses import ErrorResponse, TaskResponse
 from src.core import TaskStatus
-from src.core.dependencies import IntakeAdapterDep, SessionStoreDep, TaskOrchestratorDep
+from src.core.dependencies import (
+    ConversationStoreDep,
+    IntakeAdapterDep,
+    SessionStoreDep,
+    TaskOrchestratorDep,
+)
+from src.providers.base import ChatMessage
 from src.shared.logging import get_logger
 
 logger = get_logger()
@@ -28,7 +34,6 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.post(
     "/",
-    response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Создать задачу генерации текста",
     description=docs.CREATE_TASK,
@@ -60,6 +65,7 @@ async def create_task(
     orchestrator: TaskOrchestratorDep,
     adapter: IntakeAdapterDep,
     session_store: SessionStoreDep,
+    conversation_store: ConversationStoreDep,
 ) -> TaskResponse:
     """Создать задачу генерации.
 
@@ -67,12 +73,14 @@ async def create_task(
     - IntakeAdapter: адаптация Intake-style запросов
     - TaskOrchestrator: создание и добавление в очередь
     - SessionStore: получение данных сессии
+    - ConversationStore: загрузка контекста диалога
 
     Args:
         request: Параметры задачи
         orchestrator: TaskOrchestrator (DI)
         adapter: IntakeAdapter (DI)
         session_store: SessionStore (DI)
+        conversation_store: ConversationStore (DI)
 
     Returns:
         TaskResponse с task_id, статусом и trace_id
@@ -83,16 +91,69 @@ async def create_task(
     """
     try:
         # Адаптировать Intake-style запрос
-        model, prompt, params = adapter.adapt_request(request)
+        model, prompt, params, conv_data = adapter.adapt_request(request)
+
+        # Подготовить messages для multi-turn conversations
+        messages: list[ChatMessage] | None = None
+
+        if conv_data.messages is not None:
+            # Явно указаны messages в запросе
+            messages = conv_data.messages
+
+        elif conv_data.conversation_id is not None:
+            # Загрузить контекст из ConversationStore
+            conversation = await conversation_store.get_conversation(conv_data.conversation_id)
+            if conversation is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Диалог '{conv_data.conversation_id}' не найден",
+                )
+
+            # Получить историю сообщений
+            context_messages = await conversation_store.get_context_messages(
+                conv_data.conversation_id
+            )
+
+            # Добавить текущий промпт как user сообщение
+            messages = list(context_messages)
+            if prompt:
+                messages.append(ChatMessage(role="user", content=prompt))
+
+            # Модель из диалога если не указана в запросе
+            if model is None and conversation.get("model"):
+                model = conversation["model"]
+
+            logger.info(
+                "Загружен контекст диалога",
+                conversation_id=conv_data.conversation_id,
+                context_messages=len(context_messages),
+                total_messages=len(messages),
+            )
+
+        # Проверка что есть prompt или messages
+        if prompt is None and messages is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Необходимо указать prompt или messages",
+            )
+
+        # Проверка что модель определена
+        if model is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Модель не указана: укажите 'model' в запросе или в диалоге",
+            )
 
         # Создать задачу через Orchestrator
         task_id = await orchestrator.submit_task(
             model=model,
             prompt=prompt,
+            messages=messages,
             params=params,
             webhook_url=request.webhook_url,
             idempotency_key=request.idempotency_key,
             priority=request.priority,
+            conversation_id=conv_data.conversation_id if conv_data.save_to_conversation else None,
         )
 
         # Получить сессию для ответа
@@ -119,6 +180,9 @@ async def create_task(
             trace_id=trace_id,
         )
 
+    except HTTPException:
+        raise
+
     except ValueError as e:
         # Валидационная ошибка (модель не найдена, невалидные параметры)
         logger.warning("Ошибка создания задачи", error=str(e))
@@ -137,7 +201,6 @@ async def create_task(
 
 @router.get(
     "/{task_id}",
-    response_model=TaskResponse,
     summary="Получить статус и результат задачи",
     description=docs.GET_TASK_STATUS,
     responses={
@@ -266,7 +329,6 @@ async def delete_task(
 
 @router.get(
     "/{task_id}/report",
-    response_model=dict,
     summary="Получить детальный отчёт о выполнении задачи",
     description=docs.GET_TASK_REPORT,
     responses={
@@ -317,6 +379,7 @@ async def get_task_report(
 
     Raises:
         HTTPException: 404 если задача не найдена
+
     """
     session = await session_store.get_session(task_id)
 
@@ -338,8 +401,8 @@ async def get_task_report(
     if created_at and started_at:
         from datetime import datetime
         try:
-            created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            created = datetime.fromisoformat(created_at)
+            started = datetime.fromisoformat(started_at)
             metrics["queue_wait_ms"] = int((started - created).total_seconds() * 1000)
         except (ValueError, TypeError):
             pass
@@ -347,8 +410,8 @@ async def get_task_report(
     if started_at and finished_at:
         from datetime import datetime
         try:
-            started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-            finished = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            started = datetime.fromisoformat(started_at)
+            finished = datetime.fromisoformat(finished_at)
             metrics["inference_ms"] = int((finished - started).total_seconds() * 1000)
         except (ValueError, TypeError):
             pass
@@ -356,8 +419,8 @@ async def get_task_report(
     if created_at and finished_at:
         from datetime import datetime
         try:
-            created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            finished = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            created = datetime.fromisoformat(created_at)
+            finished = datetime.fromisoformat(finished_at)
             metrics["total_ms"] = int((finished - created).total_seconds() * 1000)
         except (ValueError, TypeError):
             pass

@@ -14,7 +14,7 @@ import asyncio
 import contextlib
 import uuid
 
-from src.providers.base import GenerationParams
+from src.providers.base import ChatMessage, GenerationParams
 from src.providers.registry import get_provider_registry
 from src.services.observability import trace_context
 from src.services.session_store import SessionStore
@@ -25,6 +25,15 @@ from src.shared.errors import GenerationFailedError, ModelNotFoundError
 from src.shared.logging import get_logger
 
 logger = get_logger()
+
+
+def _try_get_conversation_store():
+    """Попытка получить ConversationStore (может быть не инициализирован)."""
+    try:
+        from src.services.conversation_store import get_conversation_store
+        return get_conversation_store()
+    except (ImportError, RuntimeError):
+        return None
 
 
 class TaskOrchestrator:
@@ -100,21 +109,25 @@ class TaskOrchestrator:
     async def submit_task(
         self,
         model: str,
-        prompt: str,
+        prompt: str | None,
         params: GenerationParams,
+        messages: list[ChatMessage] | None = None,
         webhook_url: str | None = None,
         idempotency_key: str | None = None,
         priority: float = 0.0,
+        conversation_id: str | None = None,
     ) -> str:
         """Создать и добавить задачу в очередь.
 
         Args:
             model: Название модели
-            prompt: Промпт для генерации
+            prompt: Промпт для генерации (или None если используются messages)
             params: Параметры генерации
+            messages: Сообщения для multi-turn conversations (опционально)
             webhook_url: URL для callback (опционально)
             idempotency_key: Ключ идемпотентности (опционально)
             priority: Приоритет задачи
+            conversation_id: ID диалога для сохранения результата (опционально)
 
         Returns:
             task_id созданной задачи
@@ -147,12 +160,23 @@ class TaskOrchestrator:
         # Создать task_id
         task_id = f"task-{uuid.uuid4().hex[:16]}"
 
+        # Подготовить данные для сессии
+        session_params = params.model_dump()
+
+        # Добавить messages в params если есть
+        if messages:
+            session_params["_messages"] = [msg.model_dump() for msg in messages]
+
+        # Добавить conversation_id если есть
+        if conversation_id:
+            session_params["_conversation_id"] = conversation_id
+
         # Создать сессию
         await self.session_store.create_session(
             task_id=task_id,
             model=model,
-            prompt=prompt,
-            params=params.model_dump(),
+            prompt=prompt or "",
+            params=session_params,
             webhook_url=webhook_url,
             idempotency_key=idempotency_key,
         )
@@ -170,6 +194,8 @@ class TaskOrchestrator:
             priority=priority,
             has_webhook=webhook_url is not None,
             has_idempotency=idempotency_key is not None,
+            has_messages=messages is not None,
+            has_conversation=conversation_id is not None,
         )
 
         return task_id
@@ -189,10 +215,17 @@ class TaskOrchestrator:
                     continue
 
                 # Обработать задачу в Langfuse trace контексте
+                # Получить conversation_id из сессии для группировки в Langfuse
+                session = await self.session_store.get_session(task_id)
+                conversation_id = None
+                if session and "_conversation_id" in session.get("params", {}):
+                    conversation_id = session["params"]["_conversation_id"]
+
                 async with trace_context(
                     name="task_processing",
+                    session_id=conversation_id,  # Группировка по conversation в Langfuse
                     input_data={"task_id": task_id},
-                    metadata={"task_id": task_id},
+                    metadata={"task_id": task_id, "conversation_id": conversation_id},
                 ):
                     await self._process_task(task_id)
 
@@ -209,6 +242,7 @@ class TaskOrchestrator:
         1. TaskStateManager - обновление статуса
         2. TaskExecutor - выполнение генерации
         3. WebhookService - отправка callback
+        4. ConversationStore - сохранение результата в диалог
 
         Args:
             task_id: ID задачи
@@ -233,7 +267,17 @@ class TaskOrchestrator:
             params_dict = session["params"]
             webhook_url = session.get("webhook_url")
 
-            # Подготовить параметры
+            # Извлечь messages и conversation_id из params
+            messages: list[ChatMessage] | None = None
+            conversation_id: str | None = None
+
+            if "_messages" in params_dict:
+                messages = [ChatMessage(**msg) for msg in params_dict.pop("_messages")]
+
+            if "_conversation_id" in params_dict:
+                conversation_id = params_dict.pop("_conversation_id")
+
+            # Подготовить параметры генерации (без внутренних полей)
             gen_params = GenerationParams(**params_dict)
 
             # Выполнить генерацию через Executor
@@ -241,12 +285,21 @@ class TaskOrchestrator:
                 result = await self.executor.execute_task(
                     task_id=task_id,
                     model=model,
-                    prompt=prompt,
+                    prompt=prompt if not messages else None,
+                    messages=messages,
                     params=gen_params,
                 )
 
                 # Сохранить результат через StateManager
                 await self.state_manager.mark_as_completed(task_id, result)
+
+                # Сохранить результат в диалог (если есть conversation_id)
+                if conversation_id:
+                    await self._save_to_conversation(
+                        conversation_id=conversation_id,
+                        user_message=prompt,
+                        assistant_response=result.text,
+                    )
 
                 # Отправить webhook (если есть)
                 if webhook_url:
@@ -268,6 +321,7 @@ class TaskOrchestrator:
                     "Задача завершена успешно",
                     task_id=task_id,
                     tokens=result.usage.get("total_tokens", 0),
+                    saved_to_conversation=conversation_id is not None,
                 )
 
             except (ModelNotFoundError, GenerationFailedError) as e:
@@ -291,6 +345,56 @@ class TaskOrchestrator:
         finally:
             # Освободить processing slot
             await self.state_manager.clear_processing()
+
+    async def _save_to_conversation(
+        self,
+        conversation_id: str,
+        user_message: str | None,
+        assistant_response: str,
+    ) -> None:
+        """Сохранить результат генерации в диалог.
+
+        Args:
+            conversation_id: ID диалога
+            user_message: Сообщение пользователя (может быть пустым если использовались messages)
+            assistant_response: Ответ ассистента
+
+        """
+        conversation_store = _try_get_conversation_store()
+        if conversation_store is None:
+            logger.warning(
+                "ConversationStore не доступен, результат не сохранён",
+                conversation_id=conversation_id,
+            )
+            return
+
+        try:
+            # Добавить user сообщение если есть
+            if user_message:
+                await conversation_store.add_message(
+                    conversation_id=conversation_id,
+                    role="user",
+                    content=user_message,
+                )
+
+            # Добавить ответ ассистента
+            await conversation_store.add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=assistant_response,
+            )
+
+            logger.debug(
+                "Результат сохранён в диалог",
+                conversation_id=conversation_id,
+            )
+
+        except Exception as e:
+            logger.exception(
+                "Ошибка сохранения в диалог",
+                conversation_id=conversation_id,
+                error=str(e),
+            )
 
     async def _handle_task_failure(
         self,

@@ -13,11 +13,11 @@
 models:
   # === Anthropic Claude ===
 
-  - name: "claude-3.5-sonnet"
+  - name: "claude-sonnet-4"
     provider: "anthropic"
     api_key_env_var: "ANTHROPIC_API_KEY"
     provider_config:
-      model_name: "claude-3-5-sonnet-20241022"
+      model_name: "claude-sonnet-4-20250514"
       timeout: 600
       max_retries: 3
 

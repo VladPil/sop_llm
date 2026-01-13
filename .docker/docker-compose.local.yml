@@ -9,11 +9,9 @@ services:
     build:
       context: ..
       dockerfile: .docker/containers/backend/Dockerfile
+      target: runtime-cpu
       args:
         - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
-        - INSTALL_GPU=${INSTALL_GPU:-false}
-        - CUDA_VERSION=${CUDA_VERSION:-12.1.0}
-        - INSTALL_DEV=true
     image: sop_llm:local
     container_name: sop_llm_local
     ports:
@@ -62,44 +60,44 @@ services:
       logging: "promtail"
       service: "sop_llm"
       env: "local"
-    # GPU поддержка (llama.cpp local models)
-    runtime: nvidia
     deploy:
       resources:
         limits:
           cpus: '4'
           memory: 8G
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   # Langfuse - LLM Observability Platform
-  # Использует общий PostgreSQL из sop_infrastructure
+  # Использует общий PostgreSQL из sop_infrastructure (sop_postgres)
+  # Используем v2 так как v3 требует ClickHouse
   langfuse:
     image: langfuse/langfuse:2
     container_name: sop_llm_langfuse
     ports:
-      - "${LANGFUSE_PORT:-3001}:3000"
-    env_file:
-      - configs/.env.local
+      - "3001:3000"
     environment:
-      - DATABASE_URL=${LANGFUSE_DATABASE_URL}
-      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${LANGFUSE_NEXTAUTH_URL}
-      - SALT=${LANGFUSE_SALT}
-      - TELEMETRY_ENABLED=${LANGFUSE_TELEMETRY_ENABLED}
-      - AUTH_DISABLE_SIGNUP=${LANGFUSE_AUTH_DISABLE_SIGNUP}
-      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES}
+      # Database (PostgreSQL из sop_network)
+      - DATABASE_URL=postgresql://sop_admin:change_me_in_production@sop_postgres:5432/langfuse
+      # Auth
+      - NEXTAUTH_SECRET=langfuse-secret-key-change-in-production
+      - NEXTAUTH_URL=http://localhost:3001
+      - SALT=langfuse-salt-change-in-production
+      # Features
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+      # Auto-init (создаёт пользователя и проект при первом запуске)
+      - LANGFUSE_INIT_ORG_ID=sop-local-org
+      - LANGFUSE_INIT_ORG_NAME=SOP Local Development
+      - LANGFUSE_INIT_PROJECT_ID=sop-llm-local
+      - LANGFUSE_INIT_PROJECT_NAME=SOP LLM Service
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-local-dev-public-key
+      - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-local-dev-secret-key
+      - LANGFUSE_INIT_USER_EMAIL=admin@local.dev
+      - LANGFUSE_INIT_USER_NAME=Local Admin
+      - LANGFUSE_INIT_USER_PASSWORD=admin123
     networks:
       - sop_network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/public/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    depends_on:
+      - sop_llm
     restart: unless-stopped
 
 # Внешняя сеть (создаётся в sop_infrastructure)

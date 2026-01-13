@@ -70,6 +70,13 @@ REDIS_QUEUE_KEY = "queue:tasks"
 REDIS_PROCESSING_KEY = "queue:processing"
 REDIS_LOGS_PREFIX = "logs:"
 REDIS_LOGS_RECENT_KEY = "logs:recent"
+REDIS_CONVERSATION_PREFIX = "conversation:"
+REDIS_CONVERSATION_INDEX_KEY = "conversations:index"
+
+# === Conversation Settings ===
+DEFAULT_CONVERSATION_TTL = 86400 * 7  # 7 дней
+DEFAULT_MAX_CONVERSATION_MESSAGES = 100  # Максимум сообщений в истории
+DEFAULT_CONTEXT_MESSAGES_LIMIT = 50  # Сколько сообщений отправлять в контекст
 
 # === Default values для requests (если не переопределены) ===
 DEFAULT_TOP_P = 1.0

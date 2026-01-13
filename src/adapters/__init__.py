@@ -8,10 +8,10 @@ Available adapters:
 Example:
     >>> from src.adapters import IntakeAdapter
     >>> adapter = IntakeAdapter()
-    >>> model, prompt, params = adapter.adapt_request(request)
+    >>> model, prompt, params, conv_data = adapter.adapt_request(request)
 
 """
 
-from src.adapters.intake_adapter import IntakeAdapter, get_intake_adapter
+from src.adapters.intake_adapter import ConversationData, IntakeAdapter, get_intake_adapter
 
-__all__ = ["IntakeAdapter", "get_intake_adapter"]
+__all__ = ["ConversationData", "IntakeAdapter", "get_intake_adapter"]

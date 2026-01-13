@@ -103,8 +103,7 @@ class CompatibilityChecker:
         coef = self.VRAM_COEFFICIENTS.get(quantization.lower(), 1.0)
         # Оценка: size_b * coef GB, конвертируем в MB, добавляем 15% запас
         estimated_gb = size_b * coef
-        estimated_mb = int(estimated_gb * 1024 * 1.15)
-        return estimated_mb
+        return int(estimated_gb * 1024 * 1.15)
 
     def extract_quantization(self, filename: str) -> str:
         """Извлечь тип квантизации из имени файла.

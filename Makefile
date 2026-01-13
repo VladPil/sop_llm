@@ -1,4 +1,4 @@
-.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-integration test-coverage clean clean-models clean-all
+.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-integration test-coverage clean clean-models clean-all build-gpu up-gpu down-gpu restart-gpu
 
 RESET := \033[0m
 RED := \033[31m
@@ -40,6 +40,9 @@ endif
 # Директория скриптов
 SCRIPTS_DIR := scripts
 
+# GPU compose override
+GPU_COMPOSE_FILE := .docker/docker-compose.gpu.yml
+
 # Пути к конфигурационным файлам
 PYTEST_CONFIG := config/pytest.ini
 PYPROJECT_CONFIG := pyproject.toml
@@ -72,11 +75,17 @@ help:
 	@echo "  $(GREEN)run-dev$(RESET)           - Запустить с hot-reload (uvicorn --reload)"
 	@echo ""
 	@echo "$(BOLD)$(YELLOW)Управление Docker:$(RESET)"
-	@echo "  $(GREEN)up$(RESET)                - Запустить сервисы"
+	@echo "  $(GREEN)up$(RESET)                - Запустить сервисы (CPU)"
 	@echo "  $(GREEN)down$(RESET)              - Остановить все сервисы"
 	@echo "  $(GREEN)restart$(RESET)           - Перезапустить все сервисы"
 	@echo "  $(GREEN)ps$(RESET)                - Показать статус сервисов"
-	@echo "  $(GREEN)build$(RESET)             - Пересобрать Docker образы"
+	@echo "  $(GREEN)build$(RESET)             - Пересобрать Docker образы (CPU)"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)GPU/CUDA (требуется NVIDIA GPU):$(RESET)"
+	@echo "  $(GREEN)build-gpu$(RESET)         - Собрать Docker образ с CUDA поддержкой"
+	@echo "  $(GREEN)up-gpu$(RESET)            - Запустить сервисы с GPU"
+	@echo "  $(GREEN)down-gpu$(RESET)          - Остановить GPU сервисы"
+	@echo "  $(GREEN)restart-gpu$(RESET)       - Перезапустить с GPU"
 	@echo ""
 	@echo "$(BOLD)$(YELLOW)Логирование и отладка:$(RESET)"
 	@echo "  $(GREEN)logs$(RESET)              - Показать все логи"
@@ -304,3 +313,35 @@ clean-all: down
 	else \
 		echo "$(YELLOW)Отменено$(RESET)"; \
 	fi
+
+# =============================================================================
+# GPU/CUDA targets
+# =============================================================================
+build-gpu:
+	@echo "$(CYAN)Сборка Docker образа с CUDA поддержкой...$(RESET)"
+	@echo "$(YELLOW)Это может занять 10-20 минут при первой сборке$(RESET)"
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(GPU_COMPOSE_FILE) --env-file $(ENV_FILE) build
+	@echo "$(GREEN)GPU образ собран успешно$(RESET)"
+
+up-gpu:
+	@echo "$(CYAN)Запуск сервисов с GPU (ENV=$(ENV))...$(RESET)"
+	@if [ ! -f "$(ENV_FILE)" ]; then \
+		echo "$(RED)Ошибка: Файл окружения $(ENV_FILE) не найден!$(RESET)"; \
+		exit 1; \
+	fi
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(GPU_COMPOSE_FILE) --env-file $(ENV_FILE) up -d
+	@echo "$(GREEN)GPU сервисы запущены успешно$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Доступные сервисы:$(RESET)"
+	@echo "  $(BOLD)API:$(RESET)              http://localhost:8200"
+	@echo "  $(BOLD)API Docs:$(RESET)         http://localhost:8200/docs"
+	@echo "  $(BOLD)Langfuse:$(RESET)         http://localhost:3001"
+	@echo ""
+	@echo "$(MAGENTA)GPU режим включён - локальные модели будут использовать CUDA$(RESET)"
+
+down-gpu:
+	@echo "$(CYAN)Остановка GPU сервисов...$(RESET)"
+	@$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) -f $(GPU_COMPOSE_FILE) --env-file $(ENV_FILE) down
+	@echo "$(GREEN)GPU сервисы остановлены$(RESET)"
+
+restart-gpu: down-gpu up-gpu

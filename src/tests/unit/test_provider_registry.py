@@ -1,5 +1,6 @@
 """Unit тесты для providers/registry.py."""
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,11 +17,11 @@ class MockProvider:
         self.should_fail_health = should_fail_health
         self.cleanup_called = False
 
-    async def generate(self, prompt: str, params: any) -> any:
+    async def generate(self, prompt: str, params: Any) -> Any:
         """Mock generate."""
         return MagicMock()
 
-    async def generate_stream(self, prompt: str, params: any) -> any:
+    async def generate_stream(self, prompt: str, params: Any) -> Any:
         """Mock generate_stream."""
         yield MagicMock()
 

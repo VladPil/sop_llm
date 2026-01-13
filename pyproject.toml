@@ -33,12 +33,12 @@ dependencies = [
     "safetensors>=0.4.5",             # Безопасная загрузка моделей
 
     # LLM Inference (NEW ARCHITECTURE - PRODUCTION)
-    "litellm>=1.52.0",           # Unified LLM interface for 100+ providers
-    "anthropic>=0.39.0",         # Claude API (used by LiteLLM)
-    "openai>=1.54.0",            # OpenAI API (used by LiteLLM)
+    "litellm>=1.80.0",           # Unified LLM interface for 100+ providers
+    "anthropic>=0.42.0",         # Claude API (used by LiteLLM)
+    "openai>=1.60.0",            # OpenAI API (used by LiteLLM)
 
     # LLM Observability & Tracing
-    "langfuse>=2.51.0",          # LLM observability platform
+    "langfuse>=2.51.0,<3.0.0",   # LLM observability platform (v2, compatible with litellm)
     "opentelemetry-api>=1.28.0", # Distributed tracing
     "opentelemetry-sdk>=1.28.0", # Tracing SDK
     "prometheus-fastapi-instrumentator>=7.0.0",  # Prometheus metrics

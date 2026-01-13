@@ -33,21 +33,21 @@ from src.services.model_presets.loader import (
 )
 
 __all__ = [
-    # Loader
-    "ModelPresetsLoader",
-    "create_presets_loader",
-    "get_presets_loader",
-    "set_presets_loader",
     # Compatibility
     "CompatibilityChecker",
     "CompatibilityResult",
-    "create_compatibility_checker",
-    "get_compatibility_checker",
-    "set_compatibility_checker",
+    "DownloadResult",
     # Downloader
     "ModelDownloader",
-    "DownloadResult",
+    # Loader
+    "ModelPresetsLoader",
+    "create_compatibility_checker",
     "create_model_downloader",
+    "create_presets_loader",
+    "get_compatibility_checker",
     "get_model_downloader",
+    "get_presets_loader",
+    "set_compatibility_checker",
     "set_model_downloader",
+    "set_presets_loader",
 ]

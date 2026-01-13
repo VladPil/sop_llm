@@ -24,6 +24,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from src.adapters import IntakeAdapter, get_intake_adapter
+from src.services.conversation_store import ConversationStore, get_conversation_store
 from src.services.model_presets import (
     CompatibilityChecker,
     ModelDownloader,
@@ -58,6 +59,9 @@ CompatibilityCheckerDep = Annotated[CompatibilityChecker, Depends(get_compatibil
 
 # ModelDownloader dependency
 ModelDownloaderDep = Annotated[ModelDownloader, Depends(get_model_downloader)]
+
+# ConversationStore dependency
+ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_store)]
 
 
 # === Dependency Provider Functions ===
@@ -153,3 +157,16 @@ def get_downloader() -> ModelDownloader:
 
     """
     return get_model_downloader()
+
+
+def get_conversation() -> ConversationStore:
+    """Получить ConversationStore dependency.
+
+    Returns:
+        ConversationStore instance
+
+    Note:
+        Используется через Depends(get_conversation) в FastAPI routes.
+
+    """
+    return get_conversation_store()

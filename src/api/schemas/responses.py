@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from src.core.enums import FinishReason, HealthStatus, ProviderType, TaskStatus
 
-
 # === Типизированные вложенные модели для лучшей Swagger документации ===
 
 
@@ -564,3 +563,142 @@ class DownloadStatusResponse(BaseModel):
     available_on_hf: bool = Field(
         description="True если модель доступна на HuggingFace Hub"
     )
+
+
+# === Conversation Responses ===
+
+
+class ConversationMessage(BaseModel):
+    """Сообщение в диалоге."""
+
+    role: str = Field(description="Роль: system, user, assistant")
+    content: str = Field(description="Текст сообщения")
+    timestamp: str = Field(description="Время добавления (ISO 8601)")
+
+
+class ConversationResponse(BaseModel):
+    """Информация о диалоге.
+
+    POST /api/v1/conversations/ - создание
+    GET /api/v1/conversations/{conversation_id} - получение
+    """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "conversation_id": "conv_abc123def456",
+                    "model": "claude-3.5-sonnet",
+                    "system_prompt": "Ты - полезный ассистент",
+                    "message_count": 5,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-15T10:35:00Z",
+                    "metadata": {"user_id": "user_123"},
+                }
+            ]
+        }
+    }
+
+    conversation_id: str = Field(description="Уникальный ID диалога")
+
+    model: str | None = Field(
+        default=None,
+        description="Модель по умолчанию для диалога",
+    )
+
+    system_prompt: str | None = Field(
+        default=None,
+        description="Системный промпт диалога",
+    )
+
+    message_count: int = Field(
+        default=0,
+        description="Количество сообщений в диалоге",
+    )
+
+    created_at: str = Field(description="Время создания (ISO 8601)")
+
+    updated_at: str = Field(description="Время последнего обновления (ISO 8601)")
+
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Дополнительные метаданные",
+    )
+
+
+class ConversationDetailResponse(ConversationResponse):
+    """Детальная информация о диалоге с сообщениями.
+
+    GET /api/v1/conversations/{conversation_id}?include_messages=true
+    """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "conversation_id": "conv_abc123def456",
+                    "model": "claude-3.5-sonnet",
+                    "system_prompt": "Ты - полезный ассистент",
+                    "message_count": 3,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-15T10:35:00Z",
+                    "metadata": None,
+                    "messages": [
+                        {"role": "system", "content": "Ты - полезный ассистент", "timestamp": "2024-01-15T10:30:00Z"},
+                        {"role": "user", "content": "Привет!", "timestamp": "2024-01-15T10:30:01Z"},
+                        {"role": "assistant", "content": "Здравствуйте! Чем могу помочь?", "timestamp": "2024-01-15T10:30:02Z"},
+                    ],
+                }
+            ]
+        }
+    }
+
+    messages: list[ConversationMessage] = Field(
+        default_factory=list,
+        description="История сообщений диалога",
+    )
+
+
+class ConversationsListResponse(BaseModel):
+    """Список диалогов.
+
+    GET /api/v1/conversations/
+    """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "conversations": [
+                        {
+                            "conversation_id": "conv_abc123",
+                            "model": "gpt-4-turbo",
+                            "message_count": 10,
+                            "created_at": "2024-01-15T10:30:00Z",
+                            "updated_at": "2024-01-15T11:00:00Z",
+                        },
+                        {
+                            "conversation_id": "conv_def456",
+                            "model": "claude-3.5-sonnet",
+                            "message_count": 5,
+                            "created_at": "2024-01-14T09:00:00Z",
+                            "updated_at": "2024-01-14T09:30:00Z",
+                        },
+                    ],
+                    "total": 2,
+                    "limit": 100,
+                    "offset": 0,
+                }
+            ]
+        }
+    }
+
+    conversations: list[ConversationResponse] = Field(
+        description="Список диалогов"
+    )
+
+    total: int = Field(description="Общее количество диалогов")
+
+    limit: int = Field(description="Лимит для пагинации")
+
+    offset: int = Field(description="Смещение для пагинации")

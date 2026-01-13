@@ -1,0 +1,28 @@
+# SOP LLM - GPU Override
+# =============================================================================
+# Используется вместе с docker-compose.local.yml для сборки с GPU/CUDA
+#
+# Использование:
+#   docker compose -f docker-compose.local.yml -f docker-compose.gpu.yml build
+#   docker compose -f docker-compose.local.yml -f docker-compose.gpu.yml up -d
+#
+# Или через Makefile:
+#   make build-gpu
+#   make up-gpu
+# =============================================================================
+
+services:
+  sop_llm:
+    build:
+      target: runtime-gpu
+    image: sop_llm:local-gpu
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

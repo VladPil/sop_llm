@@ -10,7 +10,7 @@ Example:
 """
 
 
-from src.providers.base import GenerationParams, GenerationResult
+from src.providers.base import ChatMessage, GenerationParams, GenerationResult
 from src.providers.registry import ProviderRegistry
 from src.services.observability import trace_context
 from src.shared.errors import GenerationFailedError, ModelNotFoundError
@@ -44,16 +44,18 @@ class TaskExecutor:
         self,
         task_id: str,
         model: str,
-        prompt: str,
+        prompt: str | None,
         params: GenerationParams,
+        messages: list[ChatMessage] | None = None,
     ) -> GenerationResult:
         """Выполнить задачу генерации.
 
         Args:
             task_id: ID задачи (для логирования и трейсинга)
             model: Название модели
-            prompt: Промпт для генерации
+            prompt: Промпт для генерации (или None если используются messages)
             params: Параметры генерации
+            messages: Сообщения для multi-turn conversations (опционально)
 
         Returns:
             GenerationResult с результатом
@@ -64,19 +66,23 @@ class TaskExecutor:
 
         Note:
             Выполняется в Langfuse trace контексте для observability.
+            Можно использовать либо prompt, либо messages.
 
         """
+        input_preview = prompt[:100] if prompt else f"[{len(messages or [])} messages]"
+
         logger.info(
             "Начало выполнения задачи",
             task_id=task_id,
             model=model,
+            has_messages=messages is not None,
             params=params.model_dump(exclude={"extra"}),
         )
 
         # Создать Langfuse trace для задачи
         async with trace_context(
             name="task_execution",
-            input_data={"task_id": task_id, "model": model, "prompt": prompt[:100]},
+            input_data={"task_id": task_id, "model": model, "input": input_preview},
             metadata={"task_id": task_id, "model": model},
         ):
             # Получить provider
@@ -99,7 +105,11 @@ class TaskExecutor:
 
             # Выполнить генерацию
             try:
-                result = await provider.generate(prompt=prompt, params=params)
+                result = await provider.generate(
+                    prompt=prompt,
+                    messages=messages,
+                    params=params,
+                )
 
                 logger.info(
                     "Задача выполнена успешно",

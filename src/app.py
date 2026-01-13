@@ -12,11 +12,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from src.api.routes import embeddings, models, monitor, tasks, websocket
+from src.api.routes import conversations, embeddings, models, monitor, tasks, websocket
 from src.core.config import settings
+from src.engine.vram_monitor import get_vram_monitor
 from src.providers.litellm_provider import LiteLLMProvider
 from src.providers.registry import get_provider_registry
-from src.engine.vram_monitor import get_vram_monitor
 from src.services.model_presets import (
     create_compatibility_checker,
     create_model_downloader,
@@ -30,6 +30,10 @@ from src.services.observability import (
     flush_observations,
     initialize_langfuse,
     is_observability_enabled,
+)
+from src.services.conversation_store import (
+    create_conversation_store,
+    set_conversation_store,
 )
 from src.services.session_store import create_session_store, set_session_store
 from src.services.task import create_task_orchestrator, get_task_orchestrator
@@ -88,6 +92,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     set_session_store(session_store)
     logger.info("SessionStore инициализирован")
 
+    # Создать ConversationStore (использует тот же Redis client)
+    conversation_store = create_conversation_store(session_store.redis)
+    set_conversation_store(conversation_store)
+    logger.info("ConversationStore инициализирован")
+
     # Инициализировать Model Presets сервисы
     try:
         # 1. ModelPresetsLoader - загрузка YAML пресетов
@@ -142,13 +151,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     if settings.anthropic_api_key:
         claude_provider = LiteLLMProvider(
-            model_name="claude-3-5-sonnet-20241022",
+            model_name="claude-sonnet-4-20250514",
             api_key=settings.anthropic_api_key,
             timeout=settings.litellm_timeout,
             max_retries=settings.litellm_max_retries,
         )
-        registry.register("claude-3.5-sonnet", claude_provider)
-        logger.info("Claude 3.5 Sonnet provider зарегистрирован")
+        registry.register("claude-sonnet-4", claude_provider)
+        logger.info("Claude Sonnet 4 provider зарегистрирован")
 
     if settings.openai_api_key:
         gpt4_provider = LiteLLMProvider(
@@ -247,6 +256,10 @@ app = FastAPI(
             "description": "Управление задачами генерации текста",
         },
         {
+            "name": "conversations",
+            "description": "Управление multi-turn диалогами (контекстом)",
+        },
+        {
             "name": "models",
             "description": "Управление LLM моделями и провайдерами",
         },
@@ -281,6 +294,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_sch
 
 # API v1 endpoints (для совместимости с SOP Intake)
 app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(conversations.router, prefix="/api/v1")
 app.include_router(models.router, prefix="/api/v1")
 app.include_router(monitor.router, prefix="/api/v1")
 app.include_router(embeddings.router, prefix="/api/v1")
@@ -290,6 +304,7 @@ app.include_router(websocket.router)
 
 # Legacy endpoints без версии (обратная совместимость, не показываются в Swagger)
 app.include_router(tasks.router, prefix="/api", include_in_schema=False)
+app.include_router(conversations.router, prefix="/api", include_in_schema=False)
 app.include_router(models.router, prefix="/api", include_in_schema=False)
 app.include_router(monitor.router, prefix="/api", include_in_schema=False)
 app.include_router(embeddings.router, prefix="/api", include_in_schema=False)

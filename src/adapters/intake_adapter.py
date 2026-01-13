@@ -6,24 +6,35 @@
 - Адаптирует response_format (output_schema > response_format)
 - Извлекает параметры генерации с приоритетами
 - Применяет model defaults
+- Обрабатывает conversation_id и messages для multi-turn диалогов
 
 Example:
     >>> adapter = IntakeAdapter()
-    >>> model, prompt, params = adapter.adapt_request(request)
+    >>> model, prompt, params, conv_data = adapter.adapt_request(request)
 
 See Also:
     - DOC-02-09: Стандарты документирования
 
 """
 
+from dataclasses import dataclass
 from typing import Any
 
 from src.api.schemas.requests import CreateTaskRequest
 from src.core.model_defaults import get_model_defaults
-from src.providers.base import GenerationParams
+from src.providers.base import ChatMessage, GenerationParams
 from src.shared.logging import get_logger
 
 logger = get_logger()
+
+
+@dataclass
+class ConversationData:
+    """Данные о диалоге для запроса."""
+
+    conversation_id: str | None = None
+    messages: list[ChatMessage] | None = None
+    save_to_conversation: bool = True
 
 
 class IntakeAdapter:
@@ -46,25 +57,23 @@ class IntakeAdapter:
     def adapt_request(
         self,
         request: CreateTaskRequest,
-    ) -> tuple[str, str, GenerationParams]:
+    ) -> tuple[str | None, str | None, GenerationParams, ConversationData]:
         """Адаптировать Intake-style запрос к SOP LLM формату.
 
         Процесс адаптации:
         1. Определить модель (приоритет: provider_config.model_name > model)
-        2. Объединить prompt и input_text (если есть)
-        3. Адаптировать response_format
-        4. Извлечь параметры генерации с приоритетами:
-           - Прямые поля (temperature, max_tokens)
-           - generation_params dict
-           - provider_config dict
-           - Model defaults
-        5. Применить окончательные defaults
+        2. Обработать conversation_id и messages
+        3. Объединить prompt и input_text (если есть)
+        4. Адаптировать response_format
+        5. Извлечь параметры генерации с приоритетами
+        6. Применить окончательные defaults
 
         Args:
             request: CreateTaskRequest от клиента
 
         Returns:
-            tuple[model, prompt, params] для выполнения
+            tuple[model, prompt, params, conv_data] для выполнения
+            - prompt может быть None если используются messages
 
         Raises:
             ValueError: Если не указана модель
@@ -73,13 +82,18 @@ class IntakeAdapter:
         # 1. Определить модель
         model_name = self._determine_model(request)
 
-        # 2. Объединить промпт и input_text
-        full_prompt = self._combine_prompt(request)
+        # 2. Обработать conversation data
+        conv_data = self._extract_conversation_data(request)
 
-        # 3. Определить response_format
+        # 3. Объединить промпт и input_text (если не используются messages)
+        full_prompt: str | None = None
+        if conv_data.messages is None:
+            full_prompt = self._combine_prompt(request)
+
+        # 4. Определить response_format
         response_format = self._determine_response_format(request)
 
-        # 4. Извлечь параметры генерации
+        # 5. Извлечь параметры генерации
         params = self._extract_generation_params(
             request=request,
             model_name=model_name,
@@ -89,14 +103,41 @@ class IntakeAdapter:
         logger.debug(
             "Запрос адаптирован",
             model=model_name,
-            prompt_length=len(full_prompt),
+            prompt_length=len(full_prompt) if full_prompt else 0,
             has_input_text=request.input_text is not None,
             has_response_format=response_format is not None,
+            has_conversation_id=conv_data.conversation_id is not None,
+            has_messages=conv_data.messages is not None,
         )
 
-        return model_name, full_prompt, params
+        return model_name, full_prompt, params, conv_data
 
-    def _determine_model(self, request: CreateTaskRequest) -> str:
+    def _extract_conversation_data(self, request: CreateTaskRequest) -> ConversationData:
+        """Извлечь данные о диалоге из запроса.
+
+        Args:
+            request: CreateTaskRequest
+
+        Returns:
+            ConversationData с информацией о диалоге
+
+        """
+        messages: list[ChatMessage] | None = None
+
+        # Если указаны явные messages, преобразовать в ChatMessage
+        if request.messages:
+            messages = [
+                ChatMessage(role=msg.role, content=msg.content)  # type: ignore[arg-type]
+                for msg in request.messages
+            ]
+
+        return ConversationData(
+            conversation_id=request.conversation_id,
+            messages=messages,
+            save_to_conversation=request.save_to_conversation,
+        )
+
+    def _determine_model(self, request: CreateTaskRequest) -> str | None:
         """Определить название модели.
 
         Приоритет:
@@ -107,10 +148,12 @@ class IntakeAdapter:
             request: CreateTaskRequest
 
         Returns:
-            Название модели
+            Название модели или None (если указан conversation_id,
+            модель может быть взята из диалога)
 
-        Raises:
-            ValueError: Если модель не указана
+        Note:
+            Если model не указан и нет conversation_id, вызывающий код
+            должен обработать это как ошибку.
 
         """
         model_name = request.model
@@ -119,7 +162,11 @@ class IntakeAdapter:
         if request.provider_config and "model_name" in request.provider_config:
             model_name = request.provider_config["model_name"]
 
+        # Если модель не указана, но есть conversation_id, вернуть None
+        # (модель будет взята из диалога в tasks.py)
         if not model_name:
+            if request.conversation_id:
+                return None
             msg = "Модель не указана: укажите 'model' или 'provider_config.model_name'"
             raise ValueError(msg)
 

@@ -117,6 +117,10 @@ def get_model_defaults(model_name: str) -> dict[str, Any]:
         {'temperature': 0.1, 'max_tokens': 2048, ...}
 
     """
+    # Если модель не указана, вернуть глобальные defaults
+    if model_name is None:
+        return GLOBAL_DEFAULTS.copy()
+
     # 1. Точное совпадение
     if model_name in MODEL_DEFAULTS:
         # Merge с GLOBAL_DEFAULTS (model-specific переопределяет global)

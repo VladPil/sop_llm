@@ -137,6 +137,13 @@ class LocalProvider:
             vram_percent=vram_usage["used_percent"],
         )
 
+    async def load_model(self) -> None:
+        """Публичный метод для явной загрузки модели в VRAM.
+
+        Используется API эндпоинтом /load для предварительной загрузки.
+        """
+        await self._load_model()
+
     @trace_llm_generation(name="local_llm_generate", capture_input=True, capture_output=True)
     async def generate(
         self,

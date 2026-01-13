@@ -8,7 +8,9 @@ from src.core.constants import (
     DEFAULT_API_PREFIX,
     DEFAULT_APP_NAME,
     DEFAULT_CLEANUP,
+    DEFAULT_CONTEXT_MESSAGES_LIMIT,
     DEFAULT_CONTEXT_WINDOW,
+    DEFAULT_CONVERSATION_TTL,
     DEFAULT_CORS_ORIGINS,
     DEFAULT_DOCS_URL,
     DEFAULT_EMBEDDING_MODEL,
@@ -22,6 +24,7 @@ from src.core.constants import (
     DEFAULT_LANGFUSE_HOST,
     DEFAULT_LITELLM_MAX_RETRIES,
     DEFAULT_LOGS_MAX_RECENT,
+    DEFAULT_MAX_CONVERSATION_MESSAGES,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MAX_VRAM_USAGE_PERCENT,
     DEFAULT_MODELS_DIR,
@@ -42,6 +45,8 @@ from src.core.constants import (
     DEFAULT_WEBHOOK_MAX_RETRIES,
     DEFAULT_WEBHOOK_TIMEOUT,
     ISO_8601_FORMAT,
+    REDIS_CONVERSATION_INDEX_KEY,
+    REDIS_CONVERSATION_PREFIX,
     REDIS_IDEMPOTENCY_PREFIX,
     REDIS_LOGS_PREFIX,
     REDIS_LOGS_RECENT_KEY,
@@ -67,6 +72,10 @@ __all__ = [
     "DEFAULT_CLEANUP",
     # Constants - LLM
     "DEFAULT_CONTEXT_WINDOW",
+    # Constants - Conversations
+    "DEFAULT_CONTEXT_MESSAGES_LIMIT",
+    "DEFAULT_CONVERSATION_TTL",
+    "DEFAULT_MAX_CONVERSATION_MESSAGES",
     # Constants - CORS
     "DEFAULT_CORS_ORIGINS",
     "DEFAULT_DOCS_URL",
@@ -113,19 +122,22 @@ __all__ = [
     "DEFAULT_WEBHOOK_TIMEOUT",
     # Constants - Formats
     "ISO_8601_FORMAT",
+    # Constants - Redis Keys
+    "REDIS_CONVERSATION_INDEX_KEY",
+    "REDIS_CONVERSATION_PREFIX",
     "REDIS_IDEMPOTENCY_PREFIX",
     "REDIS_LOGS_PREFIX",
     "REDIS_LOGS_RECENT_KEY",
     "REDIS_PROCESSING_KEY",
     "REDIS_QUEUE_KEY",
     "REDIS_SESSION_PREFIX",
+    # Enums
     "AppEnvironment",
     "FinishReason",
     "HealthStatus",
     "LogLevel",
     "ModelType",
     "ProviderType",
-    # Enums
     "TaskStatus",
     # Config
     "settings",

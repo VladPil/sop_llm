@@ -3,12 +3,12 @@
 Endpoints для управления моделями и provider registry.
 """
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from src.docs import models as docs
 from src.api.schemas.requests import (
     CheckCompatibilityRequest,
     RegisterFromPresetRequest,
@@ -32,6 +32,7 @@ from src.core.dependencies import (
     ModelDownloaderDep,
     PresetsLoaderDep,
 )
+from src.docs import models as docs
 from src.providers import litellm_provider, local
 from src.providers.registry import get_provider_registry
 from src.shared.logging import get_logger
@@ -43,7 +44,6 @@ router = APIRouter(prefix="/models", tags=["models"])
 
 @router.get(
     "/",
-    response_model=ModelsListResponse,
     summary="Список зарегистрированных моделей",
     description=docs.LIST_MODELS,
     responses={
@@ -77,6 +77,7 @@ async def list_models() -> ModelsListResponse:
         ModelsListResponse со списком моделей и их метаданными
 
     """
+    models_info = await get_provider_registry().get_all_models_info()
     models_list = [
         ModelInfo(
             name=info.name,
@@ -88,7 +89,7 @@ async def list_models() -> ModelsListResponse:
             loaded=info.loaded,
             extra=info.extra,
         )
-        for info in await get_provider_registry().get_all_models_info()
+        for info in models_info.values()
     ]
 
     return ModelsListResponse(
@@ -102,7 +103,6 @@ async def list_models() -> ModelsListResponse:
 
 @router.get(
     "/presets",
-    response_model=PresetsListResponse,
     summary="Список доступных пресетов моделей",
     description=docs.LIST_PRESETS,
     responses={
@@ -162,7 +162,6 @@ async def list_presets(
 
 @router.get(
     "/{model_name}",
-    response_model=ModelInfo,
     summary="Детальная информация о модели",
     description=docs.GET_MODEL_INFO,
     responses={
@@ -226,7 +225,6 @@ async def get_model_info(model_name: str) -> ModelInfo:
 
 @router.post(
     "/register",
-    response_model=ModelInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Зарегистрировать модель вручную",
     description=docs.REGISTER_MODEL,
@@ -364,7 +362,6 @@ async def unregister_model(
 
 @router.post(
     "/register-from-preset",
-    response_model=ModelInfo,
     status_code=status.HTTP_201_CREATED,
     summary="Зарегистрировать модель из пресета",
     description=docs.REGISTER_FROM_PRESET,
@@ -435,7 +432,6 @@ async def register_from_preset(
 
 @router.post(
     "/check-compatibility",
-    response_model=CompatibilityResponse,
     summary="Проверить совместимость модели с GPU",
     description=docs.CHECK_COMPATIBILITY,
     responses={
@@ -486,7 +482,6 @@ async def check_compatibility(
 
 @router.post(
     "/load",
-    response_model=dict,
     summary="Загрузить модель в VRAM",
     description=docs.LOAD_MODEL,
     responses={
@@ -518,8 +513,10 @@ async def load_model(model_name: str) -> dict:
 
     Raises:
         HTTPException: 404 если модель не найдена, 400 если не поддерживает загрузку
+
     """
     import time
+
     from src.api.routes.websocket import broadcast_model_loaded
 
     registry = get_provider_registry()
@@ -550,19 +547,15 @@ async def load_model(model_name: str) -> dict:
 
         # Получить VRAM usage
         vram_used_mb = 0
-        try:
+        with contextlib.suppress(Exception):
             from src.engine.vram_monitor import get_vram_monitor
             vram_monitor = get_vram_monitor()
             vram_usage = vram_monitor.get_vram_usage()
             vram_used_mb = vram_usage.get("used_mb", 0)
-        except Exception:
-            pass
 
         # Broadcast событие
-        try:
+        with contextlib.suppress(Exception):
             await broadcast_model_loaded(model_name, vram_used_mb)
-        except Exception:
-            pass
 
         logger.info(
             "Модель загружена через API",
@@ -588,7 +581,6 @@ async def load_model(model_name: str) -> dict:
 
 @router.post(
     "/unload",
-    response_model=dict,
     summary="Выгрузить модель из VRAM",
     description=docs.UNLOAD_MODEL,
     responses={
@@ -619,6 +611,7 @@ async def unload_model(model_name: str) -> dict:
 
     Raises:
         HTTPException: 404 если модель не найдена, 400 если не поддерживает выгрузку
+
     """
     from src.api.routes.websocket import broadcast_model_unloaded
 
@@ -643,32 +636,28 @@ async def unload_model(model_name: str) -> dict:
     try:
         # Получить VRAM до выгрузки
         vram_before = 0
-        try:
+        vram_monitor = None
+        with contextlib.suppress(Exception):
             from src.engine.vram_monitor import get_vram_monitor
             vram_monitor = get_vram_monitor()
             vram_usage = vram_monitor.get_vram_usage()
             vram_before = vram_usage.get("used_mb", 0)
-        except Exception:
-            pass
 
         # Выгрузить модель
         await provider.unload_model()
 
         # Получить VRAM после выгрузки
         vram_after = 0
-        try:
-            vram_usage = vram_monitor.get_vram_usage()
-            vram_after = vram_usage.get("used_mb", 0)
-        except Exception:
-            pass
+        if vram_monitor:
+            with contextlib.suppress(Exception):
+                vram_usage = vram_monitor.get_vram_usage()
+                vram_after = vram_usage.get("used_mb", 0)
 
         vram_freed_mb = max(0, vram_before - vram_after)
 
         # Broadcast событие
-        try:
+        with contextlib.suppress(Exception):
             await broadcast_model_unloaded(model_name, vram_freed_mb)
-        except Exception:
-            pass
 
         logger.info(
             "Модель выгружена через API",
@@ -692,7 +681,6 @@ async def unload_model(model_name: str) -> dict:
 
 @router.get(
     "/download-status/{preset_name}",
-    response_model=DownloadStatusResponse,
     summary="Проверить статус загрузки модели",
     description=docs.DOWNLOAD_STATUS,
     responses={
@@ -861,8 +849,6 @@ async def _register_cloud_from_preset(preset: Any) -> ModelInfo:
         HTTPException: Если API ключ не найден
 
     """
-    import os
-
     # Получить config для provider
     config = preset.to_register_config()
 

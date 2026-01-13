@@ -6,13 +6,13 @@ Endpoints для мониторинга системы, GPU, очереди за
 import asyncio
 import shutil
 import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
 import psutil
 from fastapi import APIRouter, HTTPException, Response, status
 
-from src.docs import monitor as docs
 from src.api.schemas.responses import (
     ComponentHealth,
     ErrorResponse,
@@ -22,6 +22,7 @@ from src.api.schemas.responses import (
     SystemResources,
 )
 from src.core import HealthStatus, settings
+from src.docs import monitor as docs
 from src.engine.gpu_guard import get_gpu_guard
 from src.engine.vram_monitor import get_vram_monitor
 from src.providers.registry import get_provider_registry
@@ -38,7 +39,7 @@ _app_start_time = time.time()
 
 async def _check_component_health(
     name: str,
-    check_func: callable,
+    check_func: Callable[[], Awaitable[bool]],
     timeout: float = 5.0,
 ) -> ComponentHealth:
     """Проверить здоровье компонента с таймаутом.
@@ -115,7 +116,6 @@ def _get_system_resources() -> SystemResources:
 
 @router.get(
     "/health",
-    response_model=HealthCheckResponse,
     summary="Комплексная проверка состояния системы",
     description=docs.HEALTH_CHECK,
     responses={
@@ -257,7 +257,6 @@ async def health_check(response: Response) -> HealthCheckResponse:
 
 @router.get(
     "/gpu",
-    response_model=GPUStatsResponse,
     summary="Детальная статистика GPU",
     description=docs.GPU_STATS,
     responses={
@@ -327,7 +326,6 @@ async def get_gpu_stats() -> GPUStatsResponse:
 
 @router.get(
     "/logs",
-    response_model=dict,
     summary="Получить логи системы",
     description=docs.GET_LOGS,
     responses={
@@ -366,6 +364,7 @@ async def get_logs(
 
     Returns:
         Словарь с логами и метаданными
+
     """
     # Ограничить limit
     limit = min(limit, 1000)
@@ -404,7 +403,6 @@ async def get_logs(
 
 @router.get(
     "/queue",
-    response_model=QueueStatsResponse,
     summary="Статистика очереди задач",
     description=docs.QUEUE_STATS,
     responses={
@@ -441,7 +439,6 @@ async def get_queue_stats() -> QueueStatsResponse:
 
 @router.get(
     "/stats",
-    response_model=dict,
     summary="Дневная статистика сервиса",
     description=docs.DAILY_STATS,
     responses={
@@ -470,6 +467,7 @@ async def get_daily_stats(date: str | None = None) -> dict:
 
     Returns:
         Словарь со статистикой
+
     """
     from datetime import datetime as dt
 

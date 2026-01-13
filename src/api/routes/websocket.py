@@ -5,6 +5,7 @@ Real-time мониторинг через WebSocket согласно ТЗ (ра�
 """
 
 import asyncio
+import contextlib
 import time
 from typing import Any
 
@@ -41,6 +42,7 @@ class ConnectionManager:
         Args:
             websocket: WebSocket соединение
             connection_id: Уникальный ID соединения
+
         """
         await websocket.accept()
         async with self._lock:
@@ -56,6 +58,7 @@ class ConnectionManager:
 
         Args:
             connection_id: ID соединения
+
         """
         async with self._lock:
             self.active_connections.pop(connection_id, None)
@@ -70,6 +73,7 @@ class ConnectionManager:
         Args:
             connection_id: ID соединения
             events: Список типов событий
+
         """
         async with self._lock:
             if connection_id in self.subscriptions:
@@ -83,6 +87,7 @@ class ConnectionManager:
         Args:
             connection_id: ID соединения
             events: Список типов событий для отписки
+
         """
         async with self._lock:
             if connection_id in self.subscriptions:
@@ -96,6 +101,7 @@ class ConnectionManager:
         Args:
             connection_id: ID соединения
             task_id: ID задачи для фильтрации (None = все задачи)
+
         """
         async with self._lock:
             self.task_filters[connection_id] = task_id
@@ -112,23 +118,20 @@ class ConnectionManager:
 
         Returns:
             True если событие должно быть отправлено
+
         """
         subscriptions = self.subscriptions.get(connection_id, set())
 
         # Проверка подписки на тип события
-        if "*" not in subscriptions:
-            # Проверить точное совпадение или wildcard (task.*)
-            if event_type not in subscriptions:
-                prefix = event_type.split(".")[0] + ".*"
-                if prefix not in subscriptions:
-                    return False
+        if "*" not in subscriptions and event_type not in subscriptions:
+            # Проверить wildcard (task.*)
+            prefix = event_type.split(".")[0] + ".*"
+            if prefix not in subscriptions:
+                return False
 
         # Проверка фильтра по task_id
         task_filter = self.task_filters.get(connection_id)
-        if task_filter and task_id and task_id != task_filter:
-            return False
-
-        return True
+        return not (task_filter and task_id and task_id != task_filter)
 
     async def broadcast(
         self,
@@ -142,6 +145,7 @@ class ConnectionManager:
             event_type: Тип события
             data: Данные события
             task_id: ID задачи (для фильтрации)
+
         """
         message = orjson.dumps({
             "type": event_type,
@@ -179,6 +183,7 @@ class ConnectionManager:
         Args:
             connection_id: ID соединения
             message: Сообщение для отправки
+
         """
         async with self._lock:
             websocket = self.active_connections.get(connection_id)
@@ -207,6 +212,7 @@ def get_connection_manager() -> ConnectionManager:
 
     Returns:
         ConnectionManager instance
+
     """
     return manager
 
@@ -260,10 +266,9 @@ async def stop_broadcaster() -> None:
     global _broadcaster_task
     if _broadcaster_task and not _broadcaster_task.done():
         _broadcaster_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await _broadcaster_task
-        except asyncio.CancelledError:
-            pass
+        _broadcaster_task = None
         logger.info("GPU stats broadcaster остановлен")
 
 
@@ -396,6 +401,7 @@ async def broadcast_task_queued(task_id: str, model: str, priority: float) -> No
         task_id: ID задачи
         model: Название модели
         priority: Приоритет задачи
+
     """
     await manager.broadcast(
         "task.queued",
@@ -410,6 +416,7 @@ async def broadcast_task_started(task_id: str, model: str) -> None:
     Args:
         task_id: ID задачи
         model: Название модели
+
     """
     await manager.broadcast(
         "task.started",
@@ -429,6 +436,7 @@ async def broadcast_task_progress(
         task_id: ID задачи
         tokens_generated: Количество сгенерированных токенов
         partial_text: Частичный текст (для streaming)
+
     """
     data: dict[str, Any] = {
         "task_id": task_id,
@@ -453,6 +461,7 @@ async def broadcast_task_completed(
         model: Название модели
         tokens_used: Использовано токенов
         duration_ms: Время выполнения в мс
+
     """
     await manager.broadcast(
         "task.completed",
@@ -473,6 +482,7 @@ async def broadcast_task_failed(task_id: str, model: str, error: str) -> None:
         task_id: ID задачи
         model: Название модели
         error: Сообщение об ошибке
+
     """
     await manager.broadcast(
         "task.failed",
@@ -487,6 +497,7 @@ async def broadcast_model_loaded(model_name: str, vram_used_mb: int) -> None:
     Args:
         model_name: Название модели
         vram_used_mb: Использовано VRAM в MB
+
     """
     await manager.broadcast(
         "model.loaded",
@@ -500,6 +511,7 @@ async def broadcast_model_unloaded(model_name: str, vram_freed_mb: int) -> None:
     Args:
         model_name: Название модели
         vram_freed_mb: Освобождено VRAM в MB
+
     """
     await manager.broadcast(
         "model.unloaded",
@@ -514,6 +526,7 @@ async def broadcast_log(level: str, message: str, task_id: str | None = None) ->
         level: Уровень лога (INFO, WARNING, ERROR, etc.)
         message: Сообщение
         task_id: ID задачи (опционально)
+
     """
     data: dict[str, Any] = {"level": level, "message": message}
     if task_id:

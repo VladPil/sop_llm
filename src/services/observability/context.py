@@ -33,6 +33,8 @@ async def trace_context(
     session_id: str | None = None,
     metadata: dict[str, Any] | None = None,
     tags: list[str] | None = None,
+    input_data: Any = None,
+    output_data: Any = None,
 ) -> AsyncGenerator[None, None]:
     """Создает новый Langfuse trace context.
 
@@ -45,6 +47,8 @@ async def trace_context(
         session_id: ID сессии для группировки связанных traces.
         metadata: Дополнительные метаданные (task_id, request_id и т.д.).
         tags: Теги для классификации traces.
+        input_data: Входные данные для trace.
+        output_data: Выходные данные для trace.
 
     Yields:
         None
@@ -70,6 +74,8 @@ async def trace_context(
             session_id=session_id,
             metadata=metadata or {},
             tags=tags or [],
+            input=input_data,
+            output=output_data,
         )
 
         # Сохраняем trace ID в context variable

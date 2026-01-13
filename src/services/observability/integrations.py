@@ -18,6 +18,7 @@ def configure_litellm_callbacks() -> None:
 
     Note:
         Должна вызываться после инициализации Langfuse клиента.
+        Требует Langfuse v2 и langfuse SDK <3.0.0.
 
     Raises:
         ImportError: Если LiteLLM не установлен.
@@ -35,6 +36,7 @@ def configure_litellm_callbacks() -> None:
         import litellm
 
         # Включаем Langfuse callback для автоматического трейсинга
+        # Используем langfuse v2 SDK совместимый с litellm
         litellm.success_callback = ["langfuse"]
         litellm.failure_callback = ["langfuse"]
 

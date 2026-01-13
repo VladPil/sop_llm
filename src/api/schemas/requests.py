@@ -20,6 +20,19 @@ from src.core.constants import (
 from src.core.enums import ProviderType
 
 
+class ChatMessageRequest(BaseModel):
+    """Сообщение в формате Chat Completions API."""
+
+    role: str = Field(
+        description="Роль отправителя: system, user, assistant",
+        examples=["user", "assistant", "system"],
+    )
+    content: str = Field(
+        description="Содержание сообщения",
+        min_length=1,
+    )
+
+
 class CreateTaskRequest(BaseModel):
     """Запрос на создание задачи генерации текста.
 
@@ -31,13 +44,25 @@ class CreateTaskRequest(BaseModel):
     {"model": "gpt-4-turbo", "prompt": "Привет, как дела?"}
     ```
 
-    ## Запрос с параметрами генерации
+    ## Запрос с контекстом диалога (multi-turn)
     ```json
     {
         "model": "claude-3.5-sonnet",
-        "prompt": "Напиши короткую историю",
-        "temperature": 0.8,
-        "max_tokens": 2000
+        "conversation_id": "conv_abc123",
+        "prompt": "А что насчёт Python?"
+    }
+    ```
+
+    ## Запрос с явной историей сообщений
+    ```json
+    {
+        "model": "gpt-4-turbo",
+        "messages": [
+            {"role": "system", "content": "Ты - помощник программиста"},
+            {"role": "user", "content": "Напиши функцию сортировки"},
+            {"role": "assistant", "content": "def sort_list(lst): ..."},
+            {"role": "user", "content": "Добавь документацию"}
+        ]
     }
     ```
 
@@ -119,10 +144,12 @@ class CreateTaskRequest(BaseModel):
         json_schema_extra={"x-available-models": "GET /api/v1/models/"},
     )
 
-    prompt: str = Field(
+    prompt: str | None = Field(
+        default=None,
         description=(
             "Текст промпта для генерации. Может содержать системные инструкции, "
-            "контекст и вопрос пользователя. Поддерживает markdown форматирование."
+            "контекст и вопрос пользователя. Поддерживает markdown форматирование.\n\n"
+            "**Примечание:** Используйте либо prompt, либо messages, но не оба."
         ),
         min_length=1,
         examples=[
@@ -130,6 +157,55 @@ class CreateTaskRequest(BaseModel):
             "Ты — опытный Python разработчик. Напиши unit-тесты для функции calculate_tax()",
             "Переведи на английский: 'Привет, как дела?'",
         ],
+    )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MULTI-TURN CONVERSATIONS
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    conversation_id: str | None = Field(
+        default=None,
+        description=(
+            "ID существующего диалога для продолжения. При указании conversation_id "
+            "система автоматически загрузит историю сообщений и добавит prompt как "
+            "новое сообщение пользователя.\n\n"
+            "**Создание диалога:** POST /api/v1/conversations/\n"
+            "**Получение списка:** GET /api/v1/conversations/"
+        ),
+        examples=["conv_abc123def456", "conv_xyz789"],
+        pattern=r"^conv_[a-f0-9]+$",
+    )
+
+    messages: list[ChatMessageRequest] | None = Field(
+        default=None,
+        description=(
+            "Явная история сообщений в формате Chat Completions API. "
+            "Используйте для полного контроля над контекстом диалога.\n\n"
+            "**Формат сообщения:**\n"
+            "• `role`: system | user | assistant\n"
+            "• `content`: текст сообщения\n\n"
+            "**Примечание:** При указании messages поле prompt игнорируется."
+        ),
+        examples=[
+            [
+                {"role": "system", "content": "Ты - полезный ассистент"},
+                {"role": "user", "content": "Привет!"},
+            ],
+            [
+                {"role": "user", "content": "Что такое Python?"},
+                {"role": "assistant", "content": "Python - это язык программирования..."},
+                {"role": "user", "content": "Приведи пример кода"},
+            ],
+        ],
+    )
+
+    save_to_conversation: bool = Field(
+        default=True,
+        description=(
+            "Сохранять ли результат в историю диалога (если указан conversation_id). "
+            "При False запрос использует контекст, но не добавляет новые сообщения."
+        ),
+        examples=[True, False],
     )
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -410,7 +486,7 @@ class CreateTaskRequest(BaseModel):
         default=None,
         description=(
             "[Intake-style] Конфигурация провайдера. "
-            "Пример: {\"model_name\": \"gpt-4\", \"temperature\": 0.7}"
+            'Пример: {"model_name": "gpt-4", "temperature": 0.7}'
         ),
     )
 
@@ -418,7 +494,7 @@ class CreateTaskRequest(BaseModel):
         default=None,
         description=(
             "[Intake-style] Параметры генерации. "
-            "Пример: {\"max_tokens\": 1024, \"top_p\": 0.9}"
+            'Пример: {"max_tokens": 1024, "top_p": 0.9}'
         ),
     )
 
@@ -427,7 +503,7 @@ class CreateTaskRequest(BaseModel):
         description=(
             "Дополнительные provider-specific параметры. "
             "Передаются напрямую в API провайдера без изменений. "
-            "Пример для OpenAI: {\"logprobs\": true, \"top_logprobs\": 5}"
+            'Пример для OpenAI: {"logprobs": true, "top_logprobs": 5}'
         ),
         examples=[
             {"logprobs": True, "top_logprobs": 5},
@@ -784,6 +860,132 @@ class RegisterFromPresetRequest(BaseModel):
             "• `fp16` — полная точность, максимальный размер"
         ),
         examples=["q4_k_m", "q5_k_m", "q8_0", "fp16"],
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONVERSATION REQUESTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class CreateConversationRequest(BaseModel):
+    """Запрос на создание нового диалога.
+
+    Создаёт диалог для хранения истории сообщений (multi-turn conversations).
+
+    ## Минимальный запрос
+    ```json
+    {}
+    ```
+
+    ## Запрос с системным промптом
+    ```json
+    {
+        "system_prompt": "Ты - опытный Python разработчик",
+        "model": "claude-3.5-sonnet"
+    }
+    ```
+
+    ## Запрос с метаданными
+    ```json
+    {
+        "system_prompt": "Ты - ассистент по продажам",
+        "model": "gpt-4-turbo",
+        "metadata": {
+            "user_id": "user_123",
+            "session_type": "support"
+        }
+    }
+    ```
+    """
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {},
+                {
+                    "system_prompt": "Ты - опытный Python разработчик",
+                    "model": "claude-3.5-sonnet",
+                },
+                {
+                    "system_prompt": "Ты - ассистент по продажам",
+                    "model": "gpt-4-turbo",
+                    "metadata": {"user_id": "user_123"},
+                },
+            ]
+        }
+    }
+
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Модель по умолчанию для диалога. Если указана, будет использоваться "
+            "для всех запросов в диалоге, если не переопределена в CreateTaskRequest."
+        ),
+        examples=["gpt-4-turbo", "claude-3.5-sonnet"],
+    )
+
+    system_prompt: str | None = Field(
+        default=None,
+        description=(
+            "Системный промпт для диалога. Добавляется как первое сообщение "
+            "и отправляется с каждым запросом в контексте."
+        ),
+        examples=[
+            "Ты - полезный ассистент",
+            "Ты - опытный Python разработчик. Пиши чистый, документированный код.",
+        ],
+    )
+
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Дополнительные метаданные для диалога. Можно использовать для "
+            "хранения user_id, session_type, tags и других custom полей."
+        ),
+        examples=[
+            {"user_id": "user_123"},
+            {"session_type": "support", "priority": "high"},
+        ],
+    )
+
+
+class UpdateConversationRequest(BaseModel):
+    """Запрос на обновление диалога.
+
+    PATCH /api/v1/conversations/{conversation_id}
+    """
+
+    model: str | None = Field(
+        default=None,
+        description="Новая модель по умолчанию",
+    )
+
+    system_prompt: str | None = Field(
+        default=None,
+        description="Новый системный промпт",
+    )
+
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Новые метаданные (полностью заменяют старые)",
+    )
+
+
+class AddMessageRequest(BaseModel):
+    """Запрос на добавление сообщения в диалог.
+
+    POST /api/v1/conversations/{conversation_id}/messages
+    """
+
+    role: str = Field(
+        description="Роль: system, user, assistant",
+        examples=["user", "assistant", "system"],
+    )
+
+    content: str = Field(
+        description="Текст сообщения",
+        min_length=1,
     )
 
 
