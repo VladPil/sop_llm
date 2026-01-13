@@ -283,7 +283,7 @@ class CompatibilityChecker:
         return compatible
 
 
-# === Initialize + Get паттерн ===
+# Initialize + Get паттерн
 
 _compatibility_checker: CompatibilityChecker | None = None
 

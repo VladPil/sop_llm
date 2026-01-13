@@ -69,7 +69,8 @@ def wait_for_task(client: httpx.Client, task_id: str, timeout: int = 60) -> dict
 
         time.sleep(1)
 
-    raise TimeoutError(f"Task {task_id} did not complete in {timeout}s")
+    msg = f"Task {task_id} did not complete in {timeout}s"
+    raise TimeoutError(msg)
 
 
 @pytest.mark.integration

@@ -27,7 +27,7 @@ GLOBAL_DEFAULTS: dict[str, Any] = {
 
 # Model-specific defaults (переопределяют GLOBAL_DEFAULTS)
 MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
-    # === OpenAI Models ===
+    # OpenAI Models
     "gpt-4": {
         "temperature": 0.7,  # GPT-4 лучше работает с более высокой температурой
         "max_tokens": 4096,  # Большой context window
@@ -43,7 +43,7 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
         "max_tokens": 4096,
         "top_p": 1.0,
     },
-    # === Anthropic Models ===
+    # Anthropic Models
     "claude-3-opus": {
         "temperature": 1.0,  # Claude рекомендует 1.0 для большинства задач
         "max_tokens": 4096,
@@ -59,7 +59,7 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
         "max_tokens": 4096,
         "top_p": 1.0,
     },
-    # === Local Models (llama.cpp) ===
+    # Local Models (llama.cpp)
     "qwen2.5-7b-instruct": {
         "temperature": 0.7,
         "max_tokens": 2048,
@@ -78,7 +78,7 @@ MODEL_DEFAULTS: dict[str, dict[str, Any]] = {
         "top_p": 0.9,
         "top_k": 40,
     },
-    # === Generic patterns (prefix matching) ===
+    # Generic patterns (prefix matching)
     "gpt-": {  # Любая модель начинающаяся с "gpt-"
         "temperature": 0.7,
         "max_tokens": 4096,

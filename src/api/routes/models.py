@@ -4,7 +4,6 @@ Endpoints для управления моделями и provider registry.
 """
 
 import contextlib
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -17,7 +16,6 @@ from src.api.schemas.requests import (
 from src.api.schemas.responses import (
     CloudPresetInfo,
     CompatibilityResponse,
-    DownloadStatusResponse,
     EmbeddingPresetInfo,
     ErrorResponse,
     LocalPresetInfo,
@@ -26,10 +24,8 @@ from src.api.schemas.responses import (
     PresetsListResponse,
 )
 from src.core import ProviderType
-from src.core.config import settings
 from src.core.dependencies import (
     CompatibilityCheckerDep,
-    ModelDownloaderDep,
     PresetsLoaderDep,
 )
 from src.docs import models as docs
@@ -98,7 +94,7 @@ async def list_models() -> ModelsListResponse:
     )
 
 
-# === Model Presets Endpoints (должны быть ПЕРЕД /{model_name}) ===
+# Model Presets Endpoints (должны быть ПЕРЕД /{model_name})
 
 
 @router.get(
@@ -375,7 +371,6 @@ async def unregister_model(
 async def register_from_preset(
     request: RegisterFromPresetRequest,
     loader: PresetsLoaderDep,
-    downloader: ModelDownloaderDep,
     checker: CompatibilityCheckerDep,
 ) -> ModelInfo:
     """Зарегистрировать модель из YAML пресета.
@@ -383,7 +378,6 @@ async def register_from_preset(
     Args:
         request: Параметры регистрации
         loader: ModelPresetsLoader dependency
-        downloader: ModelDownloader dependency
         checker: CompatibilityChecker dependency
 
     Returns:
@@ -391,6 +385,10 @@ async def register_from_preset(
 
     Raises:
         HTTPException: 404 если пресет не найден, 409 если модель уже зарегистрирована
+
+    Note:
+        Локальные GGUF модели больше не поддерживаются напрямую.
+        Используйте Ollama для локальных моделей (ollama/model_name).
 
     """
     registry = get_provider_registry()
@@ -405,12 +403,14 @@ async def register_from_preset(
     # Попробовать найти локальный пресет
     local_preset = loader.get_local_preset(request.preset_name)
     if local_preset:
-        return await _register_local_from_preset(
-            preset=local_preset,
-            downloader=downloader,
-            checker=checker,
-            auto_download=request.auto_download,
-            quantization=request.quantization,
+        # Локальные GGUF модели теперь обслуживаются через Ollama
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Локальные GGUF модели больше не поддерживаются напрямую. "
+                f"Используйте Ollama: ollama pull {local_preset.name}, "
+                f"затем зарегистрируйте через /register с model_name='ollama/{local_preset.name}'"
+            ),
         )
 
     # Попробовать найти облачный пресет
@@ -419,13 +419,12 @@ async def register_from_preset(
         return await _register_cloud_from_preset(preset=cloud_preset)
 
     # Пресет не найден
-    available_local = ", ".join(loader.list_local_names()[:5]) or "нет"
-    available_cloud = ", ".join(loader.list_cloud_names()[:5]) or "нет"
+    available_cloud = ", ".join(loader.list_cloud_names()[:10]) or "нет"
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=(
             f"Пресет '{request.preset_name}' не найден. "
-            f"Локальные: {available_local}... Облачные: {available_cloud}..."
+            f"Доступные облачные модели: {available_cloud}..."
         ),
     )
 
@@ -681,159 +680,31 @@ async def unload_model(model_name: str) -> dict:
 
 @router.get(
     "/download-status/{preset_name}",
-    summary="Проверить статус загрузки модели",
-    description=docs.DOWNLOAD_STATUS,
+    summary="[DEPRECATED] Проверить статус загрузки модели",
+    description="Этот endpoint устарел. Локальные модели теперь обслуживаются через Ollama.",
     responses={
-        200: {"description": "Статус загрузки модели"},
-        404: {"model": ErrorResponse, "description": "Локальный пресет не найден"},
+        410: {"model": ErrorResponse, "description": "Функционал удалён"},
     },
+    deprecated=True,
 )
-async def get_download_status(
-    preset_name: str,
-    loader: PresetsLoaderDep,
-    downloader: ModelDownloaderDep,
-) -> DownloadStatusResponse:
-    """Получить статус загрузки модели.
+async def get_download_status(preset_name: str) -> dict:
+    """Устаревший endpoint для проверки статуса загрузки.
 
-    Args:
-        preset_name: Имя пресета
-        loader: ModelPresetsLoader dependency
-        downloader: ModelDownloader dependency
-
-    Returns:
-        DownloadStatusResponse со статусом загрузки
-
-    Raises:
-        HTTPException: 404 если пресет не найден
+    Note:
+        Локальные GGUF модели теперь обслуживаются через Ollama.
+        HuggingFace downloader удалён.
 
     """
-    preset = loader.get_local_preset(preset_name)
-    if not preset:
-        available = ", ".join(loader.list_local_names()[:10]) or "нет"
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                f"Локальный пресет '{preset_name}' не найден. "
-                f"Доступные: {available}"
-            ),
-        )
-
-    # Проверить локально
-    exists, local_path = downloader.model_exists(preset.filename)
-    file_size_mb = 0.0
-    if exists and local_path:
-        file_size_mb = local_path.stat().st_size / (1024**2)
-
-    # Проверить на HuggingFace
-    available_on_hf, _ = await downloader.check_availability(
-        preset.huggingface_repo,
-        preset.filename,
-    )
-
-    return DownloadStatusResponse(
-        preset_name=preset_name,
-        exists_locally=exists,
-        local_path=str(local_path) if local_path else None,
-        file_size_mb=file_size_mb,
-        available_on_hf=available_on_hf,
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Функционал загрузки моделей с HuggingFace удалён. "
+            "Используйте Ollama для локальных моделей: ollama pull model_name"
+        ),
     )
 
 
-# === Helper Functions for Preset Registration ===
-
-
-async def _register_local_from_preset(
-    preset: Any,
-    downloader: Any,
-    checker: Any,
-    auto_download: bool,
-    quantization: str | None,
-) -> ModelInfo:
-    """Зарегистрировать локальную модель из пресета.
-
-    Args:
-        preset: LocalModelPreset
-        downloader: ModelDownloader
-        checker: CompatibilityChecker
-        auto_download: Автоскачивание
-        quantization: Переопределение квантизации
-
-    Returns:
-        ModelInfo зарегистрированной модели
-
-    Raises:
-        HTTPException: Если модель недоступна или несовместима
-
-    """
-    # Проверить совместимость (warning, не блокировка)
-    compat = checker.check_compatibility(preset, quantization)
-    if not compat.compatible:
-        logger.warning(
-            "Модель может не поместиться в VRAM",
-            model=preset.name,
-            required_mb=compat.required_vram_mb,
-            available_mb=compat.available_vram_mb,
-            recommended=compat.recommended_quantization,
-        )
-
-    # Скачать если нужно
-    if auto_download:
-        result = await downloader.download_if_needed(preset)
-        if not result.success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ошибка загрузки модели: {result.error_message}",
-            )
-        model_path = result.local_path
-    else:
-        # Проверить что модель есть локально
-        exists, model_path = downloader.model_exists(preset.filename)
-        if not exists:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Модель '{preset.filename}' не найдена локально. "
-                    "Установите auto_download=true для автоскачивания"
-                ),
-            )
-
-    # Создать config для provider
-    models_dir = Path(settings.models_dir)
-    config = preset.to_register_config(models_dir)
-
-    # Создать и зарегистрировать provider
-    provider = await local.create_local_provider(
-        model_name=preset.name,
-        model_path=config["model_path"],
-        context_window=config["context_window"],
-        gpu_layers=config["gpu_layers"],
-    )
-
-    registry = get_provider_registry()
-    registry.register(preset.name, provider)
-
-    info = await provider.get_model_info()
-
-    logger.info(
-        "Локальная модель зарегистрирована из пресета",
-        model=preset.name,
-        path=str(model_path),
-        compatible=compat.compatible,
-    )
-
-    return ModelInfo(
-        name=info.name,
-        provider=info.provider,
-        context_window=info.context_window,
-        max_output_tokens=info.max_output_tokens,
-        supports_streaming=info.supports_streaming,
-        supports_structured_output=info.supports_structured_output,
-        loaded=info.loaded,
-        extra={
-            **info.extra,
-            "compatibility_warning": compat.warning,
-        },
-    )
+# Helper Functions for Preset Registration
 
 
 async def _register_cloud_from_preset(preset: Any) -> ModelInfo:

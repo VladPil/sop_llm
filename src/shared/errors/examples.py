@@ -17,9 +17,7 @@ from src.shared.errors import (
     map_exception,
 )
 
-# ============================================================================
 # Пример 1: Базовое использование AppException
-# ============================================================================
 
 
 class CustomBusinessError(AppException):
@@ -54,9 +52,7 @@ def example_basic_exception() -> None:
     assert response.details == {"user_id": 123, "action": "update"}
 
 
-# ============================================================================
 # Пример 2: Стандартные доменные ошибки
-# ============================================================================
 
 
 def example_domain_errors() -> None:
@@ -83,9 +79,7 @@ def example_domain_errors() -> None:
         assert e.code == "not_found_error"
 
 
-# ============================================================================
 # Пример 3: LLM-специфичные ошибки
-# ============================================================================
 
 
 def example_llm_errors() -> None:
@@ -127,9 +121,7 @@ def example_llm_errors() -> None:
         assert "Connection timeout" in e.message
 
 
-# ============================================================================
 # Пример 4: Маппинг инфраструктурных ошибок
-# ============================================================================
 
 
 def example_exception_mapping() -> None:
@@ -146,9 +138,7 @@ def example_exception_mapping() -> None:
         assert "duplicate key value" in e.message
 
 
-# ============================================================================
 # Пример 5: Интеграция с FastAPI
-# ============================================================================
 
 
 def example_fastapi_integration() -> dict[str, Any]:
@@ -188,9 +178,7 @@ def example_fastapi_integration() -> dict[str, Any]:
     return {"handler": app_exception_handler, "endpoint": get_user_endpoint}
 
 
-# ============================================================================
 # Пример 6: Расширение ExceptionMapper
-# ============================================================================
 
 
 def example_custom_mapping() -> None:
@@ -219,9 +207,7 @@ def example_custom_mapping() -> None:
         assert "Infrastructure failure" in e.message
 
 
-# ============================================================================
 # Пример 7: Обработка ошибок в сервисном слое
-# ============================================================================
 
 
 async def example_service_layer() -> None:

@@ -189,6 +189,7 @@ class LiteLLMProvider:
         prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
         params: GenerationParams | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> GenerationResult:
         """Сгенерировать текст используя LiteLLM (без streaming).
 
@@ -196,6 +197,7 @@ class LiteLLMProvider:
             prompt: Простой текстовый промпт
             messages: Сообщения чата в формате OpenAI
             params: Параметры генерации
+            metadata: Метаданные для Langfuse (session_id, trace_name, etc.)
 
         Returns:
             Результат генерации с текстом и метаданными
@@ -211,16 +213,23 @@ class LiteLLMProvider:
 
             logger.debug(f"LiteLLM генерация: model={self.model_name}, messages={len(messages_list)}")
 
-            response: ModelResponse = await acompletion(
-                model=self.model_name,
-                messages=messages_list,
-                api_key=self.api_key,
-                base_url=self.base_url,
-                timeout=self.timeout,
-                stream=False,
+            # Подготовить kwargs для acompletion
+            completion_kwargs: dict[str, Any] = {
+                "model": self.model_name,
+                "messages": messages_list,
+                "api_key": self.api_key,
+                "base_url": self.base_url,
+                "timeout": self.timeout,
+                "stream": False,
                 **litellm_params,
                 **self.extra_params,
-            )
+            }
+
+            # Добавить metadata для Langfuse (session_id, trace_name, etc.)
+            if metadata:
+                completion_kwargs["metadata"] = metadata
+
+            response: ModelResponse = await acompletion(**completion_kwargs)
 
             # Извлечь содержимое ответа
             choice = response.choices[0]

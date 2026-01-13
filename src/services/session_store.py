@@ -351,7 +351,7 @@ class SessionStore:
             logger.exception("Redis недоступен", error=str(e))
             return False
 
-    # === GPU Cache (согласно ТЗ) ===
+    # GPU Cache (согласно ТЗ)
 
     async def cache_gpu_stats(self, stats: dict[str, Any]) -> None:
         """Кэшировать GPU статистику.
@@ -375,7 +375,7 @@ class SessionStore:
             return orjson.loads(data)
         return None
 
-    # === Daily Statistics (согласно ТЗ) ===
+    # Daily Statistics (согласно ТЗ)
 
     async def increment_daily_stat(self, stat_name: str, increment: int = 1) -> None:
         """Инкрементировать дневную статистику.

@@ -47,6 +47,7 @@ class TaskExecutor:
         prompt: str | None,
         params: GenerationParams,
         messages: list[ChatMessage] | None = None,
+        conversation_id: str | None = None,
     ) -> GenerationResult:
         """Выполнить задачу генерации.
 
@@ -56,6 +57,7 @@ class TaskExecutor:
             prompt: Промпт для генерации (или None если используются messages)
             params: Параметры генерации
             messages: Сообщения для multi-turn conversations (опционально)
+            conversation_id: ID диалога для Langfuse session tracking (опционально)
 
         Returns:
             GenerationResult с результатом
@@ -67,6 +69,7 @@ class TaskExecutor:
         Note:
             Выполняется в Langfuse trace контексте для observability.
             Можно использовать либо prompt, либо messages.
+            conversation_id передаётся в Langfuse как session_id.
 
         """
         input_preview = prompt[:100] if prompt else f"[{len(messages or [])} messages]"
@@ -79,11 +82,12 @@ class TaskExecutor:
             params=params.model_dump(exclude={"extra"}),
         )
 
-        # Создать Langfuse trace для задачи
+        # Создать Langfuse trace для задачи (conversation_id = session_id)
         async with trace_context(
             name="task_execution",
             input_data={"task_id": task_id, "model": model, "input": input_preview},
             metadata={"task_id": task_id, "model": model},
+            session_id=conversation_id,
         ):
             # Получить provider
             try:
@@ -103,12 +107,16 @@ class TaskExecutor:
                     model_name=model,
                 ) from e
 
-            # Выполнить генерацию
+            # Выполнить генерацию (передаём metadata для Langfuse)
             try:
+                # Metadata для Langfuse session tracking
+                langfuse_metadata = {"session_id": conversation_id} if conversation_id else None
+
                 result = await provider.generate(
                     prompt=prompt,
                     messages=messages,
                     params=params,
+                    metadata=langfuse_metadata,
                 )
 
                 logger.info(

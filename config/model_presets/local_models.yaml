@@ -1,139 +1,24 @@
-# Пресеты локальных GGUF моделей
+# Пресеты локальных GGUF моделей (прямая загрузка через llama-cpp-python)
 #
-# Поля точно маппятся в LocalProvider (src/providers/local.py):
-# - provider_config.model_path -> LocalProvider.model_path
-# - provider_config.context_window -> LocalProvider.context_window
-# - provider_config.gpu_layers -> LocalProvider.gpu_layers
+# ВАЖНО: Для локальных GPU моделей рекомендуется использовать Ollama.
+# Ollama модели находятся в cloud_models.yaml (секция Ollama).
 #
-# vram_requirements содержит требования VRAM в MB для разных квантизаций.
-# Используется для проверки совместимости с GPU.
+# Этот файл используется только для прямой работы с GGUF файлами
+# без Ollama, например для специфичных квантизаций или кастомных моделей.
+#
+# Для использования Ollama моделей:
+# 1. Запустить: make up-gpu
+# 2. Модели доступны как: qwen2.5:7b, llama3.1:8b, mistral:7b и др.
 
-models:
-  # === Qwen 2.5 Series ===
-
-  - name: "qwen2.5-3b-instruct"
-    huggingface_repo: "Qwen/Qwen2.5-3B-Instruct-GGUF"
-    filename: "qwen2.5-3b-instruct-q4_k_m.gguf"
-    size_b: 3
-    vram_requirements:
-      q4_k_m: 2500
-      q5_k_m: 3000
-      q8_0: 4000
-      fp16: 6000
-    provider_config:
-      context_window: 32768
-      gpu_layers: -1
-
-  - name: "qwen2.5-7b-instruct"
-    huggingface_repo: "Qwen/Qwen2.5-7B-Instruct-GGUF"
-    filename: "qwen2.5-7b-instruct-q4_k_m.gguf"
-    size_b: 7
-    vram_requirements:
-      q4_k_m: 5500
-      q5_k_m: 6500
-      q8_0: 9000
-      fp16: 14000
-    provider_config:
-      context_window: 32768
-      gpu_layers: -1
-
-  - name: "qwen2.5-14b-instruct"
-    huggingface_repo: "Qwen/Qwen2.5-14B-Instruct-GGUF"
-    filename: "qwen2.5-14b-instruct-q4_k_m.gguf"
-    size_b: 14
-    vram_requirements:
-      q4_k_m: 10500
-      q5_k_m: 12500
-      q8_0: 17000
-      fp16: 28000
-    provider_config:
-      context_window: 32768
-      gpu_layers: -1
-
-  # === Qwen 2.5 Coder Series ===
-
-  - name: "qwen2.5-coder-7b-instruct"
-    huggingface_repo: "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
-    filename: "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
-    size_b: 7
-    vram_requirements:
-      q4_k_m: 5500
-      q5_k_m: 6500
-      q8_0: 9000
-      fp16: 14000
-    provider_config:
-      context_window: 32768
-      gpu_layers: -1
-
-  # === LLaMA 3.2 Series ===
-
-  - name: "llama-3.2-3b-instruct"
-    huggingface_repo: "bartowski/Llama-3.2-3B-Instruct-GGUF"
-    filename: "Llama-3.2-3B-Instruct-Q4_K_M.gguf"
-    size_b: 3
-    vram_requirements:
-      q4_k_m: 2500
-      q5_k_m: 3000
-      q8_0: 4000
-      fp16: 6000
-    provider_config:
-      context_window: 131072
-      gpu_layers: -1
-
-  - name: "llama-3.2-8b-instruct"
-    huggingface_repo: "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
-    filename: "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    size_b: 8
-    vram_requirements:
-      q4_k_m: 6000
-      q5_k_m: 7000
-      q8_0: 10000
-      fp16: 16000
-    provider_config:
-      context_window: 131072
-      gpu_layers: -1
-
-  # === Mistral Series ===
-
-  - name: "mistral-7b-instruct-v0.3"
-    huggingface_repo: "bartowski/Mistral-7B-Instruct-v0.3-GGUF"
-    filename: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf"
-    size_b: 7
-    vram_requirements:
-      q4_k_m: 5500
-      q5_k_m: 6500
-      q8_0: 9000
-      fp16: 14000
-    provider_config:
-      context_window: 32768
-      gpu_layers: -1
-
-  # === Phi Series ===
-
-  - name: "phi-3-mini-4k-instruct"
-    huggingface_repo: "bartowski/Phi-3-mini-4k-instruct-GGUF"
-    filename: "Phi-3-mini-4k-instruct-Q4_K_M.gguf"
-    size_b: 3.8
-    vram_requirements:
-      q4_k_m: 2800
-      q5_k_m: 3300
-      q8_0: 4500
-      fp16: 7600
-    provider_config:
-      context_window: 4096
-      gpu_layers: -1
-
-  # === Gemma Series ===
-
-  - name: "gemma-2-9b-it"
-    huggingface_repo: "bartowski/gemma-2-9b-it-GGUF"
-    filename: "gemma-2-9b-it-Q4_K_M.gguf"
-    size_b: 9
-    vram_requirements:
-      q4_k_m: 6500
-      q5_k_m: 7500
-      q8_0: 11000
-      fp16: 18000
-    provider_config:
-      context_window: 8192
-      gpu_layers: -1
+models: []
+# Примеры прямых GGUF моделей (раскомментировать при необходимости):
+#
+#  - name: "custom-qwen-q8"
+#    huggingface_repo: "Qwen/Qwen2.5-7B-Instruct-GGUF"
+#    filename: "qwen2.5-7b-instruct-q8_0.gguf"
+#    size_b: 7
+#    vram_requirements:
+#      default: 9000
+#    provider_config:
+#      context_window: 32768
+#      gpu_layers: -1

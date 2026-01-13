@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from src.core.enums import FinishReason, HealthStatus, ProviderType, TaskStatus
 
-# === Типизированные вложенные модели для лучшей Swagger документации ===
+# Типизированные вложенные модели для лучшей Swagger документации
 
 
 class TokenUsage(BaseModel):
@@ -367,7 +367,7 @@ class ErrorResponse(BaseModel):
     )
 
 
-# === Model Presets Responses ===
+# Model Presets Responses
 
 
 class CompatibilityResponse(BaseModel):
@@ -565,7 +565,7 @@ class DownloadStatusResponse(BaseModel):
     )
 
 
-# === Conversation Responses ===
+# Conversation Responses
 
 
 class ConversationMessage(BaseModel):

@@ -168,3 +168,92 @@ models:
       model_name: "deepseek/deepseek-chat"
       timeout: 300
       max_retries: 3
+
+  # =============================================================================
+  # Ollama (локальные GPU модели через LiteLLM)
+  # =============================================================================
+  # Ollama автоматически скачивает модели при первом использовании.
+  # Требуется запущенный Ollama сервер (docker-compose.gpu.yml)
+  # Документация: https://docs.litellm.ai/docs/providers/ollama
+
+  # === Qwen 2.5 Series ===
+
+  - name: "qwen2.5:3b"
+    provider: "ollama"
+    description: "Qwen 2.5 3B - компактная модель для простых задач (GPU)"
+    provider_config:
+      model_name: "ollama/qwen2.5:3b"
+      timeout: 300
+      max_retries: 2
+
+  - name: "qwen2.5:7b"
+    provider: "ollama"
+    description: "Qwen 2.5 7B - универсальная модель (GPU)"
+    provider_config:
+      model_name: "ollama/qwen2.5:7b"
+      timeout: 300
+      max_retries: 2
+
+  - name: "qwen2.5:14b"
+    provider: "ollama"
+    description: "Qwen 2.5 14B - мощная модель для сложных задач (GPU)"
+    provider_config:
+      model_name: "ollama/qwen2.5:14b"
+      timeout: 600
+      max_retries: 2
+
+  - name: "qwen2.5-coder:7b"
+    provider: "ollama"
+    description: "Qwen 2.5 Coder 7B - специализированная модель для кода (GPU)"
+    provider_config:
+      model_name: "ollama/qwen2.5-coder:7b"
+      timeout: 300
+      max_retries: 2
+
+  # === LLaMA Series ===
+
+  - name: "llama3.2:3b"
+    provider: "ollama"
+    description: "LLaMA 3.2 3B - быстрая модель от Meta (GPU)"
+    provider_config:
+      model_name: "ollama/llama3.2:3b"
+      timeout: 300
+      max_retries: 2
+
+  - name: "llama3.1:8b"
+    provider: "ollama"
+    description: "LLaMA 3.1 8B - универсальная модель от Meta (GPU)"
+    provider_config:
+      model_name: "ollama/llama3.1:8b"
+      timeout: 300
+      max_retries: 2
+
+  # === Mistral Series ===
+
+  - name: "mistral:7b"
+    provider: "ollama"
+    description: "Mistral 7B - эффективная модель (GPU)"
+    provider_config:
+      model_name: "ollama/mistral:7b"
+      timeout: 300
+      max_retries: 2
+
+  # === Gemma Series ===
+
+  - name: "gemma2:9b"
+    provider: "ollama"
+    description: "Gemma 2 9B - модель от Google (GPU)"
+    provider_config:
+      model_name: "ollama/gemma2:9b"
+      timeout: 300
+      max_retries: 2
+
+  # === DeepSeek Coder Local ===
+
+  - name: "deepseek-coder-v2:16b"
+    provider: "ollama"
+    description: "DeepSeek Coder V2 16B - мощная модель для кода (GPU)"
+    provider_config:
+      model_name: "ollama/deepseek-coder-v2:16b"
+      timeout: 600
+      max_retries: 2

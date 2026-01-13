@@ -130,7 +130,7 @@ class LocalModelPreset(BaseModel):
           gpu_layers: -1
     """
 
-    # === Идентификация ===
+    # Идентификация
     name: str = Field(
         description="Уникальное имя для registry (e.g. 'qwen2.5-7b-instruct')",
         min_length=1,
@@ -138,7 +138,7 @@ class LocalModelPreset(BaseModel):
         pattern=r"^[a-zA-Z0-9._-]+$",
     )
 
-    # === Загрузка с HuggingFace ===
+    # Загрузка с HuggingFace
     huggingface_repo: str = Field(
         description="HuggingFace репозиторий (e.g. 'Qwen/Qwen2.5-7B-Instruct-GGUF')",
     )
@@ -147,7 +147,7 @@ class LocalModelPreset(BaseModel):
         description="Имя GGUF файла в репозитории (e.g. 'qwen2.5-7b-instruct-q4_k_m.gguf')",
     )
 
-    # === GPU совместимость ===
+    # GPU совместимость
     size_b: float = Field(
         gt=0,
         description="Размер модели в миллиардах параметров (e.g. 7 для 7B модели)",
@@ -157,7 +157,7 @@ class LocalModelPreset(BaseModel):
         description="Требования VRAM в MB для разных квантизаций: {'q4_k_m': 5500, 'q8_0': 9000}",
     )
 
-    # === Provider config (маппится напрямую в LocalProvider) ===
+    # Provider config (маппится напрямую в LocalProvider)
     provider_config: LocalProviderConfig = Field(
         default_factory=LocalProviderConfig,
         description="Конфигурация для LocalProvider",
@@ -202,7 +202,7 @@ class CloudModelPreset(BaseModel):
           max_retries: 3
     """
 
-    # === Идентификация ===
+    # Идентификация
     name: str = Field(
         description="Уникальное имя для registry",
         min_length=1,
@@ -214,12 +214,12 @@ class CloudModelPreset(BaseModel):
         description="Тип провайдера: openai, anthropic, openai_compatible",
     )
 
-    # === API ключ ===
+    # API ключ
     api_key_env_var: str = Field(
         description="Имя env variable с API ключом (e.g. 'ANTHROPIC_API_KEY')",
     )
 
-    # === Provider config (маппится напрямую в LiteLLMProvider) ===
+    # Provider config (маппится напрямую в LiteLLMProvider)
     provider_config: CloudProviderConfig = Field(
         description="Конфигурация для LiteLLMProvider",
     )

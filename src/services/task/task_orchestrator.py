@@ -288,6 +288,7 @@ class TaskOrchestrator:
                     prompt=prompt if not messages else None,
                     messages=messages,
                     params=gen_params,
+                    conversation_id=conversation_id,
                 )
 
                 # Сохранить результат через StateManager

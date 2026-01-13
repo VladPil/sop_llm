@@ -17,12 +17,14 @@ from src.core.config import settings
 from src.engine.vram_monitor import get_vram_monitor
 from src.providers.litellm_provider import LiteLLMProvider
 from src.providers.registry import get_provider_registry
+from src.services.conversation_store import (
+    create_conversation_store,
+    set_conversation_store,
+)
 from src.services.model_presets import (
     create_compatibility_checker,
-    create_model_downloader,
     create_presets_loader,
     set_compatibility_checker,
-    set_model_downloader,
     set_presets_loader,
 )
 from src.services.observability import (
@@ -30,10 +32,6 @@ from src.services.observability import (
     flush_observations,
     initialize_langfuse,
     is_observability_enabled,
-)
-from src.services.conversation_store import (
-    create_conversation_store,
-    set_conversation_store,
 )
 from src.services.session_store import create_session_store, set_session_store
 from src.services.task import create_task_orchestrator, get_task_orchestrator
@@ -110,13 +108,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             embedding=len(presets_loader.list_embedding()),
         )
 
-        # 2. ModelDownloader - загрузка моделей с HuggingFace
-        models_dir = Path(settings.models_dir)
-        downloader = create_model_downloader(models_dir, settings.hf_token)
-        set_model_downloader(downloader)
-        logger.info("ModelDownloader инициализирован", models_dir=str(models_dir))
-
-        # 3. CompatibilityChecker - проверка совместимости с GPU
+        # 2. CompatibilityChecker - проверка совместимости с GPU
         vram_monitor = get_vram_monitor()
         compatibility_checker = create_compatibility_checker(vram_monitor)
         set_compatibility_checker(compatibility_checker)

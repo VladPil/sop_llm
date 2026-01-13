@@ -146,6 +146,7 @@ class LLMProvider(Protocol):
         prompt: str | None = None,
         messages: list[ChatMessage] | None = None,
         params: GenerationParams | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> GenerationResult:
         """Сгенерировать текст (не-streaming).
 
@@ -153,6 +154,7 @@ class LLMProvider(Protocol):
             prompt: Промпт для генерации (простой текст)
             messages: Сообщения в формате Chat Completions API
             params: Параметры генерации
+            metadata: Метаданные для observability (session_id, trace_name, etc.)
 
         Returns:
             Результат генерации

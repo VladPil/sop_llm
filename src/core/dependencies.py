@@ -27,17 +27,15 @@ from src.adapters import IntakeAdapter, get_intake_adapter
 from src.services.conversation_store import ConversationStore, get_conversation_store
 from src.services.model_presets import (
     CompatibilityChecker,
-    ModelDownloader,
     ModelPresetsLoader,
     get_compatibility_checker,
-    get_model_downloader,
     get_presets_loader,
 )
 from src.services.prompt_service import PromptService, get_prompt_service
 from src.services.session_store import SessionStore, get_session_store
 from src.services.task import TaskOrchestrator, get_task_orchestrator
 
-# === Dependency Injection Aliases ===
+# Dependency Injection Aliases
 
 # TaskOrchestrator dependency
 TaskOrchestratorDep = Annotated[TaskOrchestrator, Depends(get_task_orchestrator)]
@@ -57,14 +55,11 @@ PresetsLoaderDep = Annotated[ModelPresetsLoader, Depends(get_presets_loader)]
 # CompatibilityChecker dependency
 CompatibilityCheckerDep = Annotated[CompatibilityChecker, Depends(get_compatibility_checker)]
 
-# ModelDownloader dependency
-ModelDownloaderDep = Annotated[ModelDownloader, Depends(get_model_downloader)]
-
 # ConversationStore dependency
 ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_store)]
 
 
-# === Dependency Provider Functions ===
+# Dependency Provider Functions
 # (Используются через Depends() в routes)
 
 
@@ -144,19 +139,6 @@ def get_checker() -> CompatibilityChecker:
 
     """
     return get_compatibility_checker()
-
-
-def get_downloader() -> ModelDownloader:
-    """Получить ModelDownloader dependency.
-
-    Returns:
-        ModelDownloader instance
-
-    Note:
-        Используется через Depends(get_downloader) в FastAPI routes.
-
-    """
-    return get_model_downloader()
 
 
 def get_conversation() -> ConversationStore:

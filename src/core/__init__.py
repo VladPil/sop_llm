@@ -70,12 +70,11 @@ __all__ = [
     # Constants - App
     "DEFAULT_APP_NAME",
     "DEFAULT_CLEANUP",
-    # Constants - LLM
-    "DEFAULT_CONTEXT_WINDOW",
     # Constants - Conversations
     "DEFAULT_CONTEXT_MESSAGES_LIMIT",
+    # Constants - LLM
+    "DEFAULT_CONTEXT_WINDOW",
     "DEFAULT_CONVERSATION_TTL",
-    "DEFAULT_MAX_CONVERSATION_MESSAGES",
     # Constants - CORS
     "DEFAULT_CORS_ORIGINS",
     "DEFAULT_DOCS_URL",
@@ -97,6 +96,7 @@ __all__ = [
     "DEFAULT_LITELLM_MAX_RETRIES",
     # Constants - Limits
     "DEFAULT_LOGS_MAX_RECENT",
+    "DEFAULT_MAX_CONVERSATION_MESSAGES",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_MAX_VRAM_USAGE_PERCENT",
     "DEFAULT_MODELS_DIR",

@@ -9,7 +9,9 @@ from pathlib import Path
 try:
     from llama_cpp import Llama, LlamaGrammar
     LLAMA_CPP_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError, RuntimeError):
+    # ImportError - модуль не установлен
+    # OSError/RuntimeError - CUDA библиотеки недоступны
     LLAMA_CPP_AVAILABLE = False
     Llama = None  # type: ignore[misc,assignment]
     LlamaGrammar = None  # type: ignore[misc,assignment]
@@ -149,12 +151,16 @@ class LocalProvider:
         self,
         prompt: str,
         params: GenerationParams,
+        messages: list[dict] | None = None,
+        metadata: dict | None = None,  # Для совместимости с LiteLLMProvider
     ) -> GenerationResult:
         """Сгенерировать текст (non-streaming).
 
         Args:
-            prompt: Промпт для генерации
+            prompt: Промпт для генерации (используется если messages не указаны)
             params: Параметры генерации
+            messages: Список сообщений в формате OpenAI (опционально)
+            metadata: Метаданные для observability (не используется в local provider)
 
         Returns:
             Результат генерации
@@ -164,6 +170,8 @@ class LocalProvider:
 
         Note:
             Автоматически трейсится в Langfuse через @trace_llm_generation.
+            Если указаны messages - используется chat completion API.
+            Если только prompt - используется completion API.
 
         """
         # Эксклюзивный доступ к GPU
@@ -183,34 +191,56 @@ class LocalProvider:
             if params.grammar:
                 grammar = LlamaGrammar.from_string(params.grammar)
 
+            # Определить режим: chat completion или text completion
+            use_chat = messages is not None and len(messages) > 0
+
             logger.debug(
                 "Начало генерации",
                 model=self.model_name,
-                prompt_length=len(prompt),
+                prompt_length=len(prompt) if prompt else 0,
+                messages_count=len(messages) if messages else 0,
+                use_chat=use_chat,
                 max_tokens=params.max_tokens,
                 has_grammar=grammar is not None,
             )
 
             try:
-                # Генерация (blocking, но в thread executor через llama-cpp-python)
-                result = self._llama(
-                    prompt=prompt,
-                    max_tokens=params.max_tokens,
-                    temperature=params.temperature,
-                    top_p=params.top_p,
-                    top_k=params.top_k,
-                    frequency_penalty=params.frequency_penalty,
-                    presence_penalty=params.presence_penalty,
-                    stop=stop_sequences,
-                    seed=params.seed,
-                    grammar=grammar,
-                    # No streaming
-                    stream=False,
-                )
-
-                # Извлечь результат
-                text = result["choices"][0]["text"]
-                finish_reason = result["choices"][0]["finish_reason"]
+                if use_chat:
+                    # Chat completion mode (для messages)
+                    result = self._llama.create_chat_completion(
+                        messages=messages,
+                        max_tokens=params.max_tokens,
+                        temperature=params.temperature,
+                        top_p=params.top_p,
+                        top_k=params.top_k,
+                        frequency_penalty=params.frequency_penalty,
+                        presence_penalty=params.presence_penalty,
+                        stop=stop_sequences,
+                        seed=params.seed,
+                        grammar=grammar,
+                        stream=False,
+                    )
+                    # Извлечь результат из chat completion
+                    text = result["choices"][0]["message"]["content"]
+                    finish_reason = result["choices"][0]["finish_reason"]
+                else:
+                    # Text completion mode (для prompt)
+                    result = self._llama(
+                        prompt=prompt,
+                        max_tokens=params.max_tokens,
+                        temperature=params.temperature,
+                        top_p=params.top_p,
+                        top_k=params.top_k,
+                        frequency_penalty=params.frequency_penalty,
+                        presence_penalty=params.presence_penalty,
+                        stop=stop_sequences,
+                        seed=params.seed,
+                        grammar=grammar,
+                        stream=False,
+                    )
+                    # Извлечь результат из text completion
+                    text = result["choices"][0]["text"]
+                    finish_reason = result["choices"][0]["finish_reason"]
 
                 # Token usage
                 usage = {

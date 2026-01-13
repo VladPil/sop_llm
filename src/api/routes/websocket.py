@@ -390,7 +390,7 @@ async def websocket_monitor(websocket: WebSocket) -> None:
         await manager.disconnect(connection_id)
 
 
-# === Event Broadcasting Functions ===
+# Event Broadcasting Functions
 # Эти функции вызываются из других частей приложения для рассылки событий
 
 

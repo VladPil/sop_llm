@@ -41,7 +41,7 @@ ARG PYTHON_VERSION=3.11
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Установка Python и зависимостей для сборки
+# Установка Python (минимум для pre-built wheels)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository -y ppa:deadsnakes/ppa \
@@ -50,10 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-dev \
     python${PYTHON_VERSION}-venv \
-    build-essential \
-    git \
     curl \
-    cmake \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python \
     && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3
@@ -71,19 +68,16 @@ ENV UV_SYSTEM_PYTHON=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# GPU build flags для llama-cpp-python с CUDA
-# Only build for RTX 4090 (Ada Lovelace = 89) for faster compilation
-ENV CMAKE_ARGS="-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=89"
-ENV CUDACXX=/usr/local/cuda/bin/nvcc
-ENV CUDA_HOME=/usr/local/cuda
-ENV PATH="${CUDA_HOME}/bin:${PATH}"
-ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
+# Install pre-built llama-cpp-python with CUDA 12.1 support (no compilation needed!)
+# Wheels from: https://github.com/abetlen/llama-cpp-python/releases
+RUN uv pip install llama-cpp-python \
+    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
 
-# Install with [local] extras to get llama-cpp-python with CUDA
-RUN uv pip install -e ".[local]"
-
-# Устанавливаем PyTorch с CUDA
+# Install PyTorch with CUDA 12.1
 RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Install the rest of dependencies
+RUN uv pip install -e "."
 
 
 # =========================
@@ -134,7 +128,7 @@ ARG PYTHON_VERSION=3.11
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Установка Python runtime
+# Установка Python runtime + OpenMP (для llama.cpp)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository -y ppa:deadsnakes/ppa \
@@ -144,6 +138,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     curl \
     tini \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python \
     && ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3

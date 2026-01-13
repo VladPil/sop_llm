@@ -3,6 +3,8 @@
 Multi-turn conversations management endpoints.
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
 
 from src.api.schemas.requests import (
@@ -103,8 +105,8 @@ async def create_conversation(
 )
 async def list_conversations(
     conversation_store: ConversationStoreDep,
-    limit: int = Query(default=100, ge=1, le=1000, description="Максимум диалогов"),
-    offset: int = Query(default=0, ge=0, description="Смещение для пагинации"),
+    limit: Annotated[int, Query(ge=1, le=1000, description="Максимум диалогов")] = 100,
+    offset: Annotated[int, Query(ge=0, description="Смещение для пагинации")] = 0,
 ) -> ConversationsListResponse:
     """Получить список диалогов.
 
@@ -156,10 +158,7 @@ async def list_conversations(
 async def get_conversation(
     conversation_id: str,
     conversation_store: ConversationStoreDep,
-    include_messages: bool = Query(
-        default=True,
-        description="Включить историю сообщений в ответ",
-    ),
+    include_messages: Annotated[bool, Query(description="Включить историю сообщений в ответ")] = True,
 ) -> ConversationDetailResponse:
     """Получить информацию о диалоге.
 
@@ -392,12 +391,7 @@ async def add_message(
 async def get_messages(
     conversation_id: str,
     conversation_store: ConversationStoreDep,
-    limit: int | None = Query(
-        default=None,
-        ge=1,
-        le=1000,
-        description="Максимум сообщений (последние N)",
-    ),
+    limit: Annotated[int | None, Query(ge=1, le=1000, description="Максимум сообщений (последние N)")] = None,
 ) -> dict:
     """Получить сообщения диалога.
 
