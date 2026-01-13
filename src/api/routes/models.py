@@ -29,7 +29,7 @@ from src.core.dependencies import (
     PresetsLoaderDep,
 )
 from src.docs import models as docs
-from src.providers import litellm_provider, local
+from src.providers import embedding, litellm_provider, local
 from src.providers.registry import get_provider_registry
 from src.shared.logging import get_logger
 
@@ -418,13 +418,20 @@ async def register_from_preset(
     if cloud_preset:
         return await _register_cloud_from_preset(preset=cloud_preset)
 
+    # Попробовать найти embedding пресет
+    embedding_preset = loader.get_embedding_preset(request.preset_name)
+    if embedding_preset:
+        return await _register_embedding_from_preset(preset=embedding_preset)
+
     # Пресет не найден
     available_cloud = ", ".join(loader.list_cloud_names()[:10]) or "нет"
+    available_embedding = ", ".join(loader.list_embedding_names()[:5]) or "нет"
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=(
             f"Пресет '{request.preset_name}' не найден. "
-            f"Доступные облачные модели: {available_cloud}..."
+            f"Доступные облачные: {available_cloud}... "
+            f"Embedding: {available_embedding}..."
         ),
     )
 
@@ -765,6 +772,52 @@ async def _register_cloud_from_preset(preset: Any) -> ModelInfo:
     )
 
 
+async def _register_embedding_from_preset(preset: Any) -> ModelInfo:
+    """Зарегистрировать embedding модель из пресета.
+
+    Args:
+        preset: EmbeddingModelPreset
+
+    Returns:
+        ModelInfo зарегистрированной модели
+
+    """
+    # Создать provider
+    provider = embedding.SentenceTransformerProvider(
+        model_name=preset.huggingface_repo,
+        device="cuda",  # Используем GPU
+        normalize_embeddings=True,
+    )
+
+    # Загрузить модель
+    await provider.load()
+
+    registry = get_provider_registry()
+    registry.register(preset.name, provider)
+
+    logger.info(
+        "Embedding модель зарегистрирована из пресета",
+        model=preset.name,
+        huggingface_repo=preset.huggingface_repo,
+        dimensions=provider.dimensions,
+    )
+
+    return ModelInfo(
+        name=preset.name,
+        provider="embedding",
+        context_window=0,
+        max_output_tokens=0,
+        supports_streaming=False,
+        supports_structured_output=False,
+        loaded=True,
+        extra={
+            "dimensions": provider.dimensions,
+            "huggingface_repo": preset.huggingface_repo,
+            "device": provider.device,
+        },
+    )
+
+
 async def _create_provider(
     provider_type: str,
     model_name: str,
@@ -801,6 +854,15 @@ async def _create_provider(
             timeout=config.get("timeout", 600),
             max_retries=config.get("max_retries", 3),
         )
+
+    if provider_type == ProviderType.EMBEDDING:
+        provider = embedding.SentenceTransformerProvider(
+            model_name=config.get("huggingface_repo", model_name),
+            device=config.get("device", "cuda"),
+            normalize_embeddings=config.get("normalize_embeddings", True),
+        )
+        await provider.load()
+        return provider
 
     msg = f"Неизвестный provider type: {provider_type}"
     raise ValueError(msg)

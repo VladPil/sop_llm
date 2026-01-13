@@ -1,7 +1,10 @@
 """Provider Registry для SOP LLM Executor.
 
 Централизованное хранилище providers с динамической регистрацией.
+Поддерживает как LLM providers, так и Embedding providers.
 """
+
+from typing import Any
 
 from src.providers.base import LLMProvider, ModelInfo
 from src.shared.logging import get_logger
@@ -10,24 +13,25 @@ logger = get_logger()
 
 
 class ProviderRegistry:
-    """Registry для управления LLM providers.
+    """Registry для управления LLM и Embedding providers.
 
     Паттерн: Registry + Singleton
     - Хранит зарегистрированные providers
     - Поддерживает динамическую регистрацию
     - Обеспечивает единую точку доступа к providers
+    - Поддерживает LLM и Embedding providers
     """
 
     def __init__(self) -> None:
         """Инициализировать пустой registry."""
-        self._providers: dict[str, LLMProvider] = {}
+        self._providers: dict[str, Any] = {}
 
-    def register(self, name: str, provider: LLMProvider) -> None:
+    def register(self, name: str, provider: Any) -> None:
         """Зарегистрировать provider.
 
         Args:
             name: Название provider (например, "qwen2.5-7b-instruct")
-            provider: Instance provider'а
+            provider: Instance provider'а (LLMProvider или EmbeddingProvider)
 
         Raises:
             ValueError: Если provider с таким именем уже зарегистрирован
@@ -37,14 +41,18 @@ class ProviderRegistry:
             msg = f"Provider '{name}' уже зарегистрирован"
             raise ValueError(msg)
 
-        # Проверить, что provider реализует Protocol
-        if not isinstance(provider, LLMProvider):
-            msg = f"Provider '{name}' не реализует LLMProvider Protocol"
+        # Проверить базовые требования: должен иметь хотя бы один из методов
+        has_generate = hasattr(provider, "generate")
+        has_embeddings = hasattr(provider, "generate_embeddings")
+
+        if not has_generate and not has_embeddings:
+            msg = f"Provider '{name}' должен реализовать generate() или generate_embeddings()"
             raise TypeError(msg)
 
         self._providers[name] = provider
 
-        logger.info("Provider зарегистрирован", name=name, provider_type=type(provider).__name__)
+        provider_kind = "embedding" if has_embeddings and not has_generate else "llm"
+        logger.info("Provider зарегистрирован", name=name, provider_type=type(provider).__name__, kind=provider_kind)
 
     def unregister(self, name: str) -> None:
         """Удалить provider из registry.
@@ -64,14 +72,14 @@ class ProviderRegistry:
 
         logger.info("Provider удалён из registry", name=name)
 
-    def get(self, name: str) -> LLMProvider:
+    def get(self, name: str) -> Any:
         """Получить provider по имени.
 
         Args:
             name: Название provider
 
         Returns:
-            Provider instance
+            Provider instance (LLMProvider или EmbeddingProvider)
 
         Raises:
             KeyError: Если provider не найден
@@ -99,10 +107,17 @@ class ProviderRegistry:
         Returns:
             Словарь {model_name: ModelInfo}
 
+        Note:
+            Embedding провайдеры пропускаются (они не имеют get_model_info).
+
         """
         models_info: dict[str, ModelInfo] = {}
 
         for name, provider in self._providers.items():
+            # Пропустить embedding провайдеры
+            if not hasattr(provider, "get_model_info"):
+                continue
+
             try:
                 info = await provider.get_model_info()
                 models_info[name] = info

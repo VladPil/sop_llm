@@ -31,6 +31,7 @@ class ProviderType(str, Enum):
     OPENAI_COMPATIBLE = "openai_compatible"  # OpenAI-совместимые API
     ANTHROPIC = "anthropic"  # Anthropic Claude API
     LITELLM = "litellm"  # LiteLLM (унифицированный облачный провайдер)
+    EMBEDDING = "embedding"  # Sentence-transformers embedding модели
     CUSTOM = "custom"  # Кастомный провайдер
 
 
