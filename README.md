@@ -28,18 +28,38 @@ SOP LLM Executor — production-ready асинхронный сервис на F
 
 | Провайдер | Тип | Модели | Streaming |
 |-----------|-----|--------|-----------|
-| **Local (llama.cpp)** | GGUF | Qwen, LLaMA, Mistral, Phi | ✅ |
-| **LiteLLM** | API | OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Together AI | ✅ |
-| **Embedding** | Local | SentenceTransformers, E5 | — |
+| **Ollama** | Local GPU | Qwen, LLaMA, Mistral, Gemma, Phi | ✅ |
+| **LiteLLM** | Cloud API | OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Together AI | ✅ |
+| **SentenceTransformers** | Embeddings | E5, MiniLM, BGE | — |
 
 ## Архитектура
 
 ```
-┌─────────────┐     ┌─────────────┐
-│   Client    │     │  WebSocket  │
-└──────┬──────┘     └──────┬──────┘
-       │ HTTP              │ WS /ws/monitor
-       ▼                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      API Request                             │
+│  POST /tasks {model: "claude-sonnet-4"}                     │
+│  POST /embeddings {model_name: "multilingual-e5-large"}     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+        ┌─────────────┴─────────────┐
+        ▼                           ▼
+┌───────────────────┐     ┌─────────────────────┐
+│ ProviderRegistry  │     │  EmbeddingManager   │
+│ .get_or_create()  │     │  .get_or_load()     │
+│                   │     │                     │
+│ • Lazy loading    │     │ • Lazy loading      │
+│ • Cloud + Ollama  │     │ • FIFO eviction     │
+│ • No VRAM limits  │     │ • VRAM monitoring   │
+└─────────┬─────────┘     └──────────┬──────────┘
+          │                          │
+          ▼                          ▼
+┌───────────────────┐     ┌─────────────────────┐
+│ ModelPresetsLoader│     │    VRAMMonitor      │
+│ .get_cloud_preset │     │ .can_allocate()     │
+│ .get_embedding_   │     └─────────────────────┘
+│     preset        │
+└───────────────────┘
+
 ┌──────────────────────────────────────────────┐
 │              FastAPI Application              │
 │  ┌─────────────────┐  ┌───────────────────┐  │
@@ -56,18 +76,20 @@ SOP LLM Executor — production-ready асинхронный сервис на F
 │  │  • Daily Stats (7d TTL)                │  │
 │  │  • GPU Cache (5s TTL)                  │  │
 │  └────────────────────────────────────────┘  │
-└────────────────────┬─────────────────────────┘
-                     │
-         ┌───────────┴───────────┐
-         ▼                       ▼
-┌─────────────────┐       ┌─────────────────┐
-│    GPU Guard    │       │ Provider Registry│
-│   (Singleton)   │       │                 │
-│  • asyncio.Lock │       │ • LocalProvider │
-│  • VRAM Monitor │       │ • LiteLLMProvider│
-│                 │       │ • EmbeddingProv │
-└─────────────────┘       └─────────────────┘
+└──────────────────────────────────────────────┘
 ```
+
+### Lazy Loading & FIFO Eviction
+
+**LLM модели (ProviderRegistry):**
+- Провайдеры создаются автоматически при первом запросе
+- Cloud модели (Claude, GPT, Gemini) — без ограничений
+- Ollama модели — используют `keep_alive: 30m` для управления памятью
+
+**Embedding модели (EmbeddingManager):**
+- Модели загружаются по требованию в GPU/CPU память
+- FIFO eviction при достижении лимита `max_loaded_models`
+- Интеграция с VRAMMonitor для контроля VRAM
 
 ## Быстрый старт
 
@@ -132,15 +154,12 @@ python main.py
 
 | Method | Endpoint | Описание |
 |--------|----------|----------|
-| `GET` | `/api/v1/models` | Список зарегистрированных моделей |
-| `GET` | `/api/v1/models/{name}` | Информация о модели |
+| `GET` | `/api/v1/models` | Список загруженных моделей |
+| `GET` | `/api/v1/models/{name}` | Информация о модели (lazy loading) |
 | `GET` | `/api/v1/models/presets` | Список доступных пресетов |
-| `POST` | `/api/v1/models/register` | Зарегистрировать модель вручную |
-| `POST` | `/api/v1/models/register-from-preset` | Зарегистрировать из пресета |
-| `POST` | `/api/v1/models/check-compatibility` | Проверить совместимость с GPU |
-| `POST` | `/api/v1/models/load` | Загрузить модель в VRAM |
-| `POST` | `/api/v1/models/unload` | Выгрузить модель из VRAM |
-| `DELETE` | `/api/v1/models/{name}` | Удалить модель |
+| `DELETE` | `/api/v1/models/{name}` | Удалить модель из registry |
+
+> **Lazy Loading:** Модели автоматически создаются при первом запросе к `/api/v1/models/{name}`. Ручная регистрация не требуется.
 
 ### Embeddings API
 
@@ -190,20 +209,24 @@ async with httpx.AsyncClient(base_url="http://<host>:<port>") as client:
     print(f"Task ID: {task['task_id']}")
 ```
 
-### Регистрация модели из пресета
+### Использование модели (Lazy Loading)
 
 ```python
 # Посмотреть доступные пресеты
 response = await client.get("/api/v1/models/presets")
 presets = response.json()
+# cloud_models: ["claude-sonnet-4", "gpt-4-turbo", "qwen2.5:7b", ...]
+# embedding_models: ["multilingual-e5-large", "all-MiniLM-L6-v2", ...]
 
-# Зарегистрировать модель
+# Модель автоматически создаётся при первом запросе
+response = await client.get("/api/v1/models/claude-sonnet-4")
+model_info = response.json()
+# {"name": "claude-sonnet-4-20250514", "provider": "anthropic", ...}
+
+# Или просто отправить задачу - модель загрузится автоматически
 response = await client.post(
-    "/api/v1/models/register-from-preset",
-    json={
-        "preset_name": "claude-3.5-sonnet",
-        "auto_download": True
-    }
+    "/api/v1/tasks",
+    json={"model": "claude-sonnet-4", "prompt": "Hello!"}
 )
 ```
 
@@ -280,22 +303,43 @@ LANGFUSE_HOST=https://cloud.langfuse.com
 
 ```
 config/model_presets/
-├── local_models.yaml      # GGUF модели (Qwen, LLaMA, Mistral)
-├── cloud_models.yaml      # API модели (Claude, GPT, Gemini)
+├── cloud_models.yaml      # Cloud API + Ollama модели
 └── embedding_models.yaml  # Embedding модели (E5, MiniLM)
 ```
 
-**Пример пресета:**
+**Пример Cloud пресета:**
 
 ```yaml
 models:
-  - name: "claude-3.5-sonnet"
+  - name: "claude-sonnet-4"
     provider: "anthropic"
     api_key_env_var: "ANTHROPIC_API_KEY"
     provider_config:
-      model_name: "claude-3-5-sonnet-20241022"
+      model_name: "claude-sonnet-4-20250514"
       timeout: 600
       max_retries: 3
+```
+
+**Пример Ollama пресета с keep_alive:**
+
+```yaml
+models:
+  - name: "qwen2.5:7b"
+    provider: "ollama"
+    keep_alive: "30m"  # Держать модель в VRAM 30 минут
+    provider_config:
+      model_name: "ollama/qwen2.5:7b"
+      base_url: "http://localhost:11434"
+      timeout: 120
+```
+
+**Пример Embedding пресета:**
+
+```yaml
+models:
+  - name: "multilingual-e5-large"
+    huggingface_repo: "intfloat/multilingual-e5-large"
+    dimensions: 1024
 ```
 
 ## Структура проекта
@@ -314,12 +358,14 @@ sop_llm/
 │   ├── docs/                 # API documentation strings
 │   ├── engine/               # GPU Guard, VRAM Monitor
 │   ├── providers/            # LLM providers
-│   │   ├── local.py          # llama.cpp (GGUF)
-│   │   ├── litellm_provider.py  # 100+ cloud models
+│   │   ├── litellm_provider.py  # Cloud + Ollama (100+ models)
 │   │   ├── embedding.py      # SentenceTransformers
-│   │   └── registry.py       # Provider registry
+│   │   ├── registry.py       # ProviderRegistry (lazy loading)
+│   │   └── base.py           # Base classes
 │   ├── services/             # Business logic
 │   │   ├── session_store.py  # Redis storage
+│   │   ├── embedding_manager.py  # Lazy loading + FIFO eviction
+│   │   ├── model_presets/    # YAML presets loader
 │   │   ├── task/             # Task orchestrator + processor
 │   │   └── observability/    # Langfuse integration
 │   ├── adapters/             # Request adapters
@@ -332,20 +378,38 @@ sop_llm/
 ## Тестирование
 
 ```bash
-# Все тесты
-pytest
+# Все тесты (270 тестов)
+make test
 
-# Unit тесты
-pytest src/tests/unit -v
+# Unit тесты по категориям
+make test-providers    # ProviderRegistry lazy loading
+make test-services     # EmbeddingManager FIFO
+make test-api          # API endpoints
 
 # С coverage
-pytest --cov=src --cov-report=html
+make test-coverage
 
-# Линтинг
-ruff check src
+# Линтинг и типы
+make check             # lint + type-check
+```
 
-# Типы
-mypy src
+### Структура тестов
+
+```
+src/tests/
+├── conftest.py           # Fixtures (MockLLMProvider, MockPresetsLoader, etc.)
+├── unit/
+│   ├── api/
+│   │   ├── test_models.py      # Models API endpoints
+│   │   └── test_embeddings.py  # Embeddings API endpoints
+│   ├── providers/
+│   │   ├── test_registry.py    # ProviderRegistry lazy loading
+│   │   └── test_litellm_provider.py
+│   ├── services/
+│   │   └── test_embedding_manager.py  # FIFO eviction tests
+│   └── shared/
+│       └── errors/             # Error handling tests
+└── system/                     # System tests (Redis required)
 ```
 
 ## Docker

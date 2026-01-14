@@ -35,10 +35,12 @@ src/core/
   - `ERROR` - Ошибка во время генерации
 
 - **`ProviderType`** - Тип провайдера LLM
-  - `LOCAL` - Локальный провайдер (llama.cpp)
+  - `OLLAMA` - Локальные модели через Ollama
   - `OPENAI` - OpenAI API
   - `OPENAI_COMPATIBLE` - OpenAI-совместимые API
   - `ANTHROPIC` - Anthropic Claude API
+  - `LITELLM` - LiteLLM универсальный провайдер
+  - `EMBEDDING` - Embedding провайдер
   - `CUSTOM` - Кастомный провайдер
 
 - **`HealthStatus`** - Статус здоровья сервиса
@@ -181,13 +183,13 @@ Settings **БЕЗ** default значений - все должно быть яв
 
 ```python
 # Было:
-if provider_type == "local":
+if provider_type == "ollama":
     ...
 
 # Стало:
 from src.core import ProviderType
 
-if provider_type == ProviderType.LOCAL:
+if provider_type == ProviderType.OLLAMA:
     ...
 ```
 

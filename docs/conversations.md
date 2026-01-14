@@ -398,7 +398,7 @@ curl -X POST http://localhost:8000/api/v1/conversations/{conv_id}/messages \
 
 ### Q: Работает ли с локальными моделями?
 
-Да, диалоги работают с любыми провайдерами: OpenAI, Anthropic, Gemini, локальные GGUF модели.
+Да, диалоги работают с любыми провайдерами: OpenAI, Anthropic, Gemini, Ollama (локальные GPU модели).
 
 ### Q: Как мониторить использование диалогов?
 

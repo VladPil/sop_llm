@@ -1,4 +1,4 @@
-.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-integration test-coverage clean clean-models clean-all build-gpu up-gpu down-gpu restart-gpu
+.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-providers test-services test-api test-integration test-coverage test-fast clean clean-models clean-all build-gpu up-gpu down-gpu restart-gpu
 
 RESET := \033[0m
 RED := \033[31m
@@ -239,39 +239,43 @@ check: lint type-check pyright-check
 
 test:
 	@echo "$(CYAN)Запуск всех тестов...$(RESET)"
-	@if [ -d "$(VENV)" ]; then \
-		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG); \
-	else \
-		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG); \
-	fi
+	@uv run pytest src/tests -v
 	@echo "$(GREEN)Все тесты завершены$(RESET)"
 
 test-unit:
 	@echo "$(CYAN)Запуск unit тестов...$(RESET)"
-	@if [ -d "$(VENV)" ]; then \
-		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) -m unit; \
-	else \
-		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) -m unit; \
-	fi
+	@uv run pytest src/tests/unit -v
 	@echo "$(GREEN)Unit тесты завершены$(RESET)"
+
+test-providers:
+	@echo "$(CYAN)Запуск тестов ProviderRegistry...$(RESET)"
+	@uv run pytest src/tests/unit/providers -v
+	@echo "$(GREEN)Тесты ProviderRegistry завершены$(RESET)"
+
+test-services:
+	@echo "$(CYAN)Запуск тестов сервисов (EmbeddingManager)...$(RESET)"
+	@uv run pytest src/tests/unit/services -v
+	@echo "$(GREEN)Тесты сервисов завершены$(RESET)"
+
+test-api:
+	@echo "$(CYAN)Запуск тестов API...$(RESET)"
+	@uv run pytest src/tests/unit/api -v
+	@echo "$(GREEN)Тесты API завершены$(RESET)"
 
 test-integration:
 	@echo "$(CYAN)Запуск integration тестов...$(RESET)"
-	@if [ -d "$(VENV)" ]; then \
-		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) -m integration; \
-	else \
-		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) -m integration; \
-	fi
+	@uv run pytest src/tests/integration -v
 	@echo "$(GREEN)Integration тесты завершены$(RESET)"
 
 test-coverage:
 	@echo "$(CYAN)Запуск тестов с покрытием...$(RESET)"
-	@if [ -d "$(VENV)" ]; then \
-		. $(VENV)/bin/activate && pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml; \
-	else \
-		$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) exec sop_llm pytest -c $(PYTEST_CONFIG) --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml; \
-	fi
+	@uv run pytest src/tests --cov=src --cov-report=html --cov-report=term-missing --cov-report=xml
 	@echo "$(GREEN)Отчет о покрытии готов: $(CYAN)htmlcov/index.html$(RESET)"
+
+test-fast:
+	@echo "$(CYAN)Быстрый запуск тестов (без coverage)...$(RESET)"
+	@uv run pytest src/tests -v --no-cov
+	@echo "$(GREEN)Тесты завершены$(RESET)"
 
 clean:
 	@echo "$(CYAN)Очистка временных файлов...$(RESET)"
