@@ -2,16 +2,16 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from src.docs import tasks as docs
+from src.api.docs import tasks as docs
 
 try:
     from langfuse.decorators import langfuse_context
 except (ImportError, AttributeError):
     try:
-        from langfuse.client import langfuse_context  # type: ignore[attr-defined]
+        from langfuse.client import langfuse_context
     except ImportError:
         class DummyContext:
-            """Fallback when langfuse is not installed."""
+            """Stub for missing langfuse dependency."""
 
             def flush(self) -> None:
                 pass
@@ -95,18 +95,13 @@ async def create_task(
 
     """
     try:
-        # Адаптировать Intake-style запрос
         model, prompt, params, conv_data = adapter.adapt_request(request)
-
-        # Подготовить messages для multi-turn conversations
         messages: list[ChatMessage] | None = None
 
         if conv_data.messages is not None:
-            # Явно указаны messages в запросе
             messages = conv_data.messages
 
         elif conv_data.conversation_id is not None:
-            # Загрузить контекст из ConversationStore
             conversation = await conversation_store.get_conversation(conv_data.conversation_id)
             if conversation is None:
                 raise HTTPException(
@@ -114,17 +109,14 @@ async def create_task(
                     detail=f"Диалог '{conv_data.conversation_id}' не найден",
                 )
 
-            # Получить историю сообщений
             context_messages = await conversation_store.get_context_messages(
                 conv_data.conversation_id
             )
 
-            # Добавить текущий промпт как user сообщение
             messages = list(context_messages)
             if prompt:
                 messages.append(ChatMessage(role="user", content=prompt))
 
-            # Модель из диалога если не указана в запросе
             if model is None and conversation.get("model"):
                 model = conversation["model"]
 
@@ -135,21 +127,18 @@ async def create_task(
                 total_messages=len(messages),
             )
 
-        # Проверка что есть prompt или messages
         if prompt is None and messages is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Необходимо указать prompt или messages",
             )
 
-        # Проверка что модель определена
         if model is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Модель не указана: укажите 'model' в запросе или в диалоге",
             )
 
-        # Создать задачу через Orchestrator
         task_id = await orchestrator.submit_task(
             model=model,
             prompt=prompt,
@@ -161,7 +150,6 @@ async def create_task(
             conversation_id=conv_data.conversation_id if conv_data.save_to_conversation else None,
         )
 
-        # Получить сессию для ответа
         session = await session_store.get_session(task_id)
 
         if session is None:
@@ -171,7 +159,6 @@ async def create_task(
                 detail=msg,
             )
 
-        # Получить trace_id из Langfuse context
         trace_id = getattr(langfuse_context.get_current_trace_id(), "trace_id", None) if hasattr(langfuse_context, "get_current_trace_id") else None
 
         return TaskResponse(
@@ -189,7 +176,6 @@ async def create_task(
         raise
 
     except ValueError as e:
-        # Валидационная ошибка (модель не найдена, невалидные параметры)
         logger.warning("Ошибка создания задачи", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND if "не зарегистрирована" in str(e) else status.HTTP_400_BAD_REQUEST,
@@ -263,7 +249,6 @@ async def get_task_status(
             detail=f"Задача '{task_id}' не найдена",
         )
 
-    # Подготовить ответ
     response = TaskResponse(
         task_id=session["task_id"],
         status=session["status"],
@@ -273,14 +258,12 @@ async def get_task_status(
         finished_at=session.get("finished_at"),
         webhook_url=session.get("webhook_url"),
         idempotency_key=session.get("idempotency_key"),
-        trace_id=session.get("trace_id"),  # trace_id из сессии (если был сохранён)
+        trace_id=session.get("trace_id"),
     )
 
-    # Результат (если completed)
     if session["status"] == TaskStatus.COMPLETED and "result" in session:
         response.result = session["result"]
 
-    # Ошибка (если failed)
     if session["status"] == TaskStatus.FAILED and "error" in session:
         response.error = session["error"]
 
@@ -320,7 +303,6 @@ async def delete_task(
             detail=f"Задача '{task_id}' не найдена",
         )
 
-    # Нельзя удалить задачу в процессе
     if session["status"] in (TaskStatus.PENDING, TaskStatus.PROCESSING):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -394,10 +376,7 @@ async def get_task_report(
             detail=f"Задача '{task_id}' не найдена",
         )
 
-    # Получить логи задачи
     logs = await session_store.get_task_logs(task_id)
-
-    # Рассчитать метрики
     metrics = {}
     created_at = session.get("created_at")
     started_at = session.get("started_at")
@@ -430,7 +409,6 @@ async def get_task_report(
         except (ValueError, TypeError):
             pass
 
-    # Извлечь токены из result
     tokens = {}
     result = session.get("result", {})
     if isinstance(result, dict) and "usage" in result:

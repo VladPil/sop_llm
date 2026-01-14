@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.api.schemas.requests import EmbeddingRequest
 from src.api.schemas.responses import EmbeddingResponse, ErrorResponse
-from src.docs import embeddings as docs
+from src.api.docs import embeddings as docs
 from src.services.embedding_manager import get_embedding_manager
 from src.shared.logging import get_logger
 
@@ -82,10 +82,8 @@ async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
     embedding_manager = get_embedding_manager()
 
     try:
-        # Lazy loading: получить или загрузить модель
         provider = await embedding_manager.get_or_load(request.model_name)
 
-        # Генерация embeddings
         logger.info(
             "Генерация embeddings",
             model=request.model_name,
@@ -93,8 +91,6 @@ async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
         )
 
         embeddings = await provider.generate_embeddings(request.texts)
-
-        # Определить dimensions
         dimensions = len(embeddings[0]) if embeddings else 0
 
         logger.info(
@@ -150,7 +146,6 @@ def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
         return 0.0
 
     similarity = dot_product / (magnitude1 * magnitude2)
-    # Нормализовать в диапазон [0, 1]
     return (similarity + 1) / 2
 
 
@@ -196,7 +191,6 @@ async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse
     embedding_manager = get_embedding_manager()
 
     try:
-        # Lazy loading: получить или загрузить модель
         provider = await embedding_manager.get_or_load(request.model_name)
 
         logger.info(
@@ -206,10 +200,7 @@ async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse
             text2_len=len(request.text2),
         )
 
-        # Генерация embeddings для обоих текстов
         embeddings = await provider.generate_embeddings([request.text1, request.text2])
-
-        # Вычисление косинусного сходства
         similarity = _cosine_similarity(embeddings[0], embeddings[1])
 
         logger.info(

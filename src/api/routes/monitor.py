@@ -22,7 +22,7 @@ from src.api.schemas.responses import (
     SystemResources,
 )
 from src.core import HealthStatus, settings
-from src.docs import monitor as docs
+from src.api.docs import monitor as docs
 from src.engine.gpu_guard import get_gpu_guard
 from src.engine.vram_monitor import get_vram_monitor
 from src.providers.registry import get_provider_registry
@@ -33,7 +33,6 @@ logger = get_logger()
 
 router = APIRouter(prefix="/monitor", tags=["monitor"])
 
-# Глобальный uptime tracker
 _app_start_time = time.time()
 
 
@@ -56,7 +55,6 @@ async def _check_component_health(
     start_time = time.time()
 
     try:
-        # Запустить проверку с таймаутом
         result = await asyncio.wait_for(check_func(), timeout=timeout)
         response_time = (time.time() - start_time) * 1000
 
@@ -96,12 +94,10 @@ def _get_system_resources() -> SystemResources:
         SystemResources с метриками системы
 
     """
-    # Disk usage
     disk = shutil.disk_usage("/")
     disk_usage_percent = (disk.used / disk.total) * 100
     disk_free_gb = disk.free / (1024**3)
 
-    # Memory usage
     memory = psutil.virtual_memory()
     memory_usage_percent = memory.percent
     memory_available_gb = memory.available / (1024**3)
@@ -165,7 +161,6 @@ async def health_check(response: Response) -> HealthCheckResponse:
     """
     components: dict[str, ComponentHealth] = {}
 
-    # Проверить Redis
     session_store = get_session_store()
     components["redis"] = await _check_component_health(
         "Redis",
@@ -173,12 +168,10 @@ async def health_check(response: Response) -> HealthCheckResponse:
         timeout=3.0,
     )
 
-    # Проверить providers (если есть)
     try:
         registry = get_provider_registry()
         providers_health = await registry.health_check_all()
 
-        # Добавить каждый provider как отдельный компонент
         for model_name, is_healthy in providers_health.items():
             components[f"provider_{model_name}"] = ComponentHealth(
                 status="up" if is_healthy else "down",
@@ -192,10 +185,7 @@ async def health_check(response: Response) -> HealthCheckResponse:
             message=f"Ошибка проверки providers: {e}",
         )
 
-    # Получить системные ресурсы
     resources = _get_system_resources()
-
-    # Проверить GPU (если есть local providers)
     gpu_info: dict[str, Any] | None = None
 
     try:
@@ -218,11 +208,9 @@ async def health_check(response: Response) -> HealthCheckResponse:
         logger.debug("GPU недоступен (это нормально без GPU)", error=str(e))
         gpu_info = {"available": False}
 
-    # Определить общий статус
     statuses = [comp.status for comp in components.values()]
-    critical_components = ["redis"]  # Redis критичен для работы
+    critical_components = ["redis"]
 
-    # Проверить критичные компоненты
     critical_down = any(
         components.get(comp, ComponentHealth(status="down")).status == "down"
         for comp in critical_components
@@ -238,10 +226,7 @@ async def health_check(response: Response) -> HealthCheckResponse:
         overall_status = HealthStatus.HEALTHY
         response.status_code = status.HTTP_200_OK
 
-    # Uptime
     uptime_seconds = time.time() - _app_start_time
-
-    # Timestamp
     timestamp = datetime.now(UTC).isoformat()
 
     return HealthCheckResponse(
@@ -299,13 +284,8 @@ async def get_gpu_stats() -> GPUStatsResponse:
         vram_monitor = get_vram_monitor()
         gpu_guard = get_gpu_guard()
 
-        # Получить GPU info
         gpu_info = vram_monitor.get_gpu_info()
-
-        # Получить VRAM usage
         vram_usage = vram_monitor.get_vram_usage()
-
-        # GPU lock статус
         is_locked = gpu_guard.is_locked()
         current_task_id = gpu_guard.get_current_task_id()
 
@@ -366,27 +346,20 @@ async def get_logs(
         Словарь с логами и метаданными
 
     """
-    # Ограничить limit
     limit = min(limit, 1000)
-
     session_store = get_session_store()
 
-    # Получить логи
     if task_id:
-        # Логи конкретной задачи
         logs = await session_store.get_task_logs(task_id)
     else:
-        # Последние логи системы
-        logs = await session_store.get_recent_logs(limit=limit * 2)  # Запросить больше для фильтрации
+        logs = await session_store.get_recent_logs(limit=limit * 2)
 
     total = len(logs)
 
-    # Фильтрация по уровню
     if level:
         level_upper = level.upper()
         logs = [log for log in logs if log.get("level", "").upper() == level_upper]
 
-    # Ограничить количество
     logs = logs[-limit:]
 
     return {
@@ -478,7 +451,6 @@ async def get_daily_stats(date: str | None = None) -> dict:
     session_store = get_session_store()
     stats = await session_store.get_daily_stats(date)
 
-    # Вычислить среднее время
     tasks_total = stats.get("tasks_completed", 0) + stats.get("tasks_failed", 0)
     avg_duration_ms = 0
     if tasks_total > 0:

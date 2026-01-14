@@ -21,7 +21,7 @@ from src.core.dependencies import (
     CompatibilityCheckerDep,
     PresetsLoaderDep,
 )
-from src.docs import models as docs
+from src.api.docs import models as docs
 from src.providers.registry import get_provider_registry
 from src.shared.logging import get_logger
 
@@ -196,7 +196,6 @@ async def get_model_info(model_name: str) -> ModelInfo:
     registry = get_provider_registry()
 
     try:
-        # Lazy loading: получить или создать провайдер
         provider = registry.get_or_create(model_name)
         info = await provider.get_model_info()
 

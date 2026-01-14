@@ -20,7 +20,7 @@ from src.api.schemas.responses import (
     ErrorResponse,
 )
 from src.core.dependencies import ConversationStoreDep
-from src.docs import conversations as docs
+from src.api.docs import conversations as docs
 from src.shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -62,7 +62,6 @@ async def create_conversation(
             metadata=request.metadata,
         )
 
-        # Получить созданный диалог
         conv = await conversation_store.get_conversation(conversation_id)
 
         if conv is None:
@@ -237,7 +236,6 @@ async def update_conversation(
         HTTPException: 404 если диалог не найден
 
     """
-    # Проверить существование
     conv = await conversation_store.get_conversation(conversation_id)
     if conv is None:
         raise HTTPException(
@@ -245,7 +243,6 @@ async def update_conversation(
             detail=f"Диалог '{conversation_id}' не найден",
         )
 
-    # Обновить
     await conversation_store.update_conversation(
         conversation_id=conversation_id,
         model=request.model,
@@ -253,9 +250,7 @@ async def update_conversation(
         metadata=request.metadata,
     )
 
-    # Получить обновлённый диалог
     conv = await conversation_store.get_conversation(conversation_id)
-
     if conv is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -352,13 +347,9 @@ async def add_message(
             detail=f"Диалог '{conversation_id}' не найден",
         )
 
-    # Получить добавленное сообщение (последнее)
     messages = await conversation_store.get_messages(conversation_id, limit=1)
-
     if not messages:
-        # Fallback - вернуть данные из запроса
         from datetime import UTC, datetime
-
         return ConversationMessage(
             role=request.role,
             content=request.content,
@@ -413,7 +404,6 @@ async def get_messages(
         HTTPException: 404 если диалог не найден
 
     """
-    # Проверить существование диалога
     conv = await conversation_store.get_conversation(conversation_id)
     if conv is None:
         raise HTTPException(

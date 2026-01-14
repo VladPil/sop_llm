@@ -4,16 +4,17 @@
 Вынесены из роутов для чистоты кода.
 
 Использование:
-    from src.docs import tasks as tasks_docs
+    from src.api.docs import tasks as tasks_docs
 
     @router.post("/", description=tasks_docs.CREATE_TASK)
     async def create_task(...):
         ...
 """
 
-from src.docs import embeddings, models, monitor, tasks, websocket
+from src.api.docs import conversations, embeddings, models, monitor, tasks, websocket
 
 __all__ = [
+    "conversations",
     "embeddings",
     "models",
     "monitor",

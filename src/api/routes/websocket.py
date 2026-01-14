@@ -32,8 +32,8 @@ class ConnectionManager:
     def __init__(self) -> None:
         """Инициализировать менеджер соединений."""
         self.active_connections: dict[str, WebSocket] = {}
-        self.subscriptions: dict[str, set[str]] = {}  # connection_id -> event_types
-        self.task_filters: dict[str, str | None] = {}  # connection_id -> task_id filter
+        self.subscriptions: dict[str, set[str]] = {}
+        self.task_filters: dict[str, str | None] = {}
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, connection_id: str) -> None:
@@ -47,7 +47,6 @@ class ConnectionManager:
         await websocket.accept()
         async with self._lock:
             self.active_connections[connection_id] = websocket
-            # По умолчанию подписка на все события
             self.subscriptions[connection_id] = {"*"}
             self.task_filters[connection_id] = None
 
@@ -122,16 +121,15 @@ class ConnectionManager:
         """
         subscriptions = self.subscriptions.get(connection_id, set())
 
-        # Проверка подписки на тип события
         if "*" not in subscriptions and event_type not in subscriptions:
-            # Проверить wildcard (task.*)
             prefix = event_type.split(".")[0] + ".*"
             if prefix not in subscriptions:
                 return False
 
-        # Проверка фильтра по task_id
         task_filter = self.task_filters.get(connection_id)
-        return not (task_filter and task_id and task_id != task_filter)
+        if task_filter and task_id and task_id != task_filter:
+            return False
+        return True
 
     async def broadcast(
         self,
@@ -171,7 +169,6 @@ class ConnectionManager:
                     )
                     connections_to_remove.append(connection_id)
 
-            # Удалить битые соединения
             for connection_id in connections_to_remove:
                 self.active_connections.pop(connection_id, None)
                 self.subscriptions.pop(connection_id, None)
@@ -203,7 +200,6 @@ class ConnectionManager:
         return len(self.active_connections)
 
 
-# Глобальный менеджер соединений
 manager = ConnectionManager()
 
 
@@ -238,7 +234,6 @@ async def gpu_stats_broadcaster() -> None:
 
                     await manager.broadcast("gpu_stats", data)
                 except Exception as e:
-                    # GPU недоступен - это нормально для cloud-only deployments
                     logger.debug("GPU stats недоступны", error=str(e))
 
             await asyncio.sleep(2)
@@ -249,7 +244,6 @@ async def gpu_stats_broadcaster() -> None:
             await asyncio.sleep(2)
 
 
-# Глобальная задача broadcaster
 _broadcaster_task: asyncio.Task | None = None
 
 
@@ -276,37 +270,26 @@ async def stop_broadcaster() -> None:
 async def websocket_monitor(websocket: WebSocket) -> None:
     """WebSocket endpoint для real-time мониторинга.
 
-    Подключение:
-    ```
-    ws://localhost:8200/ws/monitor
-    ```
+    Подключение: ws://localhost:8200/ws/monitor
 
-    Команды клиента:
-    ```json
-    {"type": "subscribe", "events": ["gpu_stats", "task.*"]}
-    {"type": "unsubscribe", "events": ["gpu_stats"]}
-    {"type": "filter_task", "task_id": "task_abc123"}
-    {"type": "ping"}
-    ```
+    Команды клиента (JSON):
+        - subscribe: {"type": "subscribe", "events": ["gpu_stats", "task.*"]}
+        - unsubscribe: {"type": "unsubscribe", "events": ["gpu_stats"]}
+        - filter_task: {"type": "filter_task", "task_id": "task_abc123"}
+        - ping: {"type": "ping"}
 
-    События сервера:
-    ```json
-    {"type": "gpu_stats", "timestamp": 1234567890.123, "data": {...}}
-    {"type": "task.queued", "timestamp": 1234567890.123, "data": {"task_id": "..."}}
-    {"type": "task.completed", "timestamp": 1234567890.123, "data": {...}}
-    {"type": "pong", "timestamp": 1234567890.123}
-    ```
+    События сервера (JSON):
+        - gpu_stats: {"type": "gpu_stats", "timestamp": ..., "data": {...}}
+        - task.*: {"type": "task.queued", "timestamp": ..., "data": {...}}
+        - pong: {"type": "pong", "timestamp": ...}
     """
     import uuid
     connection_id = str(uuid.uuid4())
 
     await manager.connect(websocket, connection_id)
-
-    # Запустить broadcaster если еще не запущен
     await start_broadcaster()
 
     try:
-        # Отправить приветственное сообщение
         await manager.send_personal(connection_id, {
             "type": "connected",
             "connection_id": connection_id,
@@ -324,7 +307,6 @@ async def websocket_monitor(websocket: WebSocket) -> None:
             ],
         })
 
-        # Слушать команды от клиента
         while True:
             try:
                 data = await websocket.receive_text()
@@ -388,10 +370,6 @@ async def websocket_monitor(websocket: WebSocket) -> None:
         logger.exception("Ошибка WebSocket", connection_id=connection_id, error=str(e))
     finally:
         await manager.disconnect(connection_id)
-
-
-# Event Broadcasting Functions
-# Эти функции вызываются из других частей приложения для рассылки событий
 
 
 async def broadcast_task_queued(task_id: str, model: str, priority: float) -> None:
