@@ -89,18 +89,14 @@ class TaskExecutor:
             metadata={"task_id": task_id, "model": model},
             session_id=conversation_id,
         ):
-            # Получить provider
+            # Получить provider (lazy loading из пресетов)
             try:
-                provider = self.provider_registry.get(model)
+                provider = self.provider_registry.get_or_create(model)
             except KeyError as e:
-                available = self.provider_registry.list_providers()
-                f"Модель '{model}' не зарегистрирована. Доступные: {', '.join(available)}"
-
                 logger.exception(
-                    "Provider не найден",
+                    "Модель не найдена в пресетах",
                     task_id=task_id,
                     model=model,
-                    available_models=available,
                 )
 
                 raise ModelNotFoundError(

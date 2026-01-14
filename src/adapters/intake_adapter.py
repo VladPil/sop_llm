@@ -172,7 +172,7 @@ class IntakeAdapter:
 
         return model_name
 
-    def _combine_prompt(self, request: CreateTaskRequest) -> str:
+    def _combine_prompt(self, request: CreateTaskRequest) -> str | None:
         """Объединить prompt и input_text.
 
         Если input_text указан, добавляется к промпту через двойной перевод строки.
@@ -181,9 +181,12 @@ class IntakeAdapter:
             request: CreateTaskRequest
 
         Returns:
-            Полный промпт
+            Полный промпт или None если prompt не указан
 
         """
+        if request.prompt is None:
+            return None
+
         full_prompt = request.prompt
 
         if request.input_text:
@@ -222,7 +225,7 @@ class IntakeAdapter:
     def _extract_generation_params(
         self,
         request: CreateTaskRequest,
-        model_name: str,
+        model_name: str | None,
         response_format: dict[str, Any] | None,
     ) -> GenerationParams:
         """Извлечь параметры генерации с приоритетами.
@@ -236,7 +239,7 @@ class IntakeAdapter:
 
         Args:
             request: CreateTaskRequest
-            model_name: Название модели
+            model_name: Название модели (может быть None)
             response_format: Response format (уже определён)
 
         Returns:
@@ -244,14 +247,15 @@ class IntakeAdapter:
 
         """
         # Получить model defaults
-        model_defaults = get_model_defaults(model_name)
+        model_defaults = get_model_defaults(model_name) if model_name else {}
 
-        # Извлечь из различных источников
+        # Извлечь из различных источников с fallback на defaults
         temperature = (
             request.temperature
             or (request.generation_params or {}).get("temperature")
             or (request.provider_config or {}).get("temperature")
             or model_defaults.get("temperature")
+            or 0.1  # GenerationParams default
         )
 
         max_tokens = (
@@ -259,6 +263,7 @@ class IntakeAdapter:
             or (request.generation_params or {}).get("max_tokens")
             or (request.provider_config or {}).get("max_tokens")
             or model_defaults.get("max_tokens")
+            or 2048  # GenerationParams default
         )
 
         # Остальные параметры (с defaults из request или model_defaults)
@@ -269,8 +274,8 @@ class IntakeAdapter:
 
         # Собрать параметры
         params = GenerationParams(
-            temperature=temperature,
-            max_tokens=max_tokens,
+            temperature=float(temperature),
+            max_tokens=int(max_tokens),
             top_p=top_p,
             top_k=top_k,
             frequency_penalty=frequency_penalty,

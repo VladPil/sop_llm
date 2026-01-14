@@ -11,7 +11,7 @@ Redis Schema (TTL 24h):
     logs:{task_id}          -> List (логи конкретной задачи)
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import orjson
@@ -88,8 +88,8 @@ class SessionStore:
             "model": model,
             "prompt": prompt,
             "params": orjson.dumps(params).decode("utf-8"),
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         if webhook_url:
@@ -136,7 +136,7 @@ class SessionStore:
 
         update_data: dict[str, str] = {
             "status": status,
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         if result:
@@ -146,7 +146,7 @@ class SessionStore:
             update_data["error"] = error
 
         if status in (TaskStatus.COMPLETED.value, TaskStatus.FAILED.value):
-            update_data["finished_at"] = datetime.utcnow().isoformat()
+            update_data["finished_at"] = datetime.now(UTC).isoformat()
 
         await self.redis.hset(session_key, mapping=update_data)  # type: ignore[arg-type,misc]
 
@@ -281,7 +281,7 @@ class SessionStore:
 
         """
         log_entry = orjson.dumps({
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "task_id": task_id,
             "level": level,
             "message": message,
@@ -385,7 +385,7 @@ class SessionStore:
             increment: Значение инкремента
 
         """
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         key = f"{REDIS_STATS_PREFIX}{today}"
 
         await self.redis.hincrby(key, stat_name, increment)  # type: ignore[misc]
@@ -402,7 +402,7 @@ class SessionStore:
 
         """
         if date is None:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = datetime.now(UTC).strftime("%Y-%m-%d")
 
         key = f"{REDIS_STATS_PREFIX}{date}"
         data = await self.redis.hgetall(key)  # type: ignore[misc]

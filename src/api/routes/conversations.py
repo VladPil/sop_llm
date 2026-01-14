@@ -256,6 +256,12 @@ async def update_conversation(
     # Получить обновлённый диалог
     conv = await conversation_store.get_conversation(conversation_id)
 
+    if conv is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Диалог {conversation_id} не найден после обновления",
+        )
+
     return ConversationResponse(
         conversation_id=conv["conversation_id"],
         model=conv.get("model"),
@@ -351,12 +357,12 @@ async def add_message(
 
     if not messages:
         # Fallback - вернуть данные из запроса
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         return ConversationMessage(
             role=request.role,
             content=request.content,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
     msg = messages[-1]

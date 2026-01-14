@@ -469,10 +469,11 @@ async def get_daily_stats(date: str | None = None) -> dict:
         Словарь со статистикой
 
     """
+    from datetime import UTC
     from datetime import datetime as dt
 
     if date is None:
-        date = dt.utcnow().strftime("%Y-%m-%d")
+        date = dt.now(UTC).strftime("%Y-%m-%d")
 
     session_store = get_session_store()
     stats = await session_store.get_daily_stats(date)

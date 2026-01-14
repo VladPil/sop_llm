@@ -15,12 +15,20 @@ try:
 except (ImportError, AttributeError):
     # langfuse >= 3.0 moved langfuse_context
     try:
-        from langfuse.client import langfuse_context
+        from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
         # Fallback - create dummy context if langfuse not available
         class DummyContext:
-            def flush(self):
+            """Fallback when langfuse is not installed."""
+
+            def flush(self) -> None:
                 pass
+
+            def update_current_trace(self, **kwargs: Any) -> None:
+                return None
+
+            def update_current_observation(self, **kwargs: Any) -> None:
+                return None
         langfuse_context = DummyContext()
 
 from src.services.observability.utils import is_observability_enabled, set_span_id, set_trace_id

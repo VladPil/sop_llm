@@ -8,11 +8,16 @@ try:
     from langfuse.decorators import langfuse_context
 except (ImportError, AttributeError):
     try:
-        from langfuse.client import langfuse_context
+        from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
         class DummyContext:
-            def flush(self):
+            """Fallback when langfuse is not installed."""
+
+            def flush(self) -> None:
                 pass
+
+            def get_current_trace_id(self) -> None:
+                return None
         langfuse_context = DummyContext()
 
 from src.api.schemas.requests import CreateTaskRequest

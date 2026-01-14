@@ -6,7 +6,7 @@
 
 import functools
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from src.services.observability.utils import is_observability_enabled
 
@@ -15,16 +15,22 @@ try:
 except (ImportError, AttributeError):
     # langfuse >= 3.0 moved these
     try:
-        from langfuse import observe
-        from langfuse.client import langfuse_context
+        from langfuse import observe  # type: ignore[attr-defined]
+        from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
         # Fallback - create dummy implementations
         class DummyContext:
-            def flush(self):
+            """Fallback when langfuse is not installed."""
+
+            def flush(self) -> None:
                 pass
+
+            def update_current_observation(self, **kwargs: Any) -> None:
+                return None
         langfuse_context = DummyContext()
-        def observe(*args, **kwargs):
-            def decorator(func):
+
+        def observe(*args: Any, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+            def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
                 return func
             return decorator
 
@@ -65,7 +71,7 @@ def trace_llm_generation(
         async def wrapper(*args, **kwargs):
             return await func(*args, **kwargs)
 
-        return wrapper
+        return cast("F", wrapper)
 
     return decorator
 
@@ -104,6 +110,6 @@ def trace_operation(
                 langfuse_context.update_current_observation(metadata=metadata)
             return await func(*args, **kwargs)
 
-        return wrapper
+        return cast("F", wrapper)
 
     return decorator

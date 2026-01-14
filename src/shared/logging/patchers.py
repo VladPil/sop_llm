@@ -77,7 +77,7 @@ def install_langfuse_patcher() -> None:
         >>> logger.info("Test")  # trace_id добавится автоматически
 
     """
-    logger.configure(patcher=langfuse_patcher)
+    logger.configure(patcher=langfuse_patcher)  # type: ignore[arg-type]
 
 
 def opentelemetry_patcher(record: dict[str, Any]) -> None:
@@ -128,4 +128,4 @@ def install_opentelemetry_patcher() -> None:
         Предоставляется для возможной будущей интеграции.
 
     """
-    logger.configure(patcher=opentelemetry_patcher)
+    logger.configure(patcher=opentelemetry_patcher)  # type: ignore[arg-type]

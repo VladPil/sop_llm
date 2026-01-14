@@ -12,10 +12,18 @@ try:
     from langfuse.decorators import langfuse_context
 except (ImportError, AttributeError):
     try:
-        from langfuse.client import langfuse_context
+        from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
         class DummyContext:
-            def flush(self):
+            """Fallback when langfuse is not installed."""
+
+            def flush(self) -> None:
+                pass
+
+            def generation(self, **kwargs: Any) -> None:
+                pass
+
+            def update_current_observation(self, **kwargs: Any) -> None:
                 pass
         langfuse_context = DummyContext()
 
@@ -60,7 +68,7 @@ def log_generation(
         return
 
     try:
-        langfuse_context.generation(
+        langfuse_context.generation(  # type: ignore[attr-defined]
             name="llm_generation",
             model=model,
             input=input_text,

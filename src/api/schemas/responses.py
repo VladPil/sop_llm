@@ -439,7 +439,7 @@ class CloudPresetInfo(BaseModel):
     name: str = Field(description="Уникальное имя пресета")
     provider: str = Field(description="Провайдер (openai, anthropic, gemini, etc.)")
     model_name: str = Field(description="ID модели в API провайдера")
-    api_key_env_var: str = Field(description="Имя переменной окружения с API ключом")
+    api_key_env_var: str | None = Field(default=None, description="Имя переменной окружения с API ключом. None для Ollama.")
 
 
 class EmbeddingPresetInfo(BaseModel):

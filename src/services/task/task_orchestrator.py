@@ -327,7 +327,7 @@ class TaskOrchestrator:
 
             except (ModelNotFoundError, GenerationFailedError) as e:
                 # Доменная ошибка - обработать
-                error_msg = f"{e.error_code}: {e.message}"
+                error_msg = f"{e.code}: {e.message}"
                 await self._handle_task_failure(task_id, error_msg, webhook_url)
 
             except Exception as e:

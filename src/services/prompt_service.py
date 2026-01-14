@@ -321,7 +321,7 @@ class PromptService:
             # Если не удалось распарсить - пустой список
             return []
 
-    def _get_formatter(self, provider_type: ProviderType) -> Callable[[str, dict], CompiledPrompt]:
+    def _get_formatter(self, provider_type: ProviderType) -> Callable[..., CompiledPrompt]:
         """Получить formatter функцию для конкретного provider.
 
         Args:

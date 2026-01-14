@@ -27,6 +27,7 @@ class ProviderType(str, Enum):
     """Тип провайдера LLM."""
 
     LOCAL = "local"  # Локальный провайдер (llama.cpp)
+    OLLAMA = "ollama"  # Ollama (локальные GPU модели через API)
     OPENAI = "openai"  # OpenAI API
     OPENAI_COMPATIBLE = "openai_compatible"  # OpenAI-совместимые API
     ANTHROPIC = "anthropic"  # Anthropic Claude API

@@ -126,7 +126,7 @@ def example_llm_errors() -> None:
 
 def example_exception_mapping() -> None:
     """Демонстрация маппинга инфраструктурных исключений."""
-    import asyncpg
+    import asyncpg  # type: ignore[import-not-found]
 
     # PostgreSQL UniqueViolationError -> ConflictError
     try:

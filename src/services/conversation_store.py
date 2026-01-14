@@ -8,7 +8,7 @@ Redis Schema:
     conversations:index             -> Set (все conversation_id)
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -79,7 +79,7 @@ class ConversationStore:
         conv_key = self._conv_key(conversation_id)
         messages_key = self._messages_key(conversation_id)
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
 
         conv_data: dict[str, str] = {
             "conversation_id": conversation_id,
@@ -209,7 +209,7 @@ class ConversationStore:
         message = {
             "role": role,
             "content": content,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         message_json = orjson.dumps(message).decode("utf-8")
 
@@ -222,7 +222,7 @@ class ConversationStore:
         # Обновить метаданные
         message_count = await self.redis.llen(messages_key)  # type: ignore[misc]
         await self.redis.hset(conv_key, mapping={  # type: ignore[arg-type]
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "message_count": str(message_count),
         })
 
@@ -345,7 +345,7 @@ class ConversationStore:
 
         # Обновить метаданные
         await self.redis.hset(conv_key, mapping={  # type: ignore[arg-type]
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "message_count": "0",
         })
 
@@ -413,7 +413,7 @@ class ConversationStore:
             return False
 
         update_data: dict[str, str] = {
-            "updated_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
         if model is not None:
