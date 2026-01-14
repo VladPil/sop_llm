@@ -32,65 +32,6 @@ SOP LLM Executor — production-ready асинхронный сервис на F
 | **LiteLLM** | Cloud API | OpenAI, Anthropic, Google, Mistral, Groq, DeepSeek, Together AI | ✅ |
 | **SentenceTransformers** | Embeddings | E5, MiniLM, BGE | — |
 
-## Архитектура
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      API Request                             │
-│  POST /tasks {model: "claude-sonnet-4"}                     │
-│  POST /embeddings {model_name: "multilingual-e5-large"}     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-        ┌─────────────┴─────────────┐
-        ▼                           ▼
-┌───────────────────┐     ┌─────────────────────┐
-│ ProviderRegistry  │     │  EmbeddingManager   │
-│ .get_or_create()  │     │  .get_or_load()     │
-│                   │     │                     │
-│ • Lazy loading    │     │ • Lazy loading      │
-│ • Cloud + Ollama  │     │ • FIFO eviction     │
-│ • No VRAM limits  │     │ • VRAM monitoring   │
-└─────────┬─────────┘     └──────────┬──────────┘
-          │                          │
-          ▼                          ▼
-┌───────────────────┐     ┌─────────────────────┐
-│ ModelPresetsLoader│     │    VRAMMonitor      │
-│ .get_cloud_preset │     │ .can_allocate()     │
-│ .get_embedding_   │     └─────────────────────┘
-│     preset        │
-└───────────────────┘
-
-┌──────────────────────────────────────────────┐
-│              FastAPI Application              │
-│  ┌─────────────────┐  ┌───────────────────┐  │
-│  │     Routes      │  │  TaskOrchestrator │  │
-│  │ tasks, models,  │  │   + Processor     │  │
-│  │ monitor, embed  │  │  (Background)     │  │
-│  └────────┬────────┘  └─────────┬─────────┘  │
-│           │                     │            │
-│           ▼                     ▼            │
-│  ┌────────────────────────────────────────┐  │
-│  │         Session Store (Redis)          │  │
-│  │  • Tasks Queue (Sorted Set)            │  │
-│  │  • Sessions (24h TTL)                  │  │
-│  │  • Daily Stats (7d TTL)                │  │
-│  │  • GPU Cache (5s TTL)                  │  │
-│  └────────────────────────────────────────┘  │
-└──────────────────────────────────────────────┘
-```
-
-### Lazy Loading & FIFO Eviction
-
-**LLM модели (ProviderRegistry):**
-- Провайдеры создаются автоматически при первом запросе
-- Cloud модели (Claude, GPT, Gemini) — без ограничений
-- Ollama модели — используют `keep_alive: 30m` для управления памятью
-
-**Embedding модели (EmbeddingManager):**
-- Модели загружаются по требованию в GPU/CPU память
-- FIFO eviction при достижении лимита `max_loaded_models`
-- Интеграция с VRAMMonitor для контроля VRAM
-
 ## Быстрый старт
 
 ### Требования
@@ -101,28 +42,11 @@ SOP LLM Executor — production-ready асинхронный сервис на F
 
 ### Установка
 
-```bash
-# Клонировать репозиторий
-git clone git@github.com:VladPil/sop_llm.git
-cd sop_llm
-
-# Создать виртуальное окружение
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-# Установить зависимости
-pip install -e ".[dev]"
-
-# Настроить переменные окружения
-cp .docker/configs/.env.local .env
-# Отредактировать .env
-
-# Запустить Redis
-docker run -d -p 6379:6379 redis:7-alpine
-
-# Запустить сервис
-python main.py
-```
+1. Клонировать репозиторий и создать виртуальное окружение
+2. Установить зависимости: `pip install -e ".[dev]"`
+3. Настроить переменные окружения (см. [docs/configuration.md](docs/configuration.md))
+4. Запустить Redis
+5. Запустить сервис: `python main.py`
 
 ## API Endpoints
 
@@ -148,8 +72,6 @@ python main.py
 | `GET` | `/api/v1/conversations/{id}/messages` | Получить историю сообщений |
 | `DELETE` | `/api/v1/conversations/{id}/messages` | Очистить историю |
 
-> Подробная документация: [docs/conversations.md](docs/conversations.md)
-
 ### Models API
 
 | Method | Endpoint | Описание |
@@ -158,8 +80,6 @@ python main.py
 | `GET` | `/api/v1/models/{name}` | Информация о модели (lazy loading) |
 | `GET` | `/api/v1/models/presets` | Список доступных пресетов |
 | `DELETE` | `/api/v1/models/{name}` | Удалить модель из registry |
-
-> **Lazy Loading:** Модели автоматически создаются при первом запросе к `/api/v1/models/{name}`. Ручная регистрация не требуется.
 
 ### Embeddings API
 
@@ -185,162 +105,6 @@ python main.py
 | `WS /ws/monitor` | Real-time мониторинг |
 
 **События:** `gpu_stats`, `task.queued`, `task.started`, `task.progress`, `task.completed`, `task.failed`, `model.loaded`, `model.unloaded`
-
-## Примеры использования
-
-### Создать задачу генерации
-
-```python
-import httpx
-
-async with httpx.AsyncClient(base_url="http://<host>:<port>") as client:
-    response = await client.post(
-        "/api/v1/tasks",
-        json={
-            "model": "claude-3.5-sonnet",
-            "prompt": "Объясни квантовую запутанность",
-            "temperature": 0.7,
-            "max_tokens": 500,
-            "webhook_url": "https://myapp.com/callback",
-            "priority": 10.0
-        }
-    )
-    task = response.json()
-    print(f"Task ID: {task['task_id']}")
-```
-
-### Использование модели (Lazy Loading)
-
-```python
-# Посмотреть доступные пресеты
-response = await client.get("/api/v1/models/presets")
-presets = response.json()
-# cloud_models: ["claude-sonnet-4", "gpt-4-turbo", "qwen2.5:7b", ...]
-# embedding_models: ["multilingual-e5-large", "all-MiniLM-L6-v2", ...]
-
-# Модель автоматически создаётся при первом запросе
-response = await client.get("/api/v1/models/claude-sonnet-4")
-model_info = response.json()
-# {"name": "claude-sonnet-4-20250514", "provider": "anthropic", ...}
-
-# Или просто отправить задачу - модель загрузится автоматически
-response = await client.post(
-    "/api/v1/tasks",
-    json={"model": "claude-sonnet-4", "prompt": "Hello!"}
-)
-```
-
-### WebSocket мониторинг
-
-```javascript
-const ws = new WebSocket('ws://<host>:<port>/ws/monitor');
-
-ws.onopen = () => {
-    ws.send(JSON.stringify({
-        type: 'subscribe',
-        events: ['task.*', 'gpu_stats']
-    }));
-};
-
-ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log(data.type, data.data);
-};
-```
-
-### Вычисление сходства текстов
-
-```python
-response = await client.post(
-    "/api/v1/embeddings/similarity",
-    json={
-        "text1": "Машинное обучение - это область AI",
-        "text2": "ML является частью искусственного интеллекта",
-        "model_name": "multilingual-e5-large"
-    }
-)
-result = response.json()
-print(f"Similarity: {result['similarity']}")  # 0.85
-```
-
-## Конфигурация
-
-```env
-# === Application ===
-APP_NAME="SOP LLM Executor"
-APP_ENV=production
-
-# === Server ===
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8000
-SERVER_WORKERS=1  # ВАЖНО: Single worker для GPU Guard
-
-# === Redis ===
-REDIS_URL=redis://localhost:6379/0
-
-# === GPU ===
-GPU_INDEX=0
-MAX_VRAM_USAGE_PERCENT=95
-VRAM_RESERVE_MB=1024
-
-# === Models Directory ===
-MODELS_DIR=/models
-
-# === API Keys ===
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-
-# === Observability ===
-LANGFUSE_PUBLIC_KEY=pk-...
-LANGFUSE_SECRET_KEY=sk-...
-LANGFUSE_HOST=https://cloud.langfuse.com
-```
-
-## Model Presets
-
-Пресеты моделей хранятся в `config/model_presets/`:
-
-```
-config/model_presets/
-├── cloud_models.yaml      # Cloud API + Ollama модели
-└── embedding_models.yaml  # Embedding модели (E5, MiniLM)
-```
-
-**Пример Cloud пресета:**
-
-```yaml
-models:
-  - name: "claude-sonnet-4"
-    provider: "anthropic"
-    api_key_env_var: "ANTHROPIC_API_KEY"
-    provider_config:
-      model_name: "claude-sonnet-4-20250514"
-      timeout: 600
-      max_retries: 3
-```
-
-**Пример Ollama пресета с keep_alive:**
-
-```yaml
-models:
-  - name: "qwen2.5:7b"
-    provider: "ollama"
-    keep_alive: "30m"  # Держать модель в VRAM 30 минут
-    provider_config:
-      model_name: "ollama/qwen2.5:7b"
-      base_url: "http://localhost:11434"
-      timeout: 120
-```
-
-**Пример Embedding пресета:**
-
-```yaml
-models:
-  - name: "multilingual-e5-large"
-    huggingface_repo: "intfloat/multilingual-e5-large"
-    dimensions: 1024
-```
 
 ## Структура проекта
 
@@ -375,73 +139,16 @@ sop_llm/
 └── pyproject.toml
 ```
 
-## Тестирование
-
-```bash
-# Все тесты (270 тестов)
-make test
-
-# Unit тесты по категориям
-make test-providers    # ProviderRegistry lazy loading
-make test-services     # EmbeddingManager FIFO
-make test-api          # API endpoints
-
-# С coverage
-make test-coverage
-
-# Линтинг и типы
-make check             # lint + type-check
-```
-
-### Структура тестов
-
-```
-src/tests/
-├── conftest.py           # Fixtures (MockLLMProvider, MockPresetsLoader, etc.)
-├── unit/
-│   ├── api/
-│   │   ├── test_models.py      # Models API endpoints
-│   │   └── test_embeddings.py  # Embeddings API endpoints
-│   ├── providers/
-│   │   ├── test_registry.py    # ProviderRegistry lazy loading
-│   │   └── test_litellm_provider.py
-│   ├── services/
-│   │   └── test_embedding_manager.py  # FIFO eviction tests
-│   └── shared/
-│       └── errors/             # Error handling tests
-└── system/                     # System tests (Redis required)
-```
-
-## Docker
-
-```yaml
-# docker-compose.yml
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - SERVER_WORKERS=1  # КРИТИЧНО для GPU Guard
-    depends_on:
-      - redis
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-```
-
 ## Документация
 
 - **Swagger UI**: `/docs`
 - **ReDoc**: `/redoc`
 - **OpenAPI JSON**: `/openapi.json`
+
+### Дополнительно
+
+- [Conversations API](docs/conversations.md)
+- [Конфигурация](docs/configuration.md)
+- [Model Presets](docs/model-presets.md)
+- [Тестирование](docs/testing.md)
+- [Docker](docs/docker.md)
