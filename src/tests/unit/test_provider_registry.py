@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.core.enums import ProviderType
 from src.providers.base import ModelInfo
 from src.providers.registry import ProviderRegistry
 
@@ -29,7 +30,7 @@ class MockProvider:
         """Mock get_model_info."""
         return ModelInfo(
             name=self.name,
-            provider="local",
+            provider=ProviderType.LOCAL,
             context_window=4096,
             max_output_tokens=2048,
             supports_streaming=True,

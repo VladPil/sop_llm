@@ -219,7 +219,7 @@ class TestErrorResponse:
 
     def test_error_response_without_details(self):
         """Тестирует создание ErrorResponse без details."""
-        response = ErrorResponse(error_code="test_error", message="Test message")
+        response = ErrorResponse(error_code="test_error", message="Test message")  # type: ignore[call-arg]
 
         assert response.error_code == "test_error"
         assert response.message == "Test message"

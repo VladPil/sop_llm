@@ -12,6 +12,7 @@
 """
 
 import time
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
@@ -29,7 +30,7 @@ CLAUDE_MODEL = "claude-sonnet-4"
 
 
 @pytest.fixture(scope="module")
-def client() -> httpx.Client:
+def client() -> Iterator[httpx.Client]:
     """HTTP клиент для тестов."""
     client = httpx.Client(base_url=BASE_URL, timeout=120.0)
     yield client
@@ -37,7 +38,7 @@ def client() -> httpx.Client:
 
 
 @pytest.fixture
-def conversation_id(client: httpx.Client) -> str:
+def conversation_id(client: httpx.Client) -> Iterator[str]:
     """Создать диалог для теста и удалить после."""
     # Создать диалог
     response = client.post(

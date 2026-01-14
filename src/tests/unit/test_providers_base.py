@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.core.enums import FinishReason, ProviderType
 from src.providers.base import (
     GenerationParams,
     GenerationResult,
@@ -93,13 +94,13 @@ class TestGenerationResult:
         """Тест создания result."""
         result = GenerationResult(
             text="Hello, world!",
-            finish_reason="stop",
+            finish_reason=FinishReason.STOP,
             usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             model="test-model",
         )
 
         assert result.text == "Hello, world!"
-        assert result.finish_reason == "stop"
+        assert result.finish_reason == FinishReason.STOP
         assert result.usage["total_tokens"] == 15
         assert result.model == "test-model"
 
@@ -107,7 +108,7 @@ class TestGenerationResult:
         """Тест дополнительных метаданных."""
         result = GenerationResult(
             text="Test",
-            finish_reason="length",
+            finish_reason=FinishReason.LENGTH,
             usage={"prompt_tokens": 10, "completion_tokens": 100, "total_tokens": 110},
             model="test-model",
             extra={"vram_used_mb": 1024.5, "inference_time_ms": 250},
@@ -132,12 +133,12 @@ class TestStreamChunk:
         """Тест финального chunk (с finish_reason и usage)."""
         chunk = StreamChunk(
             text=" world!",
-            finish_reason="stop",
+            finish_reason=FinishReason.STOP,
             usage={"prompt_tokens": 5, "completion_tokens": 10, "total_tokens": 15},
         )
 
         assert chunk.text == " world!"
-        assert chunk.finish_reason == "stop"
+        assert chunk.finish_reason == FinishReason.STOP
         assert chunk.usage is not None
         assert chunk.usage["total_tokens"] == 15
 
@@ -149,7 +150,7 @@ class TestModelInfo:
         """Тест метаданных local модели."""
         info = ModelInfo(
             name="qwen2.5-7b-instruct",
-            provider="local",
+            provider=ProviderType.LOCAL,
             context_window=8192,
             max_output_tokens=2048,
             supports_streaming=True,
@@ -159,7 +160,7 @@ class TestModelInfo:
         )
 
         assert info.name == "qwen2.5-7b-instruct"
-        assert info.provider == "local"
+        assert info.provider == ProviderType.LOCAL
         assert info.context_window == 8192
         assert info.supports_streaming is True
         assert info.supports_structured_output is True
@@ -170,7 +171,7 @@ class TestModelInfo:
         """Тест метаданных remote модели."""
         info = ModelInfo(
             name="gpt-4-turbo",
-            provider="openai",
+            provider=ProviderType.OPENAI,
             context_window=128000,
             max_output_tokens=4096,
             supports_streaming=True,
@@ -178,6 +179,6 @@ class TestModelInfo:
             loaded=True,  # Remote модели всегда "loaded"
         )
 
-        assert info.provider == "openai"
+        assert info.provider == ProviderType.OPENAI
         assert info.context_window == 128000
         assert info.loaded is True
