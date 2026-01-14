@@ -184,7 +184,6 @@ class TestOllamaModelE2E:
 
 class TestLocalModelE2E(TestOllamaModelE2E):
     """Алиас для обратной совместимости."""
-    pass
 
 
 def run_tests():

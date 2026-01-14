@@ -15,11 +15,14 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from src.api.routes import conversations, embeddings, models, monitor, tasks, websocket
 from src.core.config import settings
 from src.engine.vram_monitor import get_vram_monitor
-from src.providers.litellm_provider import LiteLLMProvider
 from src.providers.registry import get_provider_registry
 from src.services.conversation_store import (
     create_conversation_store,
     set_conversation_store,
+)
+from src.services.embedding_manager import (
+    EmbeddingManager,
+    set_embedding_manager,
 )
 from src.services.model_presets import (
     create_compatibility_checker,
@@ -82,7 +85,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
     # Настроить LiteLLM
     litellm.drop_params = settings.litellm_drop_params
-    litellm.set_verbose = settings.litellm_debug
+    litellm.set_verbose = settings.litellm_debug  # type: ignore[attr-defined]
     logger.info(f"LiteLLM настроен: debug={settings.litellm_debug}, drop_params={settings.litellm_drop_params}")
 
     # Создать SessionStore
@@ -96,6 +99,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("ConversationStore инициализирован")
 
     # Инициализировать Model Presets сервисы
+    vram_monitor = None
+    presets_loader = None
+
     try:
         # 1. ModelPresetsLoader - загрузка YAML пресетов
         presets_dir = Path(settings.hf_presets_dir)
@@ -108,11 +114,31 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             embedding=len(presets_loader.list_embedding()),
         )
 
-        # 2. CompatibilityChecker - проверка совместимости с GPU
-        vram_monitor = get_vram_monitor()
-        compatibility_checker = create_compatibility_checker(vram_monitor)
-        set_compatibility_checker(compatibility_checker)
-        logger.info("CompatibilityChecker инициализирован")
+        # 2. Связать ProviderRegistry с presets_loader для lazy loading
+        registry = get_provider_registry()
+        registry.set_presets_loader(presets_loader)
+        logger.info("ProviderRegistry связан с presets_loader (lazy loading enabled)")
+
+        # 3. VRAMMonitor и CompatibilityChecker
+        try:
+            vram_monitor = get_vram_monitor()
+            compatibility_checker = create_compatibility_checker(vram_monitor)
+            set_compatibility_checker(compatibility_checker)
+            logger.info("CompatibilityChecker инициализирован")
+        except Exception as e:
+            logger.warning(f"VRAMMonitor недоступен (нет GPU?): {e}")
+
+        # 4. EmbeddingManager с lazy loading и FIFO eviction
+        embedding_device = "cuda" if vram_monitor else "cpu"
+        embedding_manager = EmbeddingManager(
+            presets_loader=presets_loader,
+            device=embedding_device,
+            max_loaded_models=5,
+        )
+        if vram_monitor:
+            embedding_manager.set_vram_monitor(vram_monitor)
+        set_embedding_manager(embedding_manager)
+        logger.info(f"EmbeddingManager инициализирован (device={embedding_device})")
 
     except FileNotFoundError as e:
         logger.warning(f"Model presets не загружены: {e}")
@@ -138,40 +164,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await orchestrator.start()
     logger.info("TaskOrchestrator worker запущен")
 
-    # Инициализировать LiteLLM providers для доступных API keys
-    registry = get_provider_registry()
-
-    if settings.anthropic_api_key:
-        claude_provider = LiteLLMProvider(
-            model_name="claude-sonnet-4-20250514",
-            api_key=settings.anthropic_api_key,
-            timeout=settings.litellm_timeout,
-            max_retries=settings.litellm_max_retries,
-        )
-        registry.register("claude-sonnet-4", claude_provider)
-        logger.info("Claude Sonnet 4 provider зарегистрирован")
-
-    if settings.openai_api_key:
-        gpt4_provider = LiteLLMProvider(
-            model_name="gpt-4-turbo",
-            api_key=settings.openai_api_key,
-            timeout=settings.litellm_timeout,
-            max_retries=settings.litellm_max_retries,
-        )
-        registry.register("gpt-4-turbo", gpt4_provider)
-        logger.info("GPT-4 Turbo provider зарегистрирован")
-
-    if settings.gemini_api_key:
-        gemini_provider = LiteLLMProvider(
-            model_name="gemini/gemini-pro",
-            api_key=settings.gemini_api_key,
-            timeout=settings.litellm_timeout,
-            max_retries=settings.litellm_max_retries,
-        )
-        registry.register("gemini-pro", gemini_provider)
-        logger.info("Gemini Pro provider зарегистрирован")
-
-    # Дополнительные модели можно зарегистрировать через API (/api/v1/models/register)
+    # С lazy loading модели создаются автоматически при первом запросе.
+    # Доступные модели определяются пресетами в config/model_presets/
 
     logger.info(
         "SOP LLM Executor готов",

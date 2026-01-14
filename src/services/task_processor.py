@@ -125,11 +125,11 @@ class TaskProcessor:
             prompt = session["prompt"]
             params_dict = session["params"]
 
-            # Получить provider
+            # Получить provider (lazy loading из пресетов)
             try:
-                provider = self.provider_registry.get(model_name)
+                provider = self.provider_registry.get_or_create(model_name)
             except KeyError:
-                error_msg = f"Модель '{model_name}' не зарегистрирована"
+                error_msg = f"Модель '{model_name}' не найдена в пресетах"
                 logger.exception(error_msg, task_id=task_id)
                 await self._handle_task_failure(task_id, error_msg, session)
                 return
