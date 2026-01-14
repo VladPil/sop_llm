@@ -67,38 +67,18 @@ services:
           memory: 8G
 
   # Langfuse - LLM Observability Platform
-  # Использует общий PostgreSQL из sop_infrastructure (sop_postgres)
-  # Используем v2 так как v3 требует ClickHouse
+  # Наследуется от docker-compose.infra.yml, переопределяет подключение к PostgreSQL
   langfuse:
-    image: langfuse/langfuse:2
-    container_name: sop_llm_langfuse
-    ports:
-      - "3001:3000"
+    extends:
+      file: docker-compose.infra.yml
+      service: langfuse
     environment:
-      # Database (PostgreSQL из sop_network)
+      # PostgreSQL из sop_network (вместо host.docker.internal)
       - DATABASE_URL=postgresql://sop_admin:change_me_in_production@sop_postgres:5432/langfuse
-      # Auth
-      - NEXTAUTH_SECRET=langfuse-secret-key-change-in-production
-      - NEXTAUTH_URL=http://localhost:3001
-      - SALT=langfuse-salt-change-in-production
-      # Features
-      - TELEMETRY_ENABLED=false
-      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
-      # Auto-init (создаёт пользователя и проект при первом запуске)
-      - LANGFUSE_INIT_ORG_ID=sop-local-org
-      - LANGFUSE_INIT_ORG_NAME=SOP Local Development
-      - LANGFUSE_INIT_PROJECT_ID=sop-llm-local
-      - LANGFUSE_INIT_PROJECT_NAME=SOP LLM Service
-      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-local-dev-public-key
-      - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-local-dev-secret-key
-      - LANGFUSE_INIT_USER_EMAIL=admin@local.dev
-      - LANGFUSE_INIT_USER_NAME=Local Admin
-      - LANGFUSE_INIT_USER_PASSWORD=admin123
     networks:
       - sop_network
     depends_on:
       - sop_llm
-    restart: unless-stopped
 
 # Внешняя сеть (создаётся в sop_infrastructure)
 networks:

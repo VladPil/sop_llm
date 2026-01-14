@@ -1,0 +1,48 @@
+# SOP LLM - Infrastructure Only
+# =============================================================================
+# Запускает только Langfuse для локальной разработки sop_llm.
+# Redis и PostgreSQL берутся из общей sop_infrastructure.
+# Backend запускается на хосте - использует VPN хоста для внешних API.
+# =============================================================================
+#
+# ВАЖНО: Сначала запустите общую инфраструктуру:
+#   cd ../../.docker && docker-compose up -d postgres redis
+#
+# Затем запустите этот compose:
+#   docker-compose -f docker-compose.infra.yml up -d
+# =============================================================================
+
+services:
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: sop_llm_langfuse
+    ports:
+      - "3001:3000"
+    environment:
+      # Database (PostgreSQL из sop_infrastructure)
+      - DATABASE_URL=postgresql://sop_admin:change_me_in_production@host.docker.internal:5433/langfuse
+      # Auth
+      - NEXTAUTH_SECRET=langfuse-secret-key-local-dev
+      - NEXTAUTH_URL=http://localhost:3001
+      - SALT=langfuse-salt-local-dev
+      # Features
+      - TELEMETRY_ENABLED=false
+      - LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES=true
+      # Auto-init
+      - LANGFUSE_INIT_ORG_ID=sop-local-org
+      - LANGFUSE_INIT_ORG_NAME=SOP Local Development
+      - LANGFUSE_INIT_PROJECT_ID=sop-llm-local
+      - LANGFUSE_INIT_PROJECT_NAME=SOP LLM Service
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=pk-lf-local-dev-public-key
+      - LANGFUSE_INIT_PROJECT_SECRET_KEY=sk-lf-local-dev-secret-key
+      - LANGFUSE_INIT_USER_EMAIL=admin@local.dev
+      - LANGFUSE_INIT_USER_NAME=Local Admin
+      - LANGFUSE_INIT_USER_PASSWORD=admin123
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

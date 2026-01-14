@@ -1,4 +1,4 @@
-.PHONY: help install install-dev run run-dev up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-providers test-services test-api test-integration test-coverage test-fast clean clean-models clean-all build-gpu up-gpu down-gpu restart-gpu
+.PHONY: help install install-dev run run-dev dev dev-backend up down restart ps logs logs-app logs-redis logs-langfuse shell shell-redis build lint format type-check pyright-check check test test-unit test-providers test-services test-api test-integration test-coverage test-fast clean clean-models clean-all build-gpu up-gpu down-gpu restart-gpu up-infra down-infra logs-infra
 
 RESET := \033[0m
 RED := \033[31m
@@ -43,6 +43,10 @@ SCRIPTS_DIR := scripts
 # GPU compose override
 GPU_COMPOSE_FILE := .docker/docker-compose.gpu.yml
 
+# Infrastructure (Langfuse для локальной разработки)
+INFRA_COMPOSE_FILE := .docker/docker-compose.infra.yml
+HOST_ENV_FILE := .docker/configs/.env.host
+
 # Пути к конфигурационным файлам
 PYTEST_CONFIG := config/pytest.ini
 PYPROJECT_CONFIG := pyproject.toml
@@ -70,7 +74,16 @@ help:
 	@echo "  $(GREEN)install$(RESET)           - Установка production зависимостей"
 	@echo "  $(GREEN)install-dev$(RESET)       - Установка с dev зависимостями"
 	@echo ""
-	@echo "$(BOLD)$(YELLOW)Запуск приложения:$(RESET)"
+	@echo "$(BOLD)$(YELLOW)Локальная разработка (VPN хоста для API):$(RESET)"
+	@echo "  $(GREEN)dev$(RESET)               - $(BOLD)Запустить инфру в Docker + backend локально$(RESET)"
+	@echo "  $(GREEN)dev-backend$(RESET)       - Запустить только backend (если инфра уже запущена)"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Инфраструктура (Langfuse в Docker):$(RESET)"
+	@echo "  $(GREEN)up-infra$(RESET)          - Запустить Langfuse (Redis/Postgres из sop_infrastructure)"
+	@echo "  $(GREEN)down-infra$(RESET)        - Остановить Langfuse"
+	@echo "  $(GREEN)logs-infra$(RESET)        - Логи Langfuse"
+	@echo ""
+	@echo "$(BOLD)$(YELLOW)Запуск приложения (в Docker):$(RESET)"
 	@echo "  $(GREEN)run$(RESET)               - Запустить приложение локально"
 	@echo "  $(GREEN)run-dev$(RESET)           - Запустить с hot-reload (uvicorn --reload)"
 	@echo ""
@@ -349,3 +362,50 @@ down-gpu:
 	@echo "$(GREEN)GPU сервисы остановлены$(RESET)"
 
 restart-gpu: down-gpu up-gpu
+
+# =============================================================================
+# Infrastructure targets (Langfuse для локальной разработки)
+# =============================================================================
+up-infra:
+	@echo "$(CYAN)Запуск Langfuse...$(RESET)"
+	@echo "$(YELLOW)ВАЖНО: Redis и PostgreSQL должны быть запущены из sop_infrastructure$(RESET)"
+	@$(DOCKER_COMPOSE) -f $(INFRA_COMPOSE_FILE) up -d
+	@echo "$(GREEN)Langfuse запущен$(RESET)"
+	@echo ""
+	@echo "$(CYAN)Доступные сервисы:$(RESET)"
+	@echo "  $(BOLD)Langfuse:$(RESET)         http://localhost:3001"
+	@echo "  $(BOLD)Redis:$(RESET)            localhost:6380 (из sop_infrastructure)"
+	@echo "  $(BOLD)PostgreSQL:$(RESET)       localhost:5433 (из sop_infrastructure)"
+	@echo ""
+	@echo "$(CYAN)Langfuse credentials:$(RESET)"
+	@echo "  Email:    admin@local.dev"
+	@echo "  Password: admin123"
+	@echo ""
+	@echo "$(YELLOW)Теперь запустите backend:$(RESET)"
+	@echo "  make dev-backend"
+
+down-infra:
+	@echo "$(CYAN)Остановка Langfuse...$(RESET)"
+	@$(DOCKER_COMPOSE) -f $(INFRA_COMPOSE_FILE) down
+	@echo "$(GREEN)Langfuse остановлен$(RESET)"
+
+logs-infra:
+	@$(DOCKER_COMPOSE) -f $(INFRA_COMPOSE_FILE) logs -f
+
+dev-backend:
+	@echo "$(CYAN)Запуск backend локально (использует VPN хоста)...$(RESET)"
+	@if [ ! -f "$(HOST_ENV_FILE)" ]; then \
+		echo "$(RED)Ошибка: Файл $(HOST_ENV_FILE) не найден!$(RESET)"; \
+		exit 1; \
+	fi
+	@set -a && . $(HOST_ENV_FILE) && set +a && \
+		$(VENV_ACTIVATE) && python -m uvicorn src.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
+
+dev: up-infra
+	@echo ""
+	@echo "$(MAGENTA)═══════════════════════════════════════════════════════════$(RESET)"
+	@echo "$(BOLD)$(GREEN)Инфраструктура готова! Запускаю backend...$(RESET)"
+	@echo "$(MAGENTA)═══════════════════════════════════════════════════════════$(RESET)"
+	@echo ""
+	@sleep 2
+	@$(MAKE) dev-backend
