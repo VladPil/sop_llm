@@ -1,13 +1,16 @@
 """Provider Registry для SOP LLM Executor.
 
-Централизованное хранилище providers с динамической регистрацией.
+Централизованное хранилище providers с lazy loading.
 Поддерживает как LLM providers, так и Embedding providers.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.providers.base import LLMProvider, ModelInfo
+from src.providers.base import ModelInfo
 from src.shared.logging import get_logger
+
+if TYPE_CHECKING:
+    from src.services.model_presets.loader import ModelPresetsLoader
 
 logger = get_logger()
 
@@ -15,9 +18,9 @@ logger = get_logger()
 class ProviderRegistry:
     """Registry для управления LLM и Embedding providers.
 
-    Паттерн: Registry + Singleton
+    Паттерн: Registry + Singleton + Lazy Loading
     - Хранит зарегистрированные providers
-    - Поддерживает динамическую регистрацию
+    - Lazy loading: создаёт providers при первом запросе из пресетов
     - Обеспечивает единую точку доступа к providers
     - Поддерживает LLM и Embedding providers
     """
@@ -25,6 +28,17 @@ class ProviderRegistry:
     def __init__(self) -> None:
         """Инициализировать пустой registry."""
         self._providers: dict[str, Any] = {}
+        self._presets_loader: ModelPresetsLoader | None = None
+
+    def set_presets_loader(self, loader: "ModelPresetsLoader") -> None:
+        """Установить ссылку на ModelPresetsLoader для lazy loading.
+
+        Args:
+            loader: Инициализированный ModelPresetsLoader
+
+        """
+        self._presets_loader = loader
+        logger.info("ProviderRegistry: presets_loader установлен")
 
     def register(self, name: str, provider: Any) -> None:
         """Зарегистрировать provider.
@@ -73,7 +87,7 @@ class ProviderRegistry:
         logger.info("Provider удалён из registry", name=name)
 
     def get(self, name: str) -> Any:
-        """Получить provider по имени.
+        """Получить provider по имени (без lazy loading).
 
         Args:
             name: Название provider
@@ -91,6 +105,68 @@ class ProviderRegistry:
             raise KeyError(msg)
 
         return self._providers[name]
+
+    def get_or_create(self, name: str) -> Any:
+        """Получить provider или создать из пресета (lazy loading).
+
+        Основной метод для получения LLM провайдеров.
+        Если провайдер уже зарегистрирован - возвращает его.
+        Иначе ищет пресет и создаёт провайдер автоматически.
+
+        Args:
+            name: Название модели/провайдера (должно совпадать с именем пресета)
+
+        Returns:
+            Provider instance
+
+        Raises:
+            KeyError: Если провайдер не найден и пресет не существует
+            RuntimeError: Если presets_loader не установлен
+
+        """
+        # Если уже зарегистрирован - вернуть
+        if name in self._providers:
+            return self._providers[name]
+
+        # Lazy loading: создать из пресета
+        if self._presets_loader is None:
+            msg = "presets_loader не установлен. Вызовите set_presets_loader() в lifespan."
+            raise RuntimeError(msg)
+
+        # Ищем в облачных пресетах
+        preset = self._presets_loader.get_cloud_preset(name)
+        if preset is None:
+            available_presets = self._presets_loader.list_cloud_names()
+            available = ", ".join(available_presets) or "нет доступных"
+            msg = f"Модель '{name}' не найдена в пресетах. Доступные: {available}"
+            raise KeyError(msg)
+
+        # Создать provider из пресета
+        provider = self._create_cloud_provider(preset)
+        self._providers[name] = provider
+
+        logger.info(
+            "Provider создан lazy loading",
+            name=name,
+            provider_type=type(provider).__name__,
+        )
+
+        return provider
+
+    def _create_cloud_provider(self, preset: Any) -> Any:
+        """Создать LiteLLMProvider из CloudModelPreset.
+
+        Args:
+            preset: CloudModelPreset с конфигурацией
+
+        Returns:
+            LiteLLMProvider instance
+
+        """
+        from src.providers.litellm_provider import LiteLLMProvider
+
+        config = preset.to_register_config()
+        return LiteLLMProvider(**config)
 
     def list_providers(self) -> list[str]:
         """Получить список всех зарегистрированных providers.
@@ -186,3 +262,17 @@ def get_provider_registry() -> ProviderRegistry:
 
     """
     return provider_registry
+
+
+def set_provider_registry(registry: ProviderRegistry) -> None:
+    """Установить глобальный provider registry.
+
+    Используется для тестирования и замены registry.
+
+    Args:
+        registry: Новый экземпляр ProviderRegistry
+
+    """
+    global provider_registry
+    provider_registry = registry
+    logger.info("ProviderRegistry установлен глобально")

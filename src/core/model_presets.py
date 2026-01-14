@@ -76,6 +76,7 @@ class CloudProviderConfig(BaseModel):
     - base_url -> LiteLLMProvider.base_url
     - timeout -> LiteLLMProvider.timeout
     - max_retries -> LiteLLMProvider.max_retries
+    - keep_alive -> LiteLLMProvider.keep_alive (для Ollama)
     """
 
     model_name: str = Field(
@@ -104,6 +105,11 @@ class CloudProviderConfig(BaseModel):
         ge=0,
         le=10,
         description="Максимальное количество повторных попыток",
+    )
+
+    keep_alive: str | None = Field(
+        default=None,
+        description="Время удержания модели в памяти для Ollama (e.g. '5m', '1h', '-1' для бесконечно)",
     )
 
 
@@ -207,16 +213,17 @@ class CloudModelPreset(BaseModel):
         description="Уникальное имя для registry",
         min_length=1,
         max_length=100,
-        pattern=r"^[a-zA-Z0-9._-]+$",
+        pattern=r"^[a-zA-Z0-9._:-]+$",  # : для Ollama моделей (qwen2.5:3b)
     )
 
     provider: ProviderType = Field(
-        description="Тип провайдера: openai, anthropic, openai_compatible",
+        description="Тип провайдера: openai, anthropic, openai_compatible, ollama",
     )
 
-    # API ключ
-    api_key_env_var: str = Field(
-        description="Имя env variable с API ключом (e.g. 'ANTHROPIC_API_KEY')",
+    # API ключ (опционально для Ollama)
+    api_key_env_var: str | None = Field(
+        default=None,
+        description="Имя env variable с API ключом (e.g. 'ANTHROPIC_API_KEY'). None для Ollama.",
     )
 
     # Provider config (маппится напрямую в LiteLLMProvider)
@@ -235,16 +242,22 @@ class CloudModelPreset(BaseModel):
 
         """
         api_key = self.provider_config.api_key
-        if api_key is None:
+        if api_key is None and self.api_key_env_var is not None:
             api_key = os.getenv(self.api_key_env_var)
 
-        return {
+        config = {
             "model_name": self.provider_config.model_name,
             "api_key": api_key,
             "base_url": self.provider_config.base_url,
             "timeout": self.provider_config.timeout,
             "max_retries": self.provider_config.max_retries,
         }
+
+        # Добавить keep_alive для Ollama
+        if self.provider_config.keep_alive is not None:
+            config["keep_alive"] = self.provider_config.keep_alive
+
+        return config
 
 
 class EmbeddingModelPreset(BaseModel):

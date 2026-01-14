@@ -13,6 +13,7 @@ import litellm
 from litellm import ModelResponse, acompletion
 from loguru import logger
 
+from src.core.enums import FinishReason, ProviderType
 from src.providers.base import ChatMessage, GenerationParams, GenerationResult, ModelInfo, StreamChunk
 
 
@@ -45,6 +46,7 @@ class LiteLLMProvider:
         timeout: int = 600,
         max_retries: int = 3,
         drop_params: bool = True,
+        keep_alive: str | None = None,
         **extra_params: Any,
     ) -> None:
         """Инициализировать LiteLLM provider.
@@ -56,6 +58,7 @@ class LiteLLMProvider:
             timeout: Таймаут запроса в секундах
             max_retries: Максимальное количество повторных попыток при ошибке
             drop_params: Автоматически удалять неподдерживаемые параметры
+            keep_alive: Время удержания модели в памяти для Ollama (e.g. '5m', '1h', '-1')
             **extra_params: Дополнительные специфичные для провайдера параметры
 
         """
@@ -64,6 +67,7 @@ class LiteLLMProvider:
         self.base_url = base_url
         self.timeout = timeout
         self.max_retries = max_retries
+        self.keep_alive = keep_alive
         self.extra_params = extra_params
 
         # Настроить LiteLLM
@@ -73,6 +77,7 @@ class LiteLLMProvider:
         logger.info(
             f"LiteLLMProvider инициализирован: model={model_name}, "
             f"timeout={timeout}s, retries={max_retries}"
+            + (f", keep_alive={keep_alive}" if keep_alive else "")
         )
 
     def _prepare_messages(
@@ -168,7 +173,7 @@ class LiteLLMProvider:
 
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
-    def _map_finish_reason(self, reason: str | None) -> str:
+    def _map_finish_reason(self, reason: str | None) -> FinishReason:
         """Преобразовать finish_reason из LiteLLM в стандартный формат.
 
         Args:
@@ -179,10 +184,10 @@ class LiteLLMProvider:
 
         """
         if reason == "stop":
-            return "stop"
+            return FinishReason.STOP
         if reason in ("length", "max_tokens"):
-            return "length"
-        return "error"
+            return FinishReason.LENGTH
+        return FinishReason.ERROR
 
     async def generate(
         self,
@@ -225,15 +230,19 @@ class LiteLLMProvider:
                 **self.extra_params,
             }
 
+            # Добавить keep_alive для Ollama
+            if self.keep_alive is not None:
+                completion_kwargs["keep_alive"] = self.keep_alive
+
             # Добавить metadata для Langfuse (session_id, trace_name, etc.)
             if metadata:
                 completion_kwargs["metadata"] = metadata
 
-            response: ModelResponse = await acompletion(**completion_kwargs)
+            response: ModelResponse = await acompletion(**completion_kwargs)  # type: ignore[assignment]
 
             # Извлечь содержимое ответа
             choice = response.choices[0]
-            text = choice.message.content or ""
+            text = choice.message.content or ""  # type: ignore[union-attr]
             finish_reason = self._map_finish_reason(choice.finish_reason)
             usage = self._extract_usage(response)
 
@@ -282,20 +291,27 @@ class LiteLLMProvider:
 
             logger.debug(f"LiteLLM stream: model={self.model_name}, messages={len(messages_list)}")
 
-            response = await acompletion(
-                model=self.model_name,
-                messages=messages_list,
-                api_key=self.api_key,
-                base_url=self.base_url,
-                timeout=self.timeout,
-                stream=True,
+            # Подготовить kwargs для stream
+            stream_kwargs: dict[str, Any] = {
+                "model": self.model_name,
+                "messages": messages_list,
+                "api_key": self.api_key,
+                "base_url": self.base_url,
+                "timeout": self.timeout,
+                "stream": True,
                 **litellm_params,
                 **self.extra_params,
-            )
+            }
+
+            # Добавить keep_alive для Ollama
+            if self.keep_alive is not None:
+                stream_kwargs["keep_alive"] = self.keep_alive
+
+            response = await acompletion(**stream_kwargs)
 
             accumulated_tokens = 0
 
-            async for chunk in response:
+            async for chunk in response:  # type: ignore[union-attr]
                 delta = chunk.choices[0].delta
 
                 # Извлечь текст из delta
@@ -368,7 +384,7 @@ class LiteLLMProvider:
 
         return ModelInfo(
             name=self.model_name,
-            provider="litellm",
+            provider=ProviderType.LITELLM,
             context_window=context_window,
             max_output_tokens=max_output,
             supports_streaming=True,

@@ -175,6 +175,12 @@ models:
   # Ollama автоматически скачивает модели при первом использовании.
   # Требуется запущенный Ollama сервер (docker-compose.gpu.yml)
   # Документация: https://docs.litellm.ai/docs/providers/ollama
+  #
+  # keep_alive: время удержания модели в VRAM
+  #   - "5m" (default) - 5 минут
+  #   - "1h" - 1 час
+  #   - "-1" - бесконечно (не выгружать)
+  #   - "0" - выгрузить сразу после запроса
 
   # === Qwen 2.5 Series ===
 
@@ -185,6 +191,7 @@ models:
       model_name: "ollama/qwen2.5:3b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   - name: "qwen2.5:7b"
     provider: "ollama"
@@ -193,6 +200,7 @@ models:
       model_name: "ollama/qwen2.5:7b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   - name: "qwen2.5:14b"
     provider: "ollama"
@@ -201,6 +209,7 @@ models:
       model_name: "ollama/qwen2.5:14b"
       timeout: 600
       max_retries: 2
+      keep_alive: "30m"
 
   - name: "qwen2.5-coder:7b"
     provider: "ollama"
@@ -209,6 +218,7 @@ models:
       model_name: "ollama/qwen2.5-coder:7b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   # === LLaMA Series ===
 
@@ -219,6 +229,7 @@ models:
       model_name: "ollama/llama3.2:3b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   - name: "llama3.1:8b"
     provider: "ollama"
@@ -227,6 +238,7 @@ models:
       model_name: "ollama/llama3.1:8b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   # === Mistral Series ===
 
@@ -237,6 +249,7 @@ models:
       model_name: "ollama/mistral:7b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   # === Gemma Series ===
 
@@ -247,6 +260,7 @@ models:
       model_name: "ollama/gemma2:9b"
       timeout: 300
       max_retries: 2
+      keep_alive: "30m"
 
   # === DeepSeek Coder Local ===
 
@@ -257,3 +271,4 @@ models:
       model_name: "ollama/deepseek-coder-v2:16b"
       timeout: 600
       max_retries: 2
+      keep_alive: "30m"
