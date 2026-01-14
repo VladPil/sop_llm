@@ -13,12 +13,10 @@ from src.services.observability.utils import is_observability_enabled
 try:
     from langfuse.decorators import langfuse_context, observe
 except (ImportError, AttributeError):
-    # langfuse >= 3.0 moved these
     try:
         from langfuse import observe  # type: ignore[attr-defined]
         from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
-        # Fallback - create dummy implementations
         class DummyContext:
             """Fallback when langfuse is not installed."""
 

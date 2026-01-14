@@ -35,8 +35,6 @@ def configure_litellm_callbacks() -> None:
     try:
         import litellm
 
-        # Включаем Langfuse callback для автоматического трейсинга
-        # Используем langfuse v2 SDK совместимый с litellm
         litellm.success_callback = ["langfuse"]
         litellm.failure_callback = ["langfuse"]
 

@@ -7,7 +7,6 @@
 from langfuse import Langfuse
 from loguru import logger
 
-# Глобальный экземпляр Langfuse клиента (Singleton)
 _langfuse_client: Langfuse | None = None
 
 

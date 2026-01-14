@@ -42,14 +42,12 @@ class ExceptionMapper:
 
     """
 
-    # Маппинг Redis ошибок
     _REDIS_MAPPING: dict[type[Exception], type[AppException]] = {
         redis.exceptions.ConnectionError: ServiceUnavailableError,
         redis.exceptions.TimeoutError: TimeoutError,
         redis.exceptions.RedisError: ServiceUnavailableError,
     }
 
-    # Маппинг LiteLLM ошибок
     _LITELLM_MAPPING: dict[type[Exception], type[AppException]] = {
         litellm.exceptions.NotFoundError: ModelNotFoundError,
         litellm.exceptions.AuthenticationError: ProviderAuthenticationError,
@@ -85,11 +83,9 @@ class ExceptionMapper:
             True
 
         """
-        # Если уже доменное исключение, возвращаем как есть
         if isinstance(exception, AppException):
             return exception
 
-        # Ищем подходящий маппинг
         for exc_type, domain_exc_type in self._mapping.items():
             if isinstance(exception, exc_type):
                 return self._create_domain_exception(
@@ -97,7 +93,6 @@ class ExceptionMapper:
                     exception,
                 )
 
-        # Если маппинг не найден, оборачиваем в InternalServerError
         return InternalServerError(
             message=str(exception),
             details={
@@ -126,7 +121,6 @@ class ExceptionMapper:
             "original_exception": original_exc.__class__.__name__,
         }
 
-        # Для LiteLLM исключений извлекаем дополнительную информацию
         if isinstance(original_exc, litellm.exceptions.APIError):
             if hasattr(original_exc, "model"):
                 details["model_name"] = original_exc.model

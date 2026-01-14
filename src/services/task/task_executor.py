@@ -9,12 +9,16 @@ Example:
 
 """
 
+from typing import TYPE_CHECKING
 
 from src.providers.base import ChatMessage, GenerationParams, GenerationResult
 from src.providers.registry import ProviderRegistry
 from src.services.observability import trace_context
 from src.shared.errors import GenerationFailedError, ModelNotFoundError
 from src.shared.logging import get_logger
+
+if TYPE_CHECKING:
+    from src.services.session_store import SessionStore
 
 logger = get_logger()
 
@@ -82,14 +86,12 @@ class TaskExecutor:
             params=params.model_dump(exclude={"extra"}),
         )
 
-        # Создать Langfuse trace для задачи (conversation_id = session_id)
         async with trace_context(
             name="task_execution",
             input_data={"task_id": task_id, "model": model, "input": input_preview},
             metadata={"task_id": task_id, "model": model},
             session_id=conversation_id,
         ):
-            # Получить provider (lazy loading из пресетов)
             try:
                 provider = self.provider_registry.get_or_create(model)
             except KeyError as e:
@@ -103,9 +105,7 @@ class TaskExecutor:
                     model_name=model,
                 ) from e
 
-            # Выполнить генерацию (передаём metadata для Langfuse)
             try:
-                # Metadata для Langfuse session tracking
                 langfuse_metadata = {"session_id": conversation_id} if conversation_id else None
 
                 result = await provider.generate(
@@ -133,7 +133,6 @@ class TaskExecutor:
                     error=str(e),
                 )
 
-                # Map инфраструктурные ошибки в доменные
                 raise GenerationFailedError(
                     message=f"Ошибка генерации: {e}",
                     details={"model": model, "error": str(e)},

@@ -70,7 +70,6 @@ class LiteLLMProvider:
         self.keep_alive = keep_alive
         self.extra_params = extra_params
 
-        # Настроить LiteLLM
         litellm.drop_params = drop_params
         litellm.num_retries = max_retries
 
@@ -125,7 +124,6 @@ class LiteLLMProvider:
             "top_p": params.top_p,
         }
 
-        # Добавить опциональные параметры
         if params.frequency_penalty != 0.0:
             litellm_params["frequency_penalty"] = params.frequency_penalty
 
@@ -138,15 +136,12 @@ class LiteLLMProvider:
         if params.seed is not None:
             litellm_params["seed"] = params.seed
 
-        # Response format для structured output
         if params.response_format:
             litellm_params["response_format"] = params.response_format
 
-        # Top-K (не все провайдеры поддерживают)
         if params.top_k > 0 and params.top_k != 40:
             litellm_params["top_k"] = params.top_k
 
-        # Объединить с дополнительными специфичными для провайдера параметрами
         if params.extra:
             litellm_params.update(params.extra)
 
@@ -218,7 +213,6 @@ class LiteLLMProvider:
 
             logger.debug(f"LiteLLM генерация: model={self.model_name}, messages={len(messages_list)}")
 
-            # Подготовить kwargs для acompletion
             completion_kwargs: dict[str, Any] = {
                 "model": self.model_name,
                 "messages": messages_list,
@@ -230,19 +224,16 @@ class LiteLLMProvider:
                 **self.extra_params,
             }
 
-            # Добавить keep_alive для Ollama
             if self.keep_alive is not None:
                 completion_kwargs["keep_alive"] = self.keep_alive
 
-            # Добавить metadata для Langfuse (session_id, trace_name, etc.)
             if metadata:
                 completion_kwargs["metadata"] = metadata
 
-            response: ModelResponse = await acompletion(**completion_kwargs)  # type: ignore[assignment]
+            response: ModelResponse = await acompletion(**completion_kwargs)
 
-            # Извлечь содержимое ответа
             choice = response.choices[0]
-            text = choice.message.content or ""  # type: ignore[union-attr]
+            text = choice.message.content or ""
             finish_reason = self._map_finish_reason(choice.finish_reason)
             usage = self._extract_usage(response)
 
@@ -291,7 +282,6 @@ class LiteLLMProvider:
 
             logger.debug(f"LiteLLM stream: model={self.model_name}, messages={len(messages_list)}")
 
-            # Подготовить kwargs для stream
             stream_kwargs: dict[str, Any] = {
                 "model": self.model_name,
                 "messages": messages_list,
@@ -303,21 +293,15 @@ class LiteLLMProvider:
                 **self.extra_params,
             }
 
-            # Добавить keep_alive для Ollama
             if self.keep_alive is not None:
                 stream_kwargs["keep_alive"] = self.keep_alive
 
             response = await acompletion(**stream_kwargs)
-
             accumulated_tokens = 0
 
-            async for chunk in response:  # type: ignore[union-attr]
+            async for chunk in response:
                 delta = chunk.choices[0].delta
-
-                # Извлечь текст из delta
                 text = getattr(delta, "content", "") or ""
-
-                # Проверить, является ли это последним chunk
                 finish_reason = chunk.choices[0].finish_reason
                 is_final = finish_reason is not None
 
@@ -356,9 +340,8 @@ class LiteLLMProvider:
             поэтому возвращаем разумные значения по умолчанию на основе имени модели.
 
         """
-        # Попытаться определить context window из имени модели
-        context_window = 4096  # Default
-        max_output = 2048  # Default
+        context_window = 4096
+        max_output = 2048
 
         model_lower = self.model_name.lower()
 
@@ -389,7 +372,7 @@ class LiteLLMProvider:
             max_output_tokens=max_output,
             supports_streaming=True,
             supports_structured_output="gpt" in model_lower or "gemini" in model_lower,
-            loaded=True,  # Cloud models are always "loaded"
+            loaded=True,
             extra={
                 "base_url": self.base_url,
                 "timeout": self.timeout,

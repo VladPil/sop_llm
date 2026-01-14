@@ -113,15 +113,13 @@ class PromptService:
         self.langfuse_client = langfuse_client or get_langfuse_client()
         self.cache_ttl = cache_ttl
 
-        # Jinja2 environment с строгой проверкой переменных
         self.jinja_env = Environment(
-            undefined=StrictUndefined,  # Ошибка при отсутствии переменной
-            autoescape=False,  # Промпты не HTML
+            undefined=StrictUndefined,
+            autoescape=False,
             trim_blocks=True,
             lstrip_blocks=True,
         )
 
-        # Кэш: (prompt_name, version) -> (template, expiry_time)
         self._template_cache: dict[tuple[str, int | None], tuple[PromptTemplate, datetime]] = {}
 
         logger.info(
@@ -155,26 +153,22 @@ class PromptService:
         """
         cache_key = (name, version)
 
-        # Проверить кэш
         if cache_key in self._template_cache:
             template, expiry = self._template_cache[cache_key]
             if datetime.now() < expiry:
                 logger.debug("Промпт получен из кэша", name=name, version=version)
                 return template
 
-        # Загрузить из Langfuse
         try:
             if self.langfuse_client is None:
                 raise RuntimeError("Langfuse client не инициализирован")
 
-            # Получить промпт из Langfuse API
             langfuse_prompt = self.langfuse_client.get_prompt(
                 name=name,
                 version=version,
                 label="production" if version is None else None,
             )
 
-            # Извлечь template и config
             template_str = langfuse_prompt.prompt
             variables = self._extract_variables(template_str)
             config = langfuse_prompt.config or {}
@@ -187,7 +181,6 @@ class PromptService:
                 config=config,
             )
 
-            # Кэшировать
             self._template_cache[cache_key] = (template, datetime.now() + timedelta(seconds=self.cache_ttl))
 
             logger.info(
@@ -207,7 +200,6 @@ class PromptService:
                 error=str(e),
             )
 
-            # Использовать fallback
             if fallback is not None:
                 logger.info("Используется fallback template", name=name)
                 variables = self._extract_variables(fallback)
@@ -219,7 +211,6 @@ class PromptService:
                     config={},
                 )
 
-            # Нет fallback - ошибка
             msg = f"Промпт '{name}' не найден в Langfuse и нет fallback"
             raise ValueError(msg) from e
 
@@ -259,14 +250,12 @@ class PromptService:
             ... )
 
         """
-        # 1. Получить template
         template = await self.get_prompt(
             name=prompt_name,
             version=version,
             fallback=fallback_template,
         )
 
-        # 2. Скомпилировать Jinja2 template
         try:
             jinja_template: Template = self.jinja_env.from_string(template.template)
             compiled_text = jinja_template.render(**variables)
@@ -280,7 +269,6 @@ class PromptService:
             msg = f"Ошибка компиляции промпта '{prompt_name}': {e}"
             raise ValueError(msg) from e
 
-        # 3. Форматировать для provider
         formatter = self._get_formatter(provider_type)
         compiled = formatter(
             text=compiled_text,
@@ -318,7 +306,6 @@ class PromptService:
             ast = self.jinja_env.parse(template)
             return sorted(meta.find_undeclared_variables(ast))
         except Exception:
-            # Если не удалось распарсить - пустой список
             return []
 
     def _get_formatter(self, provider_type: ProviderType) -> Callable[..., CompiledPrompt]:
@@ -354,12 +341,10 @@ class PromptService:
         """
         messages = []
 
-        # System prompt из config (опционально)
         system_prompt = config.get("system_prompt")
         if system_prompt:
             messages.append(ChatMessage(role="system", content=system_prompt))
 
-        # User message с основным текстом
         messages.append(ChatMessage(role="user", content=text))
 
         return CompiledPrompt(messages=messages)
@@ -379,20 +364,15 @@ class PromptService:
 
         """
         system_prompt = config.get("system_prompt")
-        model_type = config.get("model_type", "llama")  # llama, mistral, etc.
+        model_type = config.get("model_type", "llama")
 
-        # Llama-style formatting
         if model_type == "llama":
             if system_prompt:
                 formatted = f"<|system|>\n{system_prompt}\n<|user|>\n{text}\n<|assistant|>\n"
             else:
                 formatted = f"<|user|>\n{text}\n<|assistant|>\n"
-
-        # Mistral-style formatting
         elif model_type == "mistral":
             formatted = f"[INST] {system_prompt}\n\n{text} [/INST]" if system_prompt else f"[INST] {text} [/INST]"
-
-        # Generic fallback
         elif system_prompt:
             formatted = f"{system_prompt}\n\n{text}"
         else:
@@ -414,15 +394,11 @@ class PromptService:
         return CompiledPrompt(text=text)
 
     def clear_cache(self) -> None:
-        """Очистить кэш промптов.
-
-        Используется при обновлении промптов в Langfuse.
-        """
+        """Очистить кэш промптов."""
         self._template_cache.clear()
         logger.info("Кэш промптов очищен")
 
 
-# Singleton instance
 _prompt_service: PromptService | None = None
 
 
@@ -439,7 +415,6 @@ def get_prompt_service() -> PromptService:
     return _prompt_service
 
 
-# Для тестирования
 def set_prompt_service(service: PromptService) -> None:
     """Установить custom instance PromptService (для тестов).
 

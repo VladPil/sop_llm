@@ -75,7 +75,6 @@ class SentenceTransformerProvider:
 
             self.model = SentenceTransformer(self.model_name, device=self.device)
 
-            # Определить dimensions
             if self.model is not None:
                 test_embedding = self.model.encode("test", normalize_embeddings=self.normalize_embeddings)
                 self.dimensions = len(test_embedding)
@@ -98,7 +97,6 @@ class SentenceTransformerProvider:
             del self.model
             self.model = None
 
-            # Очистить CUDA cache если использовался GPU
             if "cuda" in self.device:
                 try:
                     import torch
@@ -134,7 +132,6 @@ class SentenceTransformerProvider:
                 texts_count=len(texts),
             )
 
-            # Генерация embeddings
             embeddings = self.model.encode(
                 texts,
                 normalize_embeddings=self.normalize_embeddings,
@@ -142,7 +139,6 @@ class SentenceTransformerProvider:
                 convert_to_numpy=True,
             )
 
-            # Конвертировать в list[list[float]]
             result = [emb.tolist() for emb in embeddings]
 
             logger.debug(

@@ -31,11 +31,10 @@ from src.shared.logging import get_logger
 
 logger = get_logger()
 
-# Дополнительные ключи Redis согласно ТЗ
 REDIS_GPU_CACHE_KEY = "system:gpu"
 REDIS_STATS_PREFIX = "stats:daily:"
-GPU_CACHE_TTL = 5  # 5 секунд
-STATS_TTL = 7 * 24 * 60 * 60  # 7 дней
+GPU_CACHE_TTL = 5
+STATS_TTL = 7 * 24 * 60 * 60
 
 
 class SessionStore:
@@ -97,14 +96,12 @@ class SessionStore:
 
         if idempotency_key:
             session_data["idempotency_key"] = idempotency_key
-            # Сохранить маппинг idempotency_key -> task_id
             await self.redis.setex(
                 f"{REDIS_IDEMPOTENCY_PREFIX}{idempotency_key}",
                 self.idempotency_ttl,
                 task_id,
             )
 
-        # Сохранить сессию с TTL
         await self.redis.hset(session_key, mapping=session_data)  # type: ignore[arg-type]
         await self.redis.expire(session_key, self.session_ttl)  # type: ignore[misc]
 
@@ -168,10 +165,8 @@ class SessionStore:
         if not data:
             return None
 
-        # Декодировать bytes -> str
         session = {k.decode("utf-8"): v.decode("utf-8") for k, v in data.items()}
 
-        # Распарсить JSON поля
         if "params" in session:
             session["params"] = orjson.loads(session["params"])
 
@@ -202,8 +197,6 @@ class SessionStore:
         """
         session_key = f"{REDIS_SESSION_PREFIX}{task_id}"
         await self.redis.delete(session_key)
-
-        # Удалить логи задачи
         await self.redis.delete(f"{REDIS_LOGS_PREFIX}{task_id}")
 
         logger.debug("Session удалена", task_id=task_id)
@@ -216,7 +209,6 @@ class SessionStore:
             priority: Приоритет (выше = раньше обработается)
 
         """
-        # Sorted Set: score = -priority (чтобы больший приоритет был первым)
         await self.redis.zadd(REDIS_QUEUE_KEY, {task_id: -priority})
 
         logger.debug("Task добавлена в очередь", task_id=task_id, priority=priority)
@@ -228,7 +220,6 @@ class SessionStore:
             task_id или None если очередь пуста
 
         """
-        # ZPOPMIN - извлечь элемент с минимальным score (наивысшим приоритетом)
         result = await self.redis.zpopmin(REDIS_QUEUE_KEY, 1)  # type: ignore[misc]
 
         if not result:
@@ -287,10 +278,7 @@ class SessionStore:
             "message": message,
         }).decode("utf-8")
 
-        # Добавить в logs:{task_id}
         await self.redis.rpush(f"{REDIS_LOGS_PREFIX}{task_id}", log_entry)  # type: ignore[misc]
-
-        # Добавить в logs:recent (с ограничением размера)
         await self.redis.rpush(REDIS_LOGS_RECENT_KEY, log_entry)  # type: ignore[misc]
         await self.redis.ltrim(REDIS_LOGS_RECENT_KEY, -self.logs_max_recent, -1)  # type: ignore[misc]
 
@@ -351,8 +339,6 @@ class SessionStore:
             logger.exception("Redis недоступен", error=str(e))
             return False
 
-    # GPU Cache (согласно ТЗ)
-
     async def cache_gpu_stats(self, stats: dict[str, Any]) -> None:
         """Кэшировать GPU статистику.
 
@@ -374,8 +360,6 @@ class SessionStore:
         if data:
             return orjson.loads(data)
         return None
-
-    # Daily Statistics (согласно ТЗ)
 
     async def increment_daily_stat(self, stat_name: str, increment: int = 1) -> None:
         """Инкрементировать дневную статистику.
@@ -445,12 +429,11 @@ async def create_session_store() -> SessionStore:
     redis_client = Redis.from_url(
         settings.redis_url,
         encoding="utf-8",
-        decode_responses=False,  # Мы сами декодируем
+        decode_responses=False,
     )
 
     store = SessionStore(redis_client)
 
-    # Проверить подключение
     if not await store.health_check():
         msg = f"Не удалось подключиться к Redis: {settings.redis_url}"
         raise ConnectionError(msg)
@@ -459,7 +442,6 @@ async def create_session_store() -> SessionStore:
     return store
 
 
-# Singleton instance
 _session_store_instance: SessionStore | None = None
 
 

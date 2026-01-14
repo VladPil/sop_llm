@@ -70,19 +70,16 @@ from src.shared.errors.llm_errors import (
 from src.shared.errors.mapping import ExceptionMapper, exception_mapper, map_exception
 
 __all__ = [
-    # Базовые классы
     "AppException",
     "BadRequestError",
     "ConflictError",
     "ContextLengthExceededError",
     "ErrorResponse",
-    # Маппер исключений
     "ExceptionMapper",
     "ForbiddenError",
     "GenerationFailedError",
     "InternalServerError",
     "InvalidModelConfigError",
-    # LLM-специфичные исключения
     "ModelNotFoundError",
     "NotFoundError",
     "NotImplementedError",
@@ -93,7 +90,6 @@ __all__ = [
     "TimeoutError",
     "TokenLimitExceededError",
     "UnauthorizedError",
-    # Доменные исключения
     "ValidationError",
     "exception_mapper",
     "map_exception",

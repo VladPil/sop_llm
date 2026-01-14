@@ -59,11 +59,8 @@ __all__ = [
     "get_logger",
     "install_langfuse_patcher",
     "install_opentelemetry_patcher",
-    # Formatters
     "json_formatter",
-    # Patchers
     "langfuse_patcher",
-    # Helpers
     "log_llm_generation",
     "log_provider_error",
     "log_streaming_chunk",
@@ -71,6 +68,5 @@ __all__ = [
     "sanitize_credentials",
     "sanitize_pii",
     "sanitize_sensitive_data",
-    # Config
     "setup_logging",
 ]

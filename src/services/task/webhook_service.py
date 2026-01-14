@@ -111,7 +111,7 @@ class WebhookService:
 
                     except httpx.HTTPError as e:
                         if attempt < self.max_retries:
-                            backoff_seconds = 2**attempt  # 1s, 2s, 4s, ...
+                            backoff_seconds = 2**attempt
                             logger.warning(
                                 "Webhook failed, повтор",
                                 task_id=task_id,
@@ -123,7 +123,6 @@ class WebhookService:
                             )
                             await asyncio.sleep(backoff_seconds)
                         else:
-                            # Последняя попытка провалилась
                             logger.exception(
                                 "Webhook failed после всех retry",
                                 task_id=task_id,

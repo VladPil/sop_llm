@@ -39,27 +39,21 @@ def langfuse_patcher(record: dict[str, Any]) -> None:
 
     """
     try:
-        # Импортируем здесь чтобы избежать circular imports
         from src.services.observability import get_current_span_id, get_current_trace_id
 
-        # Получить trace_id из Langfuse context
         trace_id = get_current_trace_id()
         if trace_id:
             record["extra"]["trace_id"] = trace_id
         else:
             record["extra"]["trace_id"] = "NO_TRACE"
 
-        # Получить span_id из Langfuse context (если внутри span)
         span_id = get_current_span_id()
         if span_id:
             record["extra"]["span_id"] = span_id
 
     except ImportError:
-        # Если observability модуль недоступен, используем fallback
         record["extra"]["trace_id"] = "NO_TRACE"
     except Exception as e:
-        # В случае любой ошибки, не прерываем логирование
-        # Просто добавляем fallback значение
         record["extra"]["trace_id"] = "NO_TRACE"
         record["extra"]["patcher_error"] = str(e)
 
@@ -97,12 +91,10 @@ def opentelemetry_patcher(record: dict[str, Any]) -> None:
     try:
         from opentelemetry import trace
 
-        # Получить текущий span из OpenTelemetry context
         span = trace.get_current_span()
         if span and span.is_recording():
             span_context = span.get_span_context()
             if span_context.is_valid:
-                # Конвертировать trace_id и span_id в hex формат
                 trace_id = format(span_context.trace_id, "032x")
                 span_id = format(span_context.span_id, "016x")
 

@@ -18,41 +18,41 @@ class TaskStatus(str, Enum):
 class FinishReason(str, Enum):
     """Причина завершения генерации."""
 
-    STOP = "stop"  # Нормальное завершение (stop sequence или EOS)
-    LENGTH = "length"  # Достигнут max_tokens
-    ERROR = "error"  # Ошибка во время генерации
+    STOP = "stop"
+    LENGTH = "length"
+    ERROR = "error"
 
 
 class ProviderType(str, Enum):
     """Тип провайдера LLM."""
 
-    LOCAL = "local"  # Локальный провайдер (llama.cpp)
-    OLLAMA = "ollama"  # Ollama (локальные GPU модели через API)
-    OPENAI = "openai"  # OpenAI API
-    OPENAI_COMPATIBLE = "openai_compatible"  # OpenAI-совместимые API
-    ANTHROPIC = "anthropic"  # Anthropic Claude API
-    LITELLM = "litellm"  # LiteLLM (унифицированный облачный провайдер)
-    EMBEDDING = "embedding"  # Sentence-transformers embedding модели
-    CUSTOM = "custom"  # Кастомный провайдер
+    LOCAL = "local"
+    OLLAMA = "ollama"
+    OPENAI = "openai"
+    OPENAI_COMPATIBLE = "openai_compatible"
+    ANTHROPIC = "anthropic"
+    LITELLM = "litellm"
+    EMBEDDING = "embedding"
+    CUSTOM = "custom"
 
 
 class HealthStatus(str, Enum):
     """Статус здоровья сервиса."""
 
-    HEALTHY = "healthy"  # Все компоненты работают
-    DEGRADED = "degraded"  # Есть проблемы, но сервис работает
-    UNHEALTHY = "unhealthy"  # Критические проблемы
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNHEALTHY = "unhealthy"
 
 
 class ModelType(str, Enum):
     """Тип модели для специфичной обработки промптов."""
 
-    LLAMA = "llama"  # LLaMA models (LLaMA 2, 3, etc.)
-    MISTRAL = "mistral"  # Mistral models
-    QWEN = "qwen"  # Qwen models
-    PHI = "phi"  # Phi models
-    GEMMA = "gemma"  # Gemma models
-    GENERIC = "generic"  # Общий тип
+    LLAMA = "llama"
+    MISTRAL = "mistral"
+    QWEN = "qwen"
+    PHI = "phi"
+    GEMMA = "gemma"
+    GENERIC = "generic"
 
 
 class LogLevel(str, Enum):
@@ -68,7 +68,7 @@ class LogLevel(str, Enum):
 class AppEnvironment(str, Enum):
     """Окружение приложения."""
 
-    LOCAL = "local"  # Локальная разработка
-    DEVELOPMENT = "development"  # Dev окружение
-    STAGING = "staging"  # Staging окружение
-    PRODUCTION = "production"  # Production окружение
+    LOCAL = "local"
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"

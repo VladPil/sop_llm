@@ -48,7 +48,6 @@ class InterceptHandler(logging.Handler):
         except ValueError:
             level = str(record.levelno)
 
-        # Вычислить правильную глубину стека для отображения источника лога
         frame = logging.currentframe()
         depth = 2
 
@@ -96,21 +95,15 @@ def setup_logging() -> None:
         >>> logger.info("Test message")  # trace_id добавится автоматически
 
     """
-    # Удалить дефолтный handler Loguru
     logger.remove()
-
-    # Установить Langfuse patcher для автоматического добавления trace_id
     install_langfuse_patcher()
 
     if settings.app_env == "development":
-        # Development: красивый формат с цветами и trace_id
         dev_format = (
             "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
             "<level>{level: <8}</level> | "
             "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>"
         )
-
-        # Добавить trace_id в формат если доступен
         dev_format += " | <yellow>[{extra[trace_id]}]</yellow> - <level>{message}</level>"
 
         logger.add(
@@ -122,24 +115,16 @@ def setup_logging() -> None:
             diagnose=True,
         )
     else:
-        # Production: JSON формат для structured logging с trace_id
-        # serialize=True автоматически создает JSON с полями:
-        # - timestamp (ISO format)
-        # - level
-        # - message
-        # - module, function, line
-        # - extra (включая trace_id и span_id от Langfuse patcher)
         logger.add(
             sys.stdout,
             format="{message}",
             level=settings.log_level,
-            serialize=True,  # Автоматический JSON формат
+            serialize=True,
             backtrace=True,
-            diagnose=False,  # В production не показываем переменные (security)
-            enqueue=True,  # Асинхронное логирование для лучшей производительности
+            diagnose=False,
+            enqueue=True,
         )
 
-    # Настроить перехват логов сторонних библиотек
     configure_third_party_loggers()
 
     logger.info(
@@ -165,11 +150,9 @@ def configure_third_party_loggers() -> None:
     - Нужно контролировать verbosity (особенно для httpx и uvicorn.access)
     - Автоматически добавлять trace_id даже в логи библиотек
     """
-    # Очистить root logger
     logging.root.handlers = []
     logging.root.setLevel(logging.INFO)
 
-    # Список логгеров для настройки
     loggers_to_configure = [
         "",  # Root logger
         "uvicorn",
@@ -190,12 +173,9 @@ def configure_third_party_loggers() -> None:
         logging_logger.addHandler(InterceptHandler())
         logging_logger.propagate = False
 
-        # Настроить уровень логирования в зависимости от библиотеки
         if logger_name in {"uvicorn.access", "httpx"}:
-            # Access логи только WARNING+ в production для уменьшения noise
             logging_logger.setLevel(logging.WARNING if settings.app_env == "production" else logging.INFO)
         elif logger_name == "litellm":
-            # LiteLLM может быть очень verbose, контролируем через settings
             if settings.litellm_debug:
                 logging_logger.setLevel(logging.DEBUG)
             else:

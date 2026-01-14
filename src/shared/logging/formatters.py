@@ -11,7 +11,6 @@ from typing import Any
 
 import orjson
 
-# Паттерны для sanitization чувствительных данных
 SENSITIVE_PATTERNS = [
     (re.compile(r'"(password|pwd)"\s*:\s*"[^"]*"', re.IGNORECASE), r'"\1": "***"'),
     (re.compile(r'"(api_key|apikey|secret|token|auth)"\s*:\s*"[^"]*"', re.IGNORECASE), r'"\1": "***"'),
@@ -58,7 +57,6 @@ def json_formatter(record: dict[str, Any]) -> str:
         JSON строка для structured logging
 
     """
-    # Базовые поля
     log_entry = {
         "timestamp": record["time"].isoformat(),
         "level": record["level"].name,
@@ -68,19 +66,16 @@ def json_formatter(record: dict[str, Any]) -> str:
         "message": record["message"],
     }
 
-    # Добавить trace_id и span_id из extra (добавляется через patcher)
     extra = record.get("extra", {})
     if "trace_id" in extra:
         log_entry["trace_id"] = extra["trace_id"]
     if "span_id" in extra:
         log_entry["span_id"] = extra["span_id"]
 
-    # Добавить все дополнительные поля из logger.bind() или logger.info(..., key=value)
     for key, value in extra.items():
         if key not in {"trace_id", "span_id"}:
             log_entry[key] = value
 
-    # Добавить exception информацию, если есть
     if record["exception"] is not None:
         exception_info = record["exception"]
         log_entry["exception"] = {
@@ -89,10 +84,8 @@ def json_formatter(record: dict[str, Any]) -> str:
             "traceback": record.get("exception", {}).get("traceback", None),
         }
 
-    # Сериализовать в JSON через orjson (быстрее стандартного json)
     json_str = orjson.dumps(log_entry).decode("utf-8")
 
-    # Sanitize чувствительные данные в production
     from src.core.config import settings
 
     if settings.app_env == "production":
@@ -116,23 +109,19 @@ def console_formatter(record: dict[str, Any]) -> str:
         Отформатированная строка для консоли
 
     """
-    # Базовый формат с цветами (Loguru сам обрабатывает цветовые теги)
     base_format = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>"
     )
 
-    # Добавить trace_id, если доступен
     extra = record.get("extra", {})
     if "trace_id" in extra:
         trace_id = extra["trace_id"]
         base_format += f" | <yellow>[{trace_id[:8]}]</yellow>"
 
-    # Завершить формат сообщением
     base_format += " - <level>{message}</level>"
 
-    # Если есть исключение, добавить его
     if record["exception"] is not None:
         base_format += "\n{exception}"
 

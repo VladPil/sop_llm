@@ -8,7 +8,6 @@ import contextvars
 
 from src.services.observability.client import get_langfuse_client
 
-# Context variables для хранения текущих trace/span ID
 _trace_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
 _span_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("span_id", default=None)
 
@@ -63,9 +62,6 @@ def set_trace_id(trace_id: str | None) -> None:
     Args:
         trace_id: ID trace для сохранения в контексте.
 
-    Note:
-        Используется внутренне context managers.
-
     """
     _trace_id_var.set(trace_id)
 
@@ -75,9 +71,6 @@ def set_span_id(span_id: str | None) -> None:
 
     Args:
         span_id: ID span для сохранения в контексте.
-
-    Note:
-        Используется внутренне context managers.
 
     """
     _span_id_var.set(span_id)

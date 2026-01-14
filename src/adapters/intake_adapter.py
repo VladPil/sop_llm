@@ -158,12 +158,9 @@ class IntakeAdapter:
         """
         model_name = request.model
 
-        # Проверить provider_config (приоритет выше)
         if request.provider_config and "model_name" in request.provider_config:
             model_name = request.provider_config["model_name"]
 
-        # Если модель не указана, но есть conversation_id, вернуть None
-        # (модель будет взята из диалога в tasks.py)
         if not model_name:
             if request.conversation_id:
                 return None
@@ -190,8 +187,6 @@ class IntakeAdapter:
         full_prompt = request.prompt
 
         if request.input_text:
-            # ВАЖНО: Это временный костыль для совместимости с Intake
-            # В будущем нужно использовать PromptService с templates
             full_prompt = f"{request.prompt}\n\n{request.input_text}"
 
             logger.debug(

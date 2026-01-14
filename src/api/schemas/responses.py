@@ -9,9 +9,6 @@ from pydantic import BaseModel, Field
 
 from src.core.enums import FinishReason, HealthStatus, ProviderType, TaskStatus
 
-# Типизированные вложенные модели для лучшей Swagger документации
-
-
 class TokenUsage(BaseModel):
     """Статистика использования токенов."""
 
@@ -86,19 +83,16 @@ class TaskResponse(BaseModel):
         description="Timestamp завершения (ISO 8601, только для completed/failed)",
     )
 
-    # Результат (только для completed)
     result: dict[str, Any] | None = Field(
         default=None,
         description="Результат генерации (только для completed статуса)",
     )
 
-    # Ошибка (только для failed)
     error: str | None = Field(
         default=None,
         description="Сообщение об ошибке (только для failed статуса)",
     )
 
-    # Метаданные
     webhook_url: str | None = Field(
         default=None,
         description="URL для callback",
@@ -109,7 +103,6 @@ class TaskResponse(BaseModel):
         description="Ключ идемпотентности",
     )
 
-    # Observability
     trace_id: str | None = Field(
         default=None,
         description="Langfuse trace ID для отладки и корреляции логов",
@@ -234,15 +227,12 @@ class HealthCheckResponse(BaseModel):
     uptime_seconds: float = Field(description="Время работы в секундах")
     timestamp: str = Field(description="Текущее время сервера (ISO 8601)")
 
-    # Компоненты
     components: dict[str, ComponentHealth] = Field(
         description="Статус каждого компонента (redis, providers, etc.)"
     )
 
-    # Системные ресурсы
     resources: SystemResources = Field(description="Системные ресурсы")
 
-    # GPU (опционально)
     gpu: dict[str, Any] | None = Field(
         default=None,
         description="GPU информация (если local provider используется)",
@@ -360,14 +350,10 @@ class ErrorResponse(BaseModel):
         description="Дополнительные детали (field, reason, etc.)",
     )
 
-    # Observability
     trace_id: str | None = Field(
         default=None,
         description="Langfuse trace ID для отладки и корреляции логов",
     )
-
-
-# Model Presets Responses
 
 
 class CompatibilityResponse(BaseModel):
@@ -563,9 +549,6 @@ class DownloadStatusResponse(BaseModel):
     available_on_hf: bool = Field(
         description="True если модель доступна на HuggingFace Hub"
     )
-
-
-# Conversation Responses
 
 
 class ConversationMessage(BaseModel):

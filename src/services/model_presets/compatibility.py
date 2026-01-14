@@ -66,16 +66,13 @@ class CompatibilityChecker:
 
     """
 
-    # Коэффициенты для оценки VRAM (GB per billion params)
-    # Используются если vram_requirements не указаны в пресете
     VRAM_COEFFICIENTS: dict[str, float] = {
-        "q4_k_m": 0.5,   # ~0.5 GB per 1B params
-        "q5_k_m": 0.6,   # ~0.6 GB per 1B params
-        "q8_0": 0.9,     # ~0.9 GB per 1B params
-        "fp16": 2.0,     # ~2.0 GB per 1B params
+        "q4_k_m": 0.5,
+        "q5_k_m": 0.6,
+        "q8_0": 0.9,
+        "fp16": 2.0,
     }
 
-    # Порядок квантизаций от самой компактной к наименее компактной
     QUANTIZATION_ORDER: list[str] = ["q4_k_m", "q5_k_m", "q8_0", "fp16"]
 
     def __init__(self, vram_monitor: "VRAMMonitor") -> None:
@@ -101,7 +98,6 @@ class CompatibilityChecker:
 
         """
         coef = self.VRAM_COEFFICIENTS.get(quantization.lower(), 1.0)
-        # Оценка: size_b * coef GB, конвертируем в MB, добавляем 15% запас
         estimated_gb = size_b * coef
         return int(estimated_gb * 1024 * 1.15)
 
@@ -141,7 +137,6 @@ class CompatibilityChecker:
             if re.search(pattern, filename_lower):
                 return quant
 
-        # По умолчанию предполагаем q4_k_m
         return "q4_k_m"
 
     def check_compatibility(
@@ -159,15 +154,12 @@ class CompatibilityChecker:
             CompatibilityResult с результатом проверки
 
         """
-        # Определить квантизацию
         quant = quantization or self.extract_quantization(preset.filename)
         quant_lower = quant.lower()
 
-        # Получить требования VRAM
         if quant_lower in preset.vram_requirements:
             required_mb = preset.vram_requirements[quant_lower]
         else:
-            # Оценить если не указано в пресете
             required_mb = self.estimate_vram_mb(preset.size_b, quant_lower)
             logger.debug(
                 "VRAM requirements оценены",
@@ -176,12 +168,10 @@ class CompatibilityChecker:
                 estimated_mb=required_mb,
             )
 
-        # Получить доступную VRAM
         try:
             available_mb = int(self._vram_monitor.get_available_vram_mb())
         except Exception as e:
             logger.warning("Не удалось получить VRAM info", error=str(e))
-            # Если GPU недоступен, возвращаем несовместимо
             return CompatibilityResult(
                 compatible=False,
                 required_vram_mb=required_mb,
@@ -189,10 +179,8 @@ class CompatibilityChecker:
                 warning=f"GPU недоступен: {e}",
             )
 
-        # Проверить совместимость
         compatible = required_mb <= available_mb
 
-        # Если не совместимо - рекомендовать квантизацию
         recommended = None
         warning = None
 
@@ -240,7 +228,6 @@ class CompatibilityChecker:
 
         """
         for quant in self.QUANTIZATION_ORDER:
-            # Получить требования для этой квантизации
             if quant in preset.vram_requirements:
                 required = preset.vram_requirements[quant]
             else:
@@ -282,8 +269,6 @@ class CompatibilityChecker:
 
         return compatible
 
-
-# Initialize + Get паттерн
 
 _compatibility_checker: CompatibilityChecker | None = None
 

@@ -55,7 +55,6 @@ class ProviderRegistry:
             msg = f"Provider '{name}' уже зарегистрирован"
             raise ValueError(msg)
 
-        # Проверить базовые требования: должен иметь хотя бы один из методов
         has_generate = hasattr(provider, "generate")
         has_embeddings = hasattr(provider, "generate_embeddings")
 
@@ -124,16 +123,13 @@ class ProviderRegistry:
             RuntimeError: Если presets_loader не установлен
 
         """
-        # Если уже зарегистрирован - вернуть
         if name in self._providers:
             return self._providers[name]
 
-        # Lazy loading: создать из пресета
         if self._presets_loader is None:
             msg = "presets_loader не установлен. Вызовите set_presets_loader() в lifespan."
             raise RuntimeError(msg)
 
-        # Ищем в облачных пресетах
         preset = self._presets_loader.get_cloud_preset(name)
         if preset is None:
             available_presets = self._presets_loader.list_cloud_names()
@@ -141,7 +137,6 @@ class ProviderRegistry:
             msg = f"Модель '{name}' не найдена в пресетах. Доступные: {available}"
             raise KeyError(msg)
 
-        # Создать provider из пресета
         provider = self._create_cloud_provider(preset)
         self._providers[name] = provider
 
@@ -190,7 +185,6 @@ class ProviderRegistry:
         models_info: dict[str, ModelInfo] = {}
 
         for name, provider in self._providers.items():
-            # Пропустить embedding провайдеры
             if not hasattr(provider, "get_model_info"):
                 continue
 

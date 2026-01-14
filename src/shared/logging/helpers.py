@@ -12,17 +12,11 @@ from typing import Any
 
 from loguru import logger
 
-# Паттерны для обнаружения PII (Personally Identifiable Information)
 PII_PATTERNS = [
-    # Email addresses
     (re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"), "***@***.***"),
-    # Phone numbers (различные форматы)
     (re.compile(r"\b\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b"), "***-***-****"),
-    # Credit card numbers (основные форматы)
     (re.compile(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b"), "****-****-****-****"),
-    # Social Security Numbers (SSN)
     (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "***-**-****"),
-    # IP addresses (можно считать PII в некоторых контекстах)
     (re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"), "***.***.***.***"),
 ]
 
@@ -86,14 +80,11 @@ def sanitize_credentials(data: dict[str, Any]) -> dict[str, Any]:
 
     sanitized = {}
     for key, value in data.items():
-        # Проверить если ключ содержит чувствительное слово
         if any(sensitive in key.lower() for sensitive in sensitive_keys):
             sanitized[key] = "***"
         elif isinstance(value, dict):
-            # Рекурсивно sanitize вложенные словари
             sanitized[key] = sanitize_credentials(value)
         elif isinstance(value, list):
-            # Sanitize элементы списка
             sanitized[key] = [sanitize_credentials(item) if isinstance(item, dict) else item for item in value]
         else:
             sanitized[key] = value
@@ -165,19 +156,15 @@ def log_llm_generation(
         "task_id": task_id,
     }
 
-    # Добавить параметры если есть
     if params:
         log_data["params"] = params
 
-    # Добавить usage если есть
     if usage:
         log_data["usage"] = usage
 
-    # Добавить latency если есть
     if latency_ms is not None:
         log_data["latency_ms"] = round(latency_ms, 2)
 
-    # Логировать в зависимости от результата
     if error:
         logger.error(
             f"LLM generation failed: {provider}/{model}",
@@ -185,7 +172,6 @@ def log_llm_generation(
             **log_data,
         )
     else:
-        # В production логируем только метаданные, не полный промпт/ответ (может быть большим)
         if settings.app_env == "development":
             log_data["prompt_preview"] = (
                 prompt[:200] + "..." if isinstance(prompt, str) and len(prompt) > 200 else prompt
@@ -241,9 +227,7 @@ def log_provider_error(
         "will_retry": will_retry,
     }
 
-    # Добавить контекст если есть
     if context:
-        # Sanitize credentials в контексте
         from src.core.config import settings
 
         if settings.app_env == "production":

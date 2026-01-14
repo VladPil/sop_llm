@@ -211,18 +211,23 @@ app = FastAPI(
 
 ## Основные возможности
 
-- **Унифицированный интерфейс** для локальных и удаленных моделей
+- **Lazy Loading** — модели активируются автоматически при первом запросе
+- **Унифицированный интерфейс** через LiteLLM (100+ провайдеров)
 - **Асинхронная обработка** с priority queue
 - **Streaming генерация** для real-time вывода
-- **Structured Output** через JSON Schema и GBNF грамматики
+- **Structured Output** через JSON Schema
 - **Webhook callbacks** с retry механизмом
 - **Idempotency** для дедупликации запросов
 - **GPU Management** с VRAM мониторингом
 
 ## Поддерживаемые провайдеры
 
-- **Local** - llama.cpp (GGUF модели)
-- **LiteLLM** - 100+ LLM провайдеров (Anthropic, OpenAI, Google Gemini, Mistral, Cohere, и др.)
+Через **LiteLLM** поддерживается 100+ провайдеров:
+- **OpenAI** — GPT-4, GPT-4o, GPT-4-turbo
+- **Anthropic** — Claude 3.5 Sonnet, Claude 3 Opus/Haiku
+- **Google** — Gemini Pro
+- **Ollama** — Локальные модели на GPU (llama3, qwen2.5, mistral)
+- **Groq, Together AI, DeepSeek** и другие
 
 ## Архитектура
 

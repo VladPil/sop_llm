@@ -140,10 +140,8 @@ class ConversationStore:
         if not data:
             return None
 
-        # Декодировать bytes -> str
         result = {k.decode("utf-8"): v.decode("utf-8") for k, v in data.items()}
 
-        # Распарсить JSON поля
         if "metadata" in result:
             result["metadata"] = orjson.loads(result["metadata"])
 
@@ -165,15 +163,11 @@ class ConversationStore:
         conv_key = self._conv_key(conversation_id)
         messages_key = self._messages_key(conversation_id)
 
-        # Проверить существование
         exists = await self.redis.exists(conv_key)
         if not exists:
             return False
 
-        # Удалить данные
         await self.redis.delete(conv_key, messages_key)
-
-        # Удалить из индекса
         await self.redis.srem(REDIS_CONVERSATION_INDEX_KEY, conversation_id)  # type: ignore[misc]
 
         logger.info("Диалог удалён", conversation_id=conversation_id)
@@ -199,13 +193,11 @@ class ConversationStore:
         conv_key = self._conv_key(conversation_id)
         messages_key = self._messages_key(conversation_id)
 
-        # Проверить существование диалога
         exists = await self.redis.exists(conv_key)
         if not exists:
             logger.warning("Диалог не найден", conversation_id=conversation_id)
             return False
 
-        # Создать сообщение
         message = {
             "role": role,
             "content": content,
@@ -213,20 +205,15 @@ class ConversationStore:
         }
         message_json = orjson.dumps(message).decode("utf-8")
 
-        # Добавить в список
         await self.redis.rpush(messages_key, message_json)  # type: ignore[misc]
-
-        # Ограничить количество сообщений
         await self.redis.ltrim(messages_key, -self.max_messages, -1)  # type: ignore[misc]
 
-        # Обновить метаданные
         message_count = await self.redis.llen(messages_key)  # type: ignore[misc]
         await self.redis.hset(conv_key, mapping={  # type: ignore[arg-type]
             "updated_at": datetime.now(UTC).isoformat(),
             "message_count": str(message_count),
         })
 
-        # Обновить TTL
         await self.redis.expire(conv_key, self.conversation_ttl)  # type: ignore[misc]
         await self.redis.expire(messages_key, self.conversation_ttl)  # type: ignore[misc]
 
@@ -257,10 +244,8 @@ class ConversationStore:
         messages_key = self._messages_key(conversation_id)
 
         if limit:
-            # Получить последние N сообщений
             messages = await self.redis.lrange(messages_key, -limit, -1)  # type: ignore[misc]
         else:
-            # Получить все
             messages = await self.redis.lrange(messages_key, 0, -1)  # type: ignore[misc]
 
         return [orjson.loads(msg) for msg in messages]
@@ -335,15 +320,11 @@ class ConversationStore:
         conv_key = self._conv_key(conversation_id)
         messages_key = self._messages_key(conversation_id)
 
-        # Проверить существование
         exists = await self.redis.exists(conv_key)
         if not exists:
             return False
 
-        # Очистить сообщения
         await self.redis.delete(messages_key)
-
-        # Обновить метаданные
         await self.redis.hset(conv_key, mapping={  # type: ignore[arg-type]
             "updated_at": datetime.now(UTC).isoformat(),
             "message_count": "0",
@@ -367,17 +348,13 @@ class ConversationStore:
             Список метаданных диалогов
 
         """
-        # Получить все ID из индекса
         all_ids = await self.redis.smembers(REDIS_CONVERSATION_INDEX_KEY)  # type: ignore[misc]
         conversation_ids = sorted(
             [cid.decode("utf-8") for cid in all_ids],
-            reverse=True,  # Новые первыми
+            reverse=True,
         )
 
-        # Применить пагинацию
         paginated_ids = conversation_ids[offset : offset + limit]
-
-        # Получить метаданные для каждого
         conversations = []
         for conv_id in paginated_ids:
             conv = await self.get_conversation(conv_id)
@@ -407,7 +384,6 @@ class ConversationStore:
         """
         conv_key = self._conv_key(conversation_id)
 
-        # Проверить существование
         exists = await self.redis.exists(conv_key)
         if not exists:
             return False
@@ -445,7 +421,6 @@ class ConversationStore:
             return False
 
 
-# Singleton instance
 _conversation_store_instance: ConversationStore | None = None
 
 

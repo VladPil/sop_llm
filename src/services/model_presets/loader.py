@@ -164,8 +164,6 @@ class ModelPresetsLoader:
         except Exception as e:
             logger.exception("Ошибка загрузки embedding_models.yaml", error=str(e))
 
-    # Getters
-
     def get_local_preset(self, name: str) -> LocalModelPreset | None:
         """Получить пресет локальной модели по имени.
 
@@ -216,8 +214,6 @@ class ModelPresetsLoader:
         """
         return self._local_presets.get(name) or self._cloud_presets.get(name) or self._embedding_presets.get(name)
 
-    # Listers
-
     def list_local(self) -> list[LocalModelPreset]:
         """Получить список всех локальных пресетов."""
         return list(self._local_presets.values())
@@ -247,8 +243,6 @@ class ModelPresetsLoader:
         """Проверить, загружены ли пресеты."""
         return self._loaded
 
-
-# Initialize + Get паттерн (как SessionStore, ProviderRegistry)
 
 _presets_loader: ModelPresetsLoader | None = None
 

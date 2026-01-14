@@ -13,11 +13,9 @@ from loguru import logger
 try:
     from langfuse.decorators import langfuse_context
 except (ImportError, AttributeError):
-    # langfuse >= 3.0 moved langfuse_context
     try:
         from langfuse.client import langfuse_context  # type: ignore[attr-defined]
     except ImportError:
-        # Fallback - create dummy context if langfuse not available
         class DummyContext:
             """Fallback when langfuse is not installed."""
 
@@ -86,15 +84,14 @@ async def trace_context(
             output=output_data,
         )
 
-        # Сохраняем trace ID в context variable
         set_trace_id(trace.id if trace else None)
 
         logger.debug(f"Trace начат: {name} (user={user_id}, session={session_id})")
-        yield
 
     except Exception as e:
-        logger.error(f"Ошибка в trace_context: {e}")
-        # Продолжаем выполнение даже если трейсинг не удался
+        logger.error(f"Ошибка инициализации trace_context: {e}")
+
+    try:
         yield
     finally:
         set_trace_id(None)
@@ -142,10 +139,11 @@ async def span_context(
         )
 
         set_span_id(span.id if span else None)
-        yield
 
     except Exception as e:
-        logger.error(f"Ошибка в span_context: {e}")
+        logger.error(f"Ошибка инициализации span_context: {e}")
+
+    try:
         yield
     finally:
         set_span_id(None)

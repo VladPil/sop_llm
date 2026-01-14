@@ -130,10 +130,6 @@ class CreateTaskRequest(BaseModel):
         }
     }
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # ОСНОВНЫЕ ПОЛЯ (обязательные)
-    # ═══════════════════════════════════════════════════════════════════════════
-
     model: str | None = Field(
         default=None,
         description=(
@@ -158,10 +154,6 @@ class CreateTaskRequest(BaseModel):
             "Переведи на английский: 'Привет, как дела?'",
         ],
     )
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # MULTI-TURN CONVERSATIONS
-    # ═══════════════════════════════════════════════════════════════════════════
 
     conversation_id: str | None = Field(
         default=None,
@@ -207,10 +199,6 @@ class CreateTaskRequest(BaseModel):
         ),
         examples=[True, False],
     )
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # ПАРАМЕТРЫ ГЕНЕРАЦИИ
-    # ═══════════════════════════════════════════════════════════════════════════
 
     temperature: float | None = Field(
         default=None,
@@ -312,10 +300,6 @@ class CreateTaskRequest(BaseModel):
         examples=[42, 12345, 0],
     )
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # STRUCTURED OUTPUT (JSON Schema)
-    # ═══════════════════════════════════════════════════════════════════════════
-
     response_format: dict[str, Any] | None = Field(
         default=None,
         description=(
@@ -375,10 +359,6 @@ class CreateTaskRequest(BaseModel):
         ],
     )
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # СТРИМИНГ И CALLBACKS
-    # ═══════════════════════════════════════════════════════════════════════════
-
     stream: bool = Field(
         default=DEFAULT_STREAM,
         description=(
@@ -401,10 +381,6 @@ class CreateTaskRequest(BaseModel):
         ],
     )
 
-    # ═══════════════════════════════════════════════════════════════════════════
-    # ДЕДУПЛИКАЦИЯ И ПРИОРИТЕТ
-    # ═══════════════════════════════════════════════════════════════════════════
-
     idempotency_key: str | None = Field(
         default=None,
         description=(
@@ -425,10 +401,6 @@ class CreateTaskRequest(BaseModel):
         ),
         examples=[1.0, 5.0, 10.0, 100.0],
     )
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # FALLBACK STRATEGY (согласно ТЗ)
-    # ═══════════════════════════════════════════════════════════════════════════
 
     fallback_models: list[str] | None = Field(
         default=None,
@@ -460,10 +432,6 @@ class CreateTaskRequest(BaseModel):
             ["local-qwen-7b", "gpt-4-turbo"],
         ],
     )
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # SOP INTAKE СОВМЕСТИМОСТЬ (альтернативный формат)
-    # ═══════════════════════════════════════════════════════════════════════════
 
     input_text: str | None = Field(
         default=None,
@@ -861,11 +829,6 @@ class RegisterFromPresetRequest(BaseModel):
         ),
         examples=["q4_k_m", "q5_k_m", "q8_0", "fp16"],
     )
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# CONVERSATION REQUESTS
-# ═══════════════════════════════════════════════════════════════════════════
 
 
 class CreateConversationRequest(BaseModel):

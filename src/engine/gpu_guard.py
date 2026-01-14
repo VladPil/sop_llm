@@ -70,7 +70,6 @@ class GPUGuard:
             RuntimeError: Недостаточно VRAM
 
         """
-        # Проверить VRAM перед блокировкой (если указано)
         if required_vram_mb is not None and not self._vram_monitor.can_allocate(required_vram_mb):
             available_mb = self._vram_monitor.get_available_vram_mb()
             msg = (
@@ -85,7 +84,6 @@ class GPUGuard:
             )
             raise RuntimeError(msg)
 
-        # Ожидать освобождения GPU
         logger.debug("Ожидание GPU lock", task_id=task_id)
         async with self._lock:
             self._current_task_id = task_id
@@ -100,7 +98,6 @@ class GPUGuard:
                 yield
 
             finally:
-                # Освободить lock
                 self._current_task_id = None
 
                 logger.info(
@@ -141,12 +138,10 @@ class GPUGuard:
 
         """
         if timeout is None:
-            # Ожидать бесконечно
             async with self._lock:
                 pass
             return True
 
-        # Ожидать с timeout
         try:
             async with asyncio.timeout(timeout):
                 async with self._lock:

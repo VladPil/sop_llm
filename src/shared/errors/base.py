@@ -82,7 +82,6 @@ class AppException(Exception):
 
         """
         name = self.__class__.__name__
-        # Вставляем подчеркивание перед заглавными буквами
         snake_case = ""
         for i, char in enumerate(name):
             if char.isupper() and i > 0:
@@ -99,7 +98,6 @@ class AppException(Exception):
         """
         doc = self.__class__.__doc__
         if doc:
-            # Берем первую непустую строку из docstring
             lines = [line.strip() for line in doc.strip().split("\n")]
             return next((line for line in lines if line), self.__class__.__name__)
         return self.__class__.__name__

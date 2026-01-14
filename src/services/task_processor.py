@@ -44,7 +44,6 @@ class TaskProcessor:
         self.provider_registry = get_provider_registry()
         self._running = False
         self._worker_task: asyncio.Task[None] | None = None
-
         logger.info("TaskProcessor инициализирован")
 
     async def start(self) -> None:
@@ -54,8 +53,6 @@ class TaskProcessor:
             return
 
         self._running = True
-
-        # Запустить worker в background
         self._worker_task = asyncio.create_task(self._worker_loop())
 
         logger.info("TaskProcessor запущен")
@@ -67,7 +64,6 @@ class TaskProcessor:
 
         self._running = False
 
-        # Дождаться завершения worker
         if self._worker_task:
             self._worker_task.cancel()
 
@@ -82,20 +78,17 @@ class TaskProcessor:
 
         while self._running:
             try:
-                # Извлечь задачу из очереди
                 task_id = await self.session_store.dequeue_task()
 
                 if task_id is None:
-                    # Очередь пуста, подождать
                     await asyncio.sleep(0.5)
                     continue
 
-                # Обработать задачу
                 await self._process_task(task_id)
 
             except Exception as e:
                 logger.exception("Ошибка в worker loop", error=str(e))
-                await asyncio.sleep(1)  # Подождать перед следующей итерацией
+                await asyncio.sleep(1)
 
         logger.info("Worker loop завершён")
 
@@ -109,23 +102,19 @@ class TaskProcessor:
         logger.info("Начало обработки задачи", task_id=task_id)
 
         try:
-            # Получить данные задачи
             session = await self.session_store.get_session(task_id)
 
             if session is None:
                 logger.error("Задача не найдена в session store", task_id=task_id)
                 return
 
-            # Установить как обрабатываемую
             await self.session_store.set_processing_task(task_id)
             await self.session_store.update_session_status(task_id, "processing")
 
-            # Извлечь параметры
             model_name = session["model"]
             prompt = session["prompt"]
             params_dict = session["params"]
 
-            # Получить provider (lazy loading из пресетов)
             try:
                 provider = self.provider_registry.get_or_create(model_name)
             except KeyError:
@@ -134,14 +123,11 @@ class TaskProcessor:
                 await self._handle_task_failure(task_id, error_msg, session)
                 return
 
-            # Подготовить параметры генерации
             gen_params = GenerationParams(**params_dict)
 
-            # Генерация
             try:
                 result = await provider.generate(prompt, gen_params)
 
-                # Сохранить результат
                 result_dict = {
                     "text": result.text,
                     "finish_reason": result.finish_reason,
@@ -162,7 +148,6 @@ class TaskProcessor:
                     tokens=result.usage["total_tokens"],
                 )
 
-                # Webhook callback (если есть)
                 webhook_url = session.get("webhook_url")
                 if webhook_url:
                     await self._send_webhook(task_id, webhook_url, "completed", result_dict)
@@ -203,7 +188,6 @@ class TaskProcessor:
             error=error_msg,
         )
 
-        # Webhook callback (если есть)
         webhook_url = session.get("webhook_url")
         if webhook_url:
             await self._send_webhook(task_id, webhook_url, "failed", {"error": error_msg})
@@ -254,7 +238,7 @@ class TaskProcessor:
                                 attempt=attempt + 1,
                                 error=str(e),
                             )
-                            await asyncio.sleep(2**attempt)  # Exponential backoff
+                            await asyncio.sleep(2**attempt)
                         else:
                             raise
 
@@ -292,7 +276,6 @@ class TaskProcessor:
             ValueError: Если idempotency_key уже существует
 
         """
-        # Проверить idempotency
         if idempotency_key:
             existing_task_id = await self.session_store.get_task_by_idempotency_key(
                 idempotency_key
@@ -306,16 +289,8 @@ class TaskProcessor:
                 )
                 return existing_task_id
 
-        # Проверить, что модель зарегистрирована
-        if model not in self.provider_registry:
-            available_models = self.provider_registry.list_providers()
-            msg = f"Модель '{model}' не зарегистрирована. Доступные: {', '.join(available_models)}"
-            raise ValueError(msg)
-
-        # Создать task_id
         task_id = f"task-{uuid.uuid4().hex[:16]}"
 
-        # Создать сессию
         await self.session_store.create_session(
             task_id=task_id,
             model=model,
@@ -325,10 +300,7 @@ class TaskProcessor:
             idempotency_key=idempotency_key,
         )
 
-        # Добавить в очередь
         await self.session_store.enqueue_task(task_id, priority=priority)
-
-        # Добавить лог
         await self.session_store.add_log(task_id, "INFO", "Задача создана и добавлена в очередь")
 
         logger.info(

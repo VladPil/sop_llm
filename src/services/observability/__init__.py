@@ -63,23 +63,17 @@ from src.services.observability.utils import (
 )
 
 __all__ = [
-    # Integrations
     "configure_litellm_callbacks",
     "flush_observations",
     "get_current_span_id",
     "get_current_trace_id",
     "get_langfuse_client",
-    # Client
     "initialize_langfuse",
-    # Utilities
     "is_observability_enabled",
     "log_error",
-    # Manual logging
     "log_generation",
     "span_context",
-    # Context managers
     "trace_context",
-    # Decorators
     "trace_llm_generation",
     "trace_operation",
 ]

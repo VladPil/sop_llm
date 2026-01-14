@@ -17,9 +17,6 @@ from src.shared.errors import (
     map_exception,
 )
 
-# Пример 1: Базовое использование AppException
-
-
 class CustomBusinessError(AppException):
     """Произошла кастомная бизнес-ошибка."""
 
@@ -52,9 +49,6 @@ def example_basic_exception() -> None:
     assert response.details == {"user_id": 123, "action": "update"}
 
 
-# Пример 2: Стандартные доменные ошибки
-
-
 def example_domain_errors() -> None:
     """Демонстрация использования доменных ошибок."""
     # ValidationError
@@ -77,9 +71,6 @@ def example_domain_errors() -> None:
     except NotFoundError as e:
         assert e.status_code == 404
         assert e.code == "not_found_error"
-
-
-# Пример 3: LLM-специфичные ошибки
 
 
 def example_llm_errors() -> None:
@@ -121,9 +112,6 @@ def example_llm_errors() -> None:
         assert "Connection timeout" in e.message
 
 
-# Пример 4: Маппинг инфраструктурных ошибок
-
-
 def example_exception_mapping() -> None:
     """Демонстрация маппинга инфраструктурных исключений."""
     import asyncpg  # type: ignore[import-not-found]
@@ -136,9 +124,6 @@ def example_exception_mapping() -> None:
         assert e.__class__.__name__ == "ConflictError"
         assert e.status_code == 409
         assert "duplicate key value" in e.message
-
-
-# Пример 5: Интеграция с FastAPI
 
 
 def example_fastapi_integration() -> dict[str, Any]:
@@ -178,9 +163,6 @@ def example_fastapi_integration() -> dict[str, Any]:
     return {"handler": app_exception_handler, "endpoint": get_user_endpoint}
 
 
-# Пример 6: Расширение ExceptionMapper
-
-
 def example_custom_mapping() -> None:
     """Демонстрация регистрации кастомного маппинга."""
     from src.shared.errors import exception_mapper
@@ -207,9 +189,6 @@ def example_custom_mapping() -> None:
         assert "Infrastructure failure" in e.message
 
 
-# Пример 7: Обработка ошибок в сервисном слое
-
-
 async def example_service_layer() -> None:
     """Пример обработки ошибок в сервисном слое."""
 
@@ -234,22 +213,18 @@ async def example_service_layer() -> None:
             GenerationFailedError: Ошибка генерации.
 
         """
-        # Проверка модели
         available_models = ["gpt-3.5-turbo", "gpt-4"]
         if model_name not in available_models:
             raise ModelNotFoundError(model_name=model_name)
 
-        # Проверка лимита токенов
-        estimated_tokens = len(prompt) // 4  # Упрощенная оценка
+        estimated_tokens = len(prompt) // 4
         if estimated_tokens > max_tokens:
             raise TokenLimitExceededError(
                 tokens_used=estimated_tokens,
                 tokens_limit=max_tokens,
             )
 
-        # Симуляция генерации
         try:
-            # response = await llm_client.generate(...)
             return "Generated text"
         except Exception as e:
             raise GenerationFailedError(

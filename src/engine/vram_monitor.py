@@ -11,7 +11,6 @@ try:
 
     PYNVML_AVAILABLE = True
 except ImportError:
-    # Fallback на nvidia-ml-py (новое название пакета)
     try:
         import nvidia_smi as pynvml  # type: ignore[import-not-found]
 
@@ -97,7 +96,7 @@ class VRAMMonitor:
             msg = "VRAMMonitor не инициализирован"
             raise RuntimeError(msg)
 
-        assert pynvml is not None  # Runtime check passed in __init__
+        assert pynvml is not None
 
         try:
             mem_info = pynvml.nvmlDeviceGetMemoryInfo(self._handle)
@@ -125,12 +124,9 @@ class VRAMMonitor:
         """
         usage = self.get_vram_usage()
 
-        # Максимум VRAM с учётом процента
         total_mb = float(usage["total_mb"])
         used_mb = float(usage["used_mb"])
         max_allowed_mb = (total_mb * self.max_vram_percent) / 100
-
-        # Вычесть уже используемую VRAM и резерв
         available_mb = max_allowed_mb - used_mb - self.vram_reserve_mb
 
         return max(0.0, available_mb)
@@ -159,21 +155,19 @@ class VRAMMonitor:
             msg = "VRAMMonitor не инициализирован"
             raise RuntimeError(msg)
 
-        assert pynvml is not None  # Runtime check passed in __init__
+        assert pynvml is not None
 
         try:
             name = pynvml.nvmlDeviceGetName(self._handle)
             driver_version = pynvml.nvmlSystemGetDriverVersion()
             cuda_version = int(pynvml.nvmlSystemGetCudaDriverVersion())
 
-            # Температура
             temperature: int | None = None
             with suppress(pynvml.NVMLError):
                 temperature = pynvml.nvmlDeviceGetTemperature(
                     self._handle, pynvml.NVML_TEMPERATURE_GPU
                 )
 
-            # Загрузка GPU
             gpu_util: int | None = None
             try:
                 util = pynvml.nvmlDeviceGetUtilizationRates(self._handle)

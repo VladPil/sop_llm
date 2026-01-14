@@ -65,36 +65,24 @@ from src.core.enums import (
 )
 
 __all__ = [
-    # Constants - API
     "DEFAULT_API_PREFIX",
-    # Constants - App
     "DEFAULT_APP_NAME",
     "DEFAULT_CLEANUP",
-    # Constants - Conversations
     "DEFAULT_CONTEXT_MESSAGES_LIMIT",
-    # Constants - LLM
     "DEFAULT_CONTEXT_WINDOW",
     "DEFAULT_CONVERSATION_TTL",
-    # Constants - CORS
     "DEFAULT_CORS_ORIGINS",
     "DEFAULT_DOCS_URL",
-    # Constants - Models
     "DEFAULT_EMBEDDING_MODEL",
     "DEFAULT_FREQUENCY_PENALTY",
-    # Constants - GPU
     "DEFAULT_GPU_INDEX",
-    # Constants - Retries
     "DEFAULT_HTTP_MAX_RETRIES",
-    # Constants - Timeouts
     "DEFAULT_HTTP_TIMEOUT",
     "DEFAULT_IDEMPOTENCY_TTL",
     "DEFAULT_JSON_FIXER_TIMEOUT",
-    # Constants - Kafka
     "DEFAULT_KAFKA_BOOTSTRAP_SERVERS",
-    # Constants - Langfuse
     "DEFAULT_LANGFUSE_HOST",
     "DEFAULT_LITELLM_MAX_RETRIES",
-    # Constants - Limits
     "DEFAULT_LOGS_MAX_RECENT",
     "DEFAULT_MAX_CONVERSATION_MESSAGES",
     "DEFAULT_MAX_TOKENS",
@@ -104,25 +92,19 @@ __all__ = [
     "DEFAULT_PRESENCE_PENALTY",
     "DEFAULT_PRIORITY",
     "DEFAULT_REDIS_DB",
-    # Constants - Redis
     "DEFAULT_REDIS_HOST",
     "DEFAULT_REDIS_PORT",
     "DEFAULT_REDOC_URL",
-    # Constants - Server
     "DEFAULT_SERVER_HOST",
     "DEFAULT_SERVER_PORT",
-    # Constants - TTL
     "DEFAULT_SESSION_TTL",
     "DEFAULT_STREAM",
     "DEFAULT_TOP_K",
-    # Constants - Request defaults
     "DEFAULT_TOP_P",
     "DEFAULT_VRAM_RESERVE_MB",
     "DEFAULT_WEBHOOK_MAX_RETRIES",
     "DEFAULT_WEBHOOK_TIMEOUT",
-    # Constants - Formats
     "ISO_8601_FORMAT",
-    # Constants - Redis Keys
     "REDIS_CONVERSATION_INDEX_KEY",
     "REDIS_CONVERSATION_PREFIX",
     "REDIS_IDEMPOTENCY_PREFIX",
@@ -131,7 +113,6 @@ __all__ = [
     "REDIS_PROCESSING_KEY",
     "REDIS_QUEUE_KEY",
     "REDIS_SESSION_PREFIX",
-    # Enums
     "AppEnvironment",
     "FinishReason",
     "HealthStatus",
@@ -139,6 +120,5 @@ __all__ = [
     "ModelType",
     "ProviderType",
     "TaskStatus",
-    # Config
     "settings",
 ]
