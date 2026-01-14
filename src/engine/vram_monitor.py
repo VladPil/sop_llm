@@ -8,12 +8,17 @@ from typing import Any
 
 try:
     import pynvml
+
+    PYNVML_AVAILABLE = True
 except ImportError:
     # Fallback на nvidia-ml-py (новое название пакета)
     try:
         import nvidia_smi as pynvml  # type: ignore[import-not-found]
+
+        PYNVML_AVAILABLE = True
     except ImportError:
         pynvml = None  # type: ignore[assignment]
+        PYNVML_AVAILABLE = False
 
 from src.core.config import settings
 from src.shared.logging import get_logger
@@ -42,7 +47,7 @@ class VRAMMonitor:
         if hasattr(self, "_initialized") and self._initialized:
             return
 
-        if pynvml is None:
+        if not PYNVML_AVAILABLE or pynvml is None:
             msg = (
                 "pynvml/nvidia-ml-py не установлен. "
                 "Установите: pip install nvidia-ml-py или pip install pynvml"
@@ -55,13 +60,13 @@ class VRAMMonitor:
         self.vram_reserve_mb = settings.vram_reserve_mb
 
         self._handle: Any = None
-        self._total_vram_bytes = 0
+        self._total_vram_bytes: int = 0
 
         try:
             pynvml.nvmlInit()
             self._handle = pynvml.nvmlDeviceGetHandleByIndex(self.gpu_index)
             mem_info = pynvml.nvmlDeviceGetMemoryInfo(self._handle)
-            self._total_vram_bytes = mem_info.total
+            self._total_vram_bytes = int(mem_info.total)
 
             logger.info(
                 "VRAMMonitor инициализирован",
@@ -92,14 +97,19 @@ class VRAMMonitor:
             msg = "VRAMMonitor не инициализирован"
             raise RuntimeError(msg)
 
+        assert pynvml is not None  # Runtime check passed in __init__
+
         try:
             mem_info = pynvml.nvmlDeviceGetMemoryInfo(self._handle)
+            total = int(mem_info.total)
+            used = int(mem_info.used)
+            free = int(mem_info.free)
 
             return {
-                "total_mb": mem_info.total / (1024**2),
-                "used_mb": mem_info.used / (1024**2),
-                "free_mb": mem_info.free / (1024**2),
-                "used_percent": (mem_info.used / mem_info.total) * 100,
+                "total_mb": total / (1024**2),
+                "used_mb": used / (1024**2),
+                "free_mb": free / (1024**2),
+                "used_percent": (used / total) * 100 if total > 0 else 0.0,
             }
 
         except pynvml.NVMLError as e:
@@ -149,28 +159,32 @@ class VRAMMonitor:
             msg = "VRAMMonitor не инициализирован"
             raise RuntimeError(msg)
 
+        assert pynvml is not None  # Runtime check passed in __init__
+
         try:
             name = pynvml.nvmlDeviceGetName(self._handle)
             driver_version = pynvml.nvmlSystemGetDriverVersion()
-            cuda_version = pynvml.nvmlSystemGetCudaDriverVersion()
+            cuda_version = int(pynvml.nvmlSystemGetCudaDriverVersion())
 
             # Температура
-            try:
-                temperature = pynvml.nvmlDeviceGetTemperature(self._handle, pynvml.NVML_TEMPERATURE_GPU)
-            except pynvml.NVMLError:
-                temperature = None
+            temperature: int | None = None
+            with suppress(pynvml.NVMLError):
+                temperature = pynvml.nvmlDeviceGetTemperature(
+                    self._handle, pynvml.NVML_TEMPERATURE_GPU
+                )
 
             # Загрузка GPU
+            gpu_util: int | None = None
             try:
                 util = pynvml.nvmlDeviceGetUtilizationRates(self._handle)
-                gpu_util = util.gpu
+                gpu_util = int(util.gpu)  # type: ignore[arg-type]
             except pynvml.NVMLError:
-                gpu_util = None
+                pass
 
             return {
-                "name": name.decode("utf-8") if isinstance(name, bytes) else name,
+                "name": name.decode("utf-8") if isinstance(name, bytes) else str(name),
                 "index": self.gpu_index,
-                "driver_version": driver_version.decode("utf-8") if isinstance(driver_version, bytes) else driver_version,
+                "driver_version": driver_version.decode("utf-8") if isinstance(driver_version, bytes) else str(driver_version),
                 "cuda_version": f"{cuda_version // 1000}.{(cuda_version % 1000) // 10}",
                 "temperature_celsius": temperature,
                 "gpu_utilization_percent": gpu_util,
@@ -182,6 +196,9 @@ class VRAMMonitor:
 
     def cleanup(self) -> None:
         """Очистить ресурсы pynvml."""
+        if pynvml is None:
+            return
+
         try:
             pynvml.nvmlShutdown()
             logger.info("VRAMMonitor cleanup выполнен")
@@ -190,7 +207,7 @@ class VRAMMonitor:
 
     def __del__(self) -> None:
         """Деструктор - очистить pynvml при удалении."""
-        if hasattr(self, "_initialized") and self._initialized:
+        if hasattr(self, "_initialized") and self._initialized and pynvml is not None:
             with suppress(Exception):
                 pynvml.nvmlShutdown()
 

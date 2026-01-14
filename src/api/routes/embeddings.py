@@ -1,6 +1,7 @@
 """Embeddings API Routes для SOP LLM Executor.
 
 Endpoints для генерации векторных представлений текстов.
+Используют EmbeddingManager с lazy loading и FIFO eviction.
 """
 
 import math
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 from src.api.schemas.requests import EmbeddingRequest
 from src.api.schemas.responses import EmbeddingResponse, ErrorResponse
 from src.docs import embeddings as docs
-from src.providers.registry import get_provider_registry
+from src.services.embedding_manager import get_embedding_manager
 from src.shared.logging import get_logger
 
 logger = get_logger()
@@ -65,6 +66,9 @@ router = APIRouter(prefix="/embeddings", tags=["embeddings"])
 async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
     """Сгенерировать embeddings для текстов.
 
+    Модель загружается автоматически при первом запросе (lazy loading).
+    При нехватке VRAM выполняется FIFO eviction старых моделей.
+
     Args:
         request: Параметры запроса (texts, model_name)
 
@@ -72,33 +76,14 @@ async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
         EmbeddingResponse с векторными представлениями
 
     Raises:
-        HTTPException: 404 если модель не найдена
+        HTTPException: 404 если модель не найдена в пресетах
 
     """
-    registry = get_provider_registry()
-
-    # Проверить наличие модели в registry
-    if request.model_name not in registry.list_providers():
-        logger.warning(
-            "Embedding модель не найдена",
-            model=request.model_name,
-            available_models=registry.list_providers(),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Embedding модель '{request.model_name}' не зарегистрирована. "
-            f"Зарегистрируйте модель через POST /api/v1/models/register",
-        )
+    embedding_manager = get_embedding_manager()
 
     try:
-        provider = registry.get(request.model_name)
-
-        # Проверить что provider поддерживает embeddings
-        if not hasattr(provider, "generate_embeddings"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Модель '{request.model_name}' не поддерживает генерацию embeddings",
-            )
+        # Lazy loading: получить или загрузить модель
+        provider = await embedding_manager.get_or_load(request.model_name)
 
         # Генерация embeddings
         logger.info(
@@ -125,8 +110,15 @@ async def generate_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
             dimensions=dimensions,
         )
 
-    except HTTPException:
-        raise
+    except KeyError as e:
+        logger.warning(
+            "Embedding модель не найдена в пресетах",
+            model=request.model_name,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
 
     except Exception as e:
         logger.exception("Ошибка генерации embeddings", error=str(e), model=request.model_name)
@@ -189,6 +181,8 @@ def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse:
     """Вычислить сходство между двумя текстами.
 
+    Модель загружается автоматически при первом запросе (lazy loading).
+
     Args:
         request: Параметры запроса (text1, text2, model_name)
 
@@ -196,27 +190,14 @@ async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse
         SimilarityResponse с результатом сходства
 
     Raises:
-        HTTPException: 404 если модель не найдена
+        HTTPException: 404 если модель не найдена в пресетах
 
     """
-    registry = get_provider_registry()
-
-    # Проверить наличие модели
-    if request.model_name not in registry.list_providers():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Embedding модель '{request.model_name}' не зарегистрирована",
-        )
+    embedding_manager = get_embedding_manager()
 
     try:
-        provider = registry.get(request.model_name)
-
-        # Проверить что provider поддерживает embeddings
-        if not hasattr(provider, "generate_embeddings"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Модель '{request.model_name}' не поддерживает генерацию embeddings",
-            )
+        # Lazy loading: получить или загрузить модель
+        provider = await embedding_manager.get_or_load(request.model_name)
 
         logger.info(
             "Вычисление сходства",
@@ -244,8 +225,11 @@ async def calculate_similarity(request: SimilarityRequest) -> SimilarityResponse
             text2_preview=request.text2[:100] + "..." if len(request.text2) > 100 else request.text2,
         )
 
-    except HTTPException:
-        raise
+    except KeyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
 
     except Exception as e:
         logger.exception("Ошибка вычисления сходства", error=str(e), model=request.model_name)
